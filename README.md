@@ -26,137 +26,222 @@ Modern full-stack ETL system for mortgage lead data enrichment and compliance sc
 - Snowflake for source data and cache tables
 - Google Sheets API for output
 - SQLite for DNC list lookup
+- Docker & Docker Compose for deployment
 
-## Getting Started
+## Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- Git
+
+### Clone & Deploy (Production)
+
+```bash
+# Clone the repository
+git clone https://github.com/priority1ahmad/p1lending-etl.git
+cd p1lending-etl
+
+# Configure environment
+cp env.example .env
+nano .env  # Edit with your credentials
+
+# Set up secrets
+mkdir -p backend/secrets
+cp /path/to/rsa_key.p8 backend/secrets/
+cp /path/to/google_credentials.json backend/secrets/
+
+# Deploy with Docker
+chmod +x deploy.sh
+./deploy.sh
+```
+
+Access the app at: **http://localhost:8080**
+
+Default credentials: `admin@p1lending.com` / `admin123` (change immediately!)
+
+---
+
+## Local Development
 
 ### Prerequisites
 - Node.js 20+
 - Python 3.11+
-- Docker and Docker Compose
-- Snowflake account and credentials
-- Google Sheets API credentials
-- idiCORE API credentials
-- CCC API credentials
+- Docker and Docker Compose (for PostgreSQL & Redis)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd new_app
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-3. **Start infrastructure services**
+1. **Start infrastructure services**
    ```bash
    docker-compose up -d
    ```
 
-4. **Set up backend**
+2. **Set up backend**
    ```bash
    cd backend
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # On Windows:
+   venv\Scripts\activate
+   # On Linux/Mac:
+   source venv/bin/activate
+   
    pip install -r requirements.txt
    alembic upgrade head
+   python scripts/create_initial_user.py
    ```
 
-5. **Set up frontend**
+3. **Set up frontend**
    ```bash
    cd frontend
    npm install
    ```
 
-### Development
+### Running Development Servers
 
-**Backend:**
+**Backend** (runs on http://localhost:8000):
 ```bash
 cd backend
 uvicorn app.main:app --reload
 ```
 
-**Celery Worker:**
+**Celery Worker** (for background ETL jobs):
 ```bash
 cd backend
 celery -A app.workers.celery_app worker --loglevel=info
 ```
 
-**Frontend:**
+**Frontend** (runs on http://localhost:3000):
 ```bash
 cd frontend
 npm run dev
 ```
 
-## Migration from Old Flask App
+Or use the batch files (Windows):
+- `start-backend.bat`
+- `start-celery.bat`
+- `start-frontend.bat`
 
-This application is a modernization of the Flask-based ETL system. Key changes:
+---
 
-- **Authentication**: Migrated from Flask sessions to JWT tokens
-- **Database**: SQL scripts moved from file-based to PostgreSQL storage
-- **Background Jobs**: Replaced Flask threading with Celery workers
-- **Real-time Updates**: Replaced polling with WebSocket (Socket.io)
-- **Frontend**: Replaced Flask templates with React + MUI
+## Production Deployment
 
-### Initial Setup
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed EC2 deployment instructions.
 
-1. **Create initial admin user:**
-   ```bash
-   cd backend
-   python scripts/create_initial_user.py
-   ```
-   Default credentials: `admin@p1lending.com` / `admin123` (change immediately!)
+### Port Summary
 
-2. **Run database migrations:**
-   ```bash
-   cd backend
-   alembic upgrade head
-   ```
+| Service    | Development | Production (Docker) |
+|------------|-------------|---------------------|
+| Frontend   | 3000        | 8080                |
+| Backend    | 8000        | 8000                |
+| PostgreSQL | 5432        | 5433                |
+| Redis      | 6379        | 6380                |
 
-3. **Migrate SQL Scripts:**
-   ```bash
-   cd backend
-   python scripts/migrate_sql_scripts.py
-   ```
+### Docker Commands
 
-### Migrating Cache Data (Optional)
-
-If you have existing cache files:
 ```bash
-# Copy cache files to backend/data/
-cp old_app/person_cache.csv backend/data/
-cp old_app/phone_cache.csv backend/data/
-cp old_app/dnc_database.db backend/data/
+# Start all services
+docker-compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Stop services
+docker-compose -f docker-compose.prod.yml down
+
+# Rebuild after code changes
+docker-compose -f docker-compose.prod.yml build
+docker-compose -f docker-compose.prod.yml up -d
 ```
+
+---
 
 ## API Documentation
 
-Once the backend is running, visit:
+Once the backend is running:
 - Swagger UI: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+---
 
 ## Project Structure
 
 ```
-new_app/
-├── frontend/          # React + Vite frontend
-├── backend/           # FastAPI backend
+p1lending-etl/
+├── backend/
 │   ├── app/
-│   │   ├── api/      # API endpoints
-│   │   ├── core/     # Core configuration
-│   │   ├── db/       # Database models
-│   │   ├── services/ # Business logic
-│   │   └── workers/  # Celery tasks
-│   └── sql/          # SQL script files
-├── docker-compose.yml
+│   │   ├── api/v1/          # API endpoints
+│   │   ├── core/            # Configuration, security, logging
+│   │   ├── db/models/       # SQLAlchemy models
+│   │   ├── schemas/         # Pydantic schemas
+│   │   ├── services/etl/    # ETL business logic
+│   │   ├── websockets/      # Socket.io events
+│   │   └── workers/         # Celery tasks
+│   ├── alembic/             # Database migrations
+│   ├── scripts/             # Utility scripts
+│   ├── sql/                 # SQL query files
+│   ├── secrets/             # Credentials (git-ignored)
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # React components
+│   │   ├── pages/           # Page components
+│   │   ├── services/api/    # API client
+│   │   ├── stores/          # Zustand stores
+│   │   └── theme/           # MUI theme
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+├── docker-compose.yml       # Development infrastructure
+├── docker-compose.prod.yml  # Production deployment
+├── deploy.sh                # Deployment script
+├── env.example              # Environment template
+├── nginx-host.conf          # Optional host nginx config
+├── DEPLOYMENT.md            # Deployment guide
 └── README.md
 ```
+
+---
+
+## Environment Variables
+
+Copy `env.example` to `.env` and configure:
+
+| Variable | Description |
+|----------|-------------|
+| `POSTGRES_PASSWORD` | Database password |
+| `SECRET_KEY` | JWT signing key (generate with `python -c "import secrets; print(secrets.token_urlsafe(32))"`) |
+| `SNOWFLAKE_*` | Snowflake connection settings |
+| `GOOGLE_SHEET_ID` | Target Google Sheet ID |
+| `CCC_API_KEY` | CCC/DNC scrubbing API key |
+| `IDICORE_*` | idiCORE API credentials |
+
+---
+
+## Migration from Old Flask App
+
+This application modernizes the legacy Flask-based ETL system:
+
+| Feature | Old App | New App |
+|---------|---------|---------|
+| Authentication | Flask sessions | JWT tokens |
+| Database | File-based | PostgreSQL |
+| Background Jobs | Threading | Celery + Redis |
+| Real-time Updates | Polling | WebSocket (Socket.io) |
+| Frontend | Flask templates | React + MUI |
+| Deployment | Manual | Docker Compose |
+
+### Migrating Data
+
+```bash
+# Copy cache files
+cp old_app/person_cache.csv backend/secrets/
+cp old_app/phone_cache.csv backend/secrets/
+cp old_app/dnc_database.db backend/secrets/
+```
+
+---
 
 ## License
 
 Proprietary - Priority1 Lending
-
