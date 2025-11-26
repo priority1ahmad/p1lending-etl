@@ -1,0 +1,147 @@
+# Production Docker Compose for P1Lending ETL (New App)
+# Run alongside existing old app on the same EC2 instance
+#
+# Usage:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Ports used (avoid conflicts with old app):
+#   - 8080: Frontend (nginx)
+#   - 8000: Backend API
+#   - 5433: PostgreSQL (internal, mapped from 5432)
+#   - 6380: Redis (internal, mapped from 6379)
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: p1lending-new-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-p1lending}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      POSTGRES_DB: ${POSTGRES_DB:-p1lending_etl}
+    ports:
+      - "5433:5432"  # External 5433 to avoid conflict if old app uses 5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-p1lending}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - p1lending-network
+
+  # Redis for Celery broker and caching
+  redis:
+    image: redis:7-alpine
+    container_name: p1lending-new-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"  # External 6380 to avoid conflict if old app uses 6379
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - p1lending-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: p1lending-new-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key-here}
+      - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080","http://localhost:3000"]}
+      - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
+      - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - GOOGLE_CREDENTIALS_FILE=/app/secrets/google_credentials.json
+    volumes:
+      - ./backend/sql:/app/sql:ro
+      - ./backend/secrets:/app/secrets:ro
+      - ./backend/backend/logs:/app/backend/logs
+      - dnc_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - p1lending-network
+
+  # Celery Worker for background ETL jobs
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: p1lending-new-celery
+    restart: unless-stopped
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - CELERY_DATABASE_URL=postgresql://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key-here}
+      - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
+      - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - GOOGLE_CREDENTIALS_FILE=/app/secrets/google_credentials.json
+    volumes:
+      - ./backend/sql:/app/sql:ro
+      - ./backend/secrets:/app/secrets:ro
+      - ./backend/backend/logs:/app/backend/logs
+      - dnc_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - p1lending-network
+
+  # React Frontend (Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-}
+    container_name: p1lending-new-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"  # Access new app at http://your-ec2-ip:8080
+    depends_on:
+      - backend
+    networks:
+      - p1lending-network
+
+volumes:
+  postgres_data:
+    name: p1lending-new-postgres-data
+  redis_data:
+    name: p1lending-new-redis-data
+  dnc_data:
+    name: p1lending-new-dnc-data
+
+networks:
+  p1lending-network:
+    name: p1lending-new-network
+    driver: bridge
+

@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+.venv/
+
+# Build outputs
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+
+# Database
+*.db
+*.sqlite3
+
+# Secrets
+*.pem
+*.key
+*.p8
+credentials.json
+google_credentials.json
+.config/
+backend/secrets/
+rsa_key*
+
+# Cache
+.cache/
+*.cache
+person_cache.csv
+phone_cache.csv
+
+# OS
+Thumbs.db
+
+# Frontend
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/.pytest_cache/
+backend/alembic/versions/*.pyc
+

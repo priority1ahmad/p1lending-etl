@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output (we build in container)
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Test
+coverage/
+.nyc_output/
+
