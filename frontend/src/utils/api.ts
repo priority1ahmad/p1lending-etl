@@ -1,9 +1,11 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// In production, use relative URLs (empty VITE_API_URL) so nginx can proxy requests
+// In development, use explicit localhost URL
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : '');
 
 export const apiClient = axios.create({
-  baseURL: `${API_URL}/api/v1`,
+  baseURL: API_URL ? `${API_URL}/api/v1` : '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,7 +37,8 @@ apiClient.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refresh_token');
         if (refreshToken) {
-          const response = await axios.post(`${API_URL}/api/v1/auth/refresh`, {
+          const refreshUrl = API_URL ? `${API_URL}/api/v1/auth/refresh` : '/api/v1/auth/refresh';
+          const response = await axios.post(refreshUrl, {
             refresh_token: refreshToken,
           });
 

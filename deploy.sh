@@ -14,7 +14,7 @@
 #   2. SSH into EC2 and run: ./deploy.sh
 #
 # Ports Used (to avoid conflicts with old app):
-#   - 8080: Frontend (access new app here)
+#   - 80: Frontend (access new app here)
 #   - 8000: Backend API
 #   - 5433: PostgreSQL
 #   - 6380: Redis
@@ -147,7 +147,7 @@ check_port() {
 }
 
 PORTS_OK=true
-check_port 8080 "Frontend" || PORTS_OK=false
+check_port 80 "Frontend" || PORTS_OK=false
 check_port 8000 "Backend API" || PORTS_OK=false
 check_port 5433 "PostgreSQL" || PORTS_OK=false
 check_port 6380 "Redis" || PORTS_OK=false
@@ -226,7 +226,7 @@ else
 fi
 
 # Check frontend
-if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+if curl -sf http://localhost/health > /dev/null 2>&1; then
     echo -e "${GREEN}✓ Frontend is healthy${NC}"
 else
     echo -e "${RED}✗ Frontend health check failed${NC}"
@@ -246,7 +246,7 @@ echo "  Deployment Complete!"
 echo "=============================================="
 echo -e "${NC}"
 echo "Access the new app at:"
-echo -e "  ${BLUE}http://$(hostname -I | awk '{print $1}'):8080${NC}"
+echo -e "  ${BLUE}http://$(hostname -I | awk '{print $1}')${NC}"
 echo ""
 echo "Default login credentials:"
 echo "  Email: admin@p1lending.com"

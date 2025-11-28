@@ -97,7 +97,10 @@ export const Dashboard: React.FC = () => {
   // Socket.io connection for real-time updates
   useEffect(() => {
     if (currentJob && currentJob.status === 'running') {
-      const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:8000', {
+      // In production, use relative URL (empty) so nginx can proxy socket.io
+      // In development, use explicit localhost URL
+      const socketUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : undefined);
+      const socket = io(socketUrl, {
         path: '/socket.io',
       });
 
