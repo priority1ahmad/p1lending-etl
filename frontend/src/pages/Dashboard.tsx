@@ -13,7 +13,7 @@ import {
   InputLabel,
   LinearProgress,
   Chip,
-  Grid,
+  Grid2,
   Paper,
   Dialog,
   DialogTitle,
@@ -655,44 +655,44 @@ export const Dashboard: React.FC = () => {
                   {/* Detailed Progress */}
                   {(currentJob.total_rows !== undefined || currentJob.current_batch !== undefined) && (
                     <Box sx={{ mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                      <Grid container spacing={2}>
+                      <Grid2 container spacing={2}>
                         {currentJob.total_rows !== undefined && (
                           <>
-                            <Grid item xs={12} sm={6} md={3}>
+                            <Grid2 xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Processed
                               </Typography>
                               <Typography variant="h6">
                                 {currentJob.current_row || 0} / {currentJob.total_rows}
                               </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
+                            </Grid2>
+                            <Grid2 xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Remaining
                               </Typography>
                               <Typography variant="h6">
                                 {currentJob.rows_remaining || 0}
                               </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
+                            </Grid2>
+                            <Grid2 xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Percentage
                               </Typography>
                               <Typography variant="h6">
                                 {currentJob.progress}%
                               </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6} md={3}>
+                            </Grid2>
+                            <Grid2 xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Batch
                               </Typography>
                               <Typography variant="h6">
                                 {currentJob.current_batch || 0} / {currentJob.total_batches || 0}
                               </Typography>
-                            </Grid>
+                            </Grid2>
                           </>
                         )}
-                      </Grid>
+                      </Grid2>
                     </Box>
                   )}
                   
@@ -802,46 +802,46 @@ export const Dashboard: React.FC = () => {
                   View Log File
                 </Button>
               </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={2.4}>
+              <Grid2 container spacing={2}>
+                <Grid2 xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Total Processed
                   </Typography>
                   <Typography variant="h5">{currentJob.total_rows_processed}</Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
+                </Grid2>
+                <Grid2 xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Litigator Count
                   </Typography>
                   <Typography variant="h5" color="error">
                     {currentJob.litigator_count}
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
+                </Grid2>
+                <Grid2 xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     DNC Count
                   </Typography>
                   <Typography variant="h5" color="warning.main">
                     {currentJob.dnc_count}
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
+                </Grid2>
+                <Grid2 xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Both Count
                   </Typography>
                   <Typography variant="h5" color="error">
                     {currentJob.both_count}
                   </Typography>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.4}>
+                </Grid2>
+                <Grid2 xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Clean Count
                   </Typography>
                   <Typography variant="h5" color="success.main">
                     {currentJob.clean_count}
                   </Typography>
-                </Grid>
-              </Grid>
+                </Grid2>
+              </Grid2>
             </CardContent>
           </Card>
         </Box>
@@ -1140,46 +1140,46 @@ export const Dashboard: React.FC = () => {
                   >
                     Statistics
                   </Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} sm={6} md={2.4}>
+                  <Grid2 container spacing={2}>
+                    <Grid2 xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Total Processed
                       </Typography>
                       <Typography variant="h5">{currentJob.total_rows_processed || 0}</Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2.4}>
+                    </Grid2>
+                    <Grid2 xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Litigator Count
                       </Typography>
                       <Typography variant="h5" color="error">
                         {currentJob.litigator_count || 0}
                       </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2.4}>
+                    </Grid2>
+                    <Grid2 xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         DNC Count
                       </Typography>
                       <Typography variant="h5" color="warning.main">
                         {currentJob.dnc_count || 0}
                       </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2.4}>
+                    </Grid2>
+                    <Grid2 xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Both Count
                       </Typography>
                       <Typography variant="h5" color="error">
                         {currentJob.both_count || 0}
                       </Typography>
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={2.4}>
+                    </Grid2>
+                    <Grid2 xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Clean Count
                       </Typography>
                       <Typography variant="h5" color="success.main">
                         {currentJob.clean_count || 0}
                       </Typography>
-                    </Grid>
-                  </Grid>
+                    </Grid2>
+                  </Grid2>
                 </Box>
               )}
               
