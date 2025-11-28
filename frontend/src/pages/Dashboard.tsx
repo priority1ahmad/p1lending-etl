@@ -13,7 +13,6 @@ import {
   InputLabel,
   LinearProgress,
   Chip,
-  Grid2,
   Paper,
   Dialog,
   DialogTitle,
@@ -26,12 +25,11 @@ import {
   TableHead,
   TableRow,
   CircularProgress,
-  Tabs,
-  Tab,
   IconButton,
   Tooltip,
 } from '@mui/material';
-import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear, FilterList } from '@mui/icons-material';
+import Grid2 from '@mui/material/Unstable_Grid2';
+import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
@@ -51,13 +49,13 @@ export const Dashboard: React.FC = () => {
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const rowsEndRef = useRef<HTMLDivElement>(null);
-  const messageIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const messageIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [logFilter, setLogFilter] = useState<string>('ALL');
   const [logSearch, setLogSearch] = useState<string>('');
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [logFileContent, setLogFileContent] = useState<string>('');
   const [logFileLoading, setLogFileLoading] = useState(false);
-  const [previewStats, setPreviewStats] = useState<any>(null);
+  // const [previewStats, setPreviewStats] = useState<any>(null);
 
   const { data: scripts } = useQuery({
     queryKey: ['scripts'],
