@@ -24,15 +24,15 @@ class DNCCheckerDB:
         # Default DNC file path (can be overridden)
         if dnc_file_path is None:
             # Look for DNC file in common locations
-            # Priority: Docker volume path first, then local paths
+            # Priority: Docker volume path first, then production host path, then local paths
             possible_paths = [
-                "/app/data/dnc_database.db",  # Docker volume mount (production)
+                "/app/data/dnc_database.db",  # Docker volume mount (production) - mounted from /home/ubuntu/etl_app/dnc_database.db
+                "/home/ubuntu/etl_app/dnc_database.db",  # Production host path (primary location)
                 "data/dnc_database.db",       # Local data directory
                 "dnc_database.db",            # Current directory
                 "/app/dnc_database.db",       # Docker app directory
                 "../old_app/dnc_database.db", # Old app location
-                "/home/ubuntu/etl_app/dnc_database.db",  # Production host path
-                "/home/ubuntu/etl_app/data/dnc_database.db",  # Production data path
+                "/home/ubuntu/etl_app/data/dnc_database.db",  # Production data path (alternative)
             ]
             dnc_file_path = None
             for path in possible_paths:

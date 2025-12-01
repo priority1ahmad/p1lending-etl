@@ -14,11 +14,13 @@ CURRENT_DIR=$(pwd)
 
 echo "Looking for DNC database..."
 echo ""
+echo "Primary production location: $PROD_PATH/dnc_database.db"
+echo ""
 
-# Check common locations
+# Check common locations (production path first)
 DNC_FOUND=""
 DNC_PATHS=(
-    "$PROD_PATH/dnc_database.db"
+    "$PROD_PATH/dnc_database.db"  # Primary production location
     "$PROD_PATH/data/dnc_database.db"
     "$CURRENT_DIR/dnc_database.db"
     "$CURRENT_DIR/data/dnc_database.db"
@@ -42,9 +44,11 @@ if [ -z "$DNC_FOUND" ]; then
         echo "   - $path"
     done
     echo ""
-    echo "Please copy your DNC database to one of these locations:"
-    echo "  1. $PROD_PATH/dnc_database.db (recommended for production)"
-    echo "  2. $CURRENT_DIR/dnc_database.db"
+    echo "Please copy your DNC database to the production location:"
+    echo "  $PROD_PATH/dnc_database.db"
+    echo ""
+    echo "The docker-compose.prod.yml is configured to mount this file to:"
+    echo "  /app/data/dnc_database.db (inside the container)"
     echo ""
     exit 1
 fi
@@ -53,20 +57,15 @@ echo ""
 echo "Setting up DNC database for Docker..."
 echo ""
 
-# Copy to production location if not already there
+# Ensure DNC database is at production location
 if [ "$DNC_FOUND" != "$PROD_PATH/dnc_database.db" ]; then
     echo "Copying DNC database to production location..."
     sudo mkdir -p "$PROD_PATH"
     sudo cp "$DNC_FOUND" "$PROD_PATH/dnc_database.db"
     sudo chmod 644 "$PROD_PATH/dnc_database.db"
     echo "✅ Copied to: $PROD_PATH/dnc_database.db"
-fi
-
-# Also copy to current directory for docker-compose
-if [ "$DNC_FOUND" != "$CURRENT_DIR/dnc_database.db" ]; then
-    echo "Copying DNC database to current directory..."
-    cp "$DNC_FOUND" "$CURRENT_DIR/dnc_database.db"
-    echo "✅ Copied to: $CURRENT_DIR/dnc_database.db"
+else
+    echo "✅ DNC database already at production location: $PROD_PATH/dnc_database.db"
 fi
 
 echo ""
@@ -74,11 +73,17 @@ echo "=============================================="
 echo "  Setup Complete!"
 echo "=============================================="
 echo ""
-echo "The DNC database is now available at:"
-echo "  - $PROD_PATH/dnc_database.db (host)"
-echo "  - /app/data/dnc_database.db (Docker container)"
+echo "The DNC database is configured at:"
+echo "  Host path:    $PROD_PATH/dnc_database.db"
+echo "  Container:    /app/data/dnc_database.db (mounted from host)"
+echo ""
+echo "The docker-compose.prod.yml is configured to mount:"
+echo "  /home/ubuntu/etl_app/dnc_database.db -> /app/data/dnc_database.db"
 echo ""
 echo "Restart containers to apply changes:"
 echo "  docker compose -f docker-compose.prod.yml restart backend celery-worker"
+echo ""
+echo "Verify it's working:"
+echo "  docker compose -f docker-compose.prod.yml exec -T backend python /app/scripts/test_dnc_list.py"
 echo ""
 
