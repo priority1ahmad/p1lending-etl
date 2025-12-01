@@ -21,6 +21,17 @@ def test_dnc_list():
     print("=" * 70)
     print()
     
+    # Show environment info
+    print("Environment Information:")
+    print(f"   Working directory: {os.getcwd()}")
+    print(f"   Running in Docker: {os.path.exists('/app')}")
+    if os.path.exists('/app'):
+        print(f"   Container app directory: /app")
+        print(f"   Checking /app/data: {os.path.exists('/app/data')}")
+        if os.path.exists('/app/data'):
+            print(f"   Files in /app/data: {os.listdir('/app/data')[:5]}")
+    print()
+    
     # Initialize service
     try:
         dnc_checker = DNCCheckerDB()
@@ -31,28 +42,44 @@ def test_dnc_list():
         
         if not os.path.exists(dnc_checker.db_path):
             print("⚠️  WARNING: DNC database not found!")
-            print("   Please ensure the DNC database exists at one of these locations:")
+            print()
+            print("   The DNC service checked these locations:")
             print("   - /app/data/dnc_database.db (Docker volume - recommended)")
             print("   - data/dnc_database.db")
             print("   - dnc_database.db")
+            print("   - /app/dnc_database.db")
+            print("   - ../old_app/dnc_database.db")
             print("   - /home/ubuntu/etl_app/dnc_database.db (Production host)")
+            print("   - /home/ubuntu/etl_app/data/dnc_database.db")
+            print()
+            print("   Current working directory:", os.getcwd())
             print()
             print("   To fix this:")
-            print("   1. Copy DNC database to: /home/ubuntu/etl_app/dnc_database.db")
-            print("   2. Or mount it in docker-compose.prod.yml")
-            print("   3. Or place it in the data directory that's mounted to /app/data")
+            print("   1. If running in Docker, ensure DNC database is mounted:")
+            print("      - Place at: /home/ubuntu/etl_app/dnc_database.db (on host)")
+            print("      - It will be mounted to: /app/data/dnc_database.db (in container)")
+            print("   2. Or copy DNC database to the project root: dnc_database.db")
+            print("   3. Or use the setup script: bash setup-dnc-database.sh")
+            print()
+            print("   After setting up, restart containers:")
+            print("      docker compose -f docker-compose.prod.yml restart backend celery-worker")
             print()
             return
         
         # Verify database structure
         import sqlite3
-        conn = sqlite3.connect(dnc_checker.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM dnc_list")
-        total_records = cursor.fetchone()[0]
-        conn.close()
-        print(f"   Total records in DNC database: {total_records:,}")
-        print()
+        try:
+            conn = sqlite3.connect(dnc_checker.db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM dnc_list")
+            total_records = cursor.fetchone()[0]
+            conn.close()
+            print(f"   Total records in DNC database: {total_records:,}")
+            print(f"   Database file size: {os.path.getsize(dnc_checker.db_path) / (1024*1024):.2f} MB")
+            print()
+        except Exception as e:
+            print(f"   ⚠️  Error reading database: {e}")
+            print()
         
     except Exception as e:
         print(f"❌ Failed to initialize DNC Checker: {e}")
@@ -208,4 +235,3 @@ def test_dnc_list():
 
 if __name__ == "__main__":
     test_dnc_list()
-
