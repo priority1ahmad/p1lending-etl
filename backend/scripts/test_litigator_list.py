@@ -34,12 +34,12 @@ def test_litigator_list():
     
     # Test phone numbers (you can modify these)
     test_phones = [
-        "5551234567",      # Standard 10-digit
-        "(555) 123-4567",  # Formatted
-        "15551234567",     # With country code
-        "555-123-4567",    # Dashed format
-        "5551234568",      # Another test number
-        "5551234569",      # Another test number
+        "313-782-5498",      # Test number 1
+        "313-647-8335",      # Test number 2
+        "5551234567",        # Standard 10-digit
+        "(555) 123-4567",    # Formatted
+        "15551234567",       # With country code
+        "555-123-4567",      # Dashed format
     ]
     
     print(f"Testing {len(test_phones)} phone numbers:")

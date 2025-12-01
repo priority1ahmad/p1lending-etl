@@ -65,17 +65,41 @@ def test_dnc_list():
         
         # Verify database structure
         import sqlite3
+        print("   Reading database statistics...")
         try:
-            conn = sqlite3.connect(dnc_checker.db_path)
+            # Add timeout to prevent hanging
+            conn = sqlite3.connect(dnc_checker.db_path, timeout=10.0)
             cursor = conn.cursor()
+            
+            # Check if table exists first
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='dnc_list'")
+            if not cursor.fetchone():
+                print("   ⚠️  Warning: 'dnc_list' table not found in database")
+                conn.close()
+                return
+            
             cursor.execute("SELECT COUNT(*) FROM dnc_list")
             total_records = cursor.fetchone()[0]
             conn.close()
-            print(f"   Total records in DNC database: {total_records:,}")
-            print(f"   Database file size: {os.path.getsize(dnc_checker.db_path) / (1024*1024):.2f} MB")
+            
+            print(f"   ✅ Total records in DNC database: {total_records:,}")
+            print(f"   ✅ Database file size: {os.path.getsize(dnc_checker.db_path) / (1024*1024):.2f} MB")
+            print()
+        except sqlite3.OperationalError as e:
+            print(f"   ⚠️  Database operational error: {e}")
+            print("   This might indicate:")
+            print("     - Database is locked by another process")
+            print("     - Database file is corrupted")
+            print("     - Permission issue")
+            print()
+            print("   Trying to continue with tests anyway...")
             print()
         except Exception as e:
             print(f"   ⚠️  Error reading database: {e}")
+            import traceback
+            traceback.print_exc()
+            print()
+            print("   Trying to continue with tests anyway...")
             print()
         
     except Exception as e:
@@ -86,12 +110,12 @@ def test_dnc_list():
     
     # Test phone numbers (you can modify these)
     test_phones = [
-        "5551234567",      # Standard 10-digit
-        "(555) 123-4567",  # Formatted
-        "15551234567",     # With country code
-        "555-123-4567",    # Dashed format
-        "5551234568",      # Another test number
-        "5551234569",      # Another test number
+        "313-782-5498",      # Test number 1
+        "313-647-8335",      # Test number 2
+        "5551234567",        # Standard 10-digit
+        "(555) 123-4567",    # Formatted
+        "15551234567",       # With country code
+        "555-123-4567",      # Dashed format
     ]
     
     print(f"Testing {len(test_phones)} phone numbers:")
