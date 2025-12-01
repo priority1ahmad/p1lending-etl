@@ -68,7 +68,8 @@ services:
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080","http://localhost:3000"]}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
-      - GOOGLE_CREDENTIALS_FILE=/app/secrets/google_credentials.json
+      - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
@@ -102,7 +103,8 @@ services:
       - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key-here}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
-      - GOOGLE_CREDENTIALS_FILE=/app/secrets/google_credentials.json
+      - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
+      - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro

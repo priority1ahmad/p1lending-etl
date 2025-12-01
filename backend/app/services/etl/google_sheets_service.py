@@ -98,7 +98,7 @@ class GoogleSheetsConnection:
             # Fall back to file-based credentials if JSON not provided
             credentials_file = settings.google_sheets.credentials_file or "google_credentials.json"
             
-            # If it's an absolute path, use it directly
+            # If it's an absolute path, try it first, but fall back to searching if not found
             if os.path.isabs(credentials_file):
                 if os.path.exists(credentials_file):
                     credentials = Credentials.from_service_account_file(
@@ -110,8 +110,10 @@ class GoogleSheetsConnection:
                     self.logger.info("✅ Google Sheets API connection established successfully")
                     return True
                 else:
-                    self.logger.error(f"❌ Google credentials file not found at specified path: {credentials_file}")
-                    return False
+                    # File at specified path doesn't exist, try searching in common locations
+                    self.logger.warning(f"⚠️  Google credentials file not found at specified path: {credentials_file}")
+                    self.logger.info("🔍 Searching for credentials in common locations...")
+                    # Continue to search logic below
             
             # Search for the file in common locations
             found_path = self._find_credentials_file(credentials_file)
