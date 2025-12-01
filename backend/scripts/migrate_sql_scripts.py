@@ -1,5 +1,6 @@
 """
 Script to migrate SQL scripts from old_app to database
+This script MUST be run inside the Docker container where dependencies are installed.
 """
 
 import asyncio
@@ -10,10 +11,28 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select
-from app.db.models.sql_script import SQLScript
-from app.core.config import settings
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+    from sqlalchemy import select
+    from app.db.models.sql_script import SQLScript
+    from app.core.config import settings
+except ImportError as e:
+    print("=" * 60)
+    print("ERROR: Missing required dependencies!")
+    print("=" * 60)
+    print(f"Error: {e}")
+    print("")
+    print("This script must be run inside the Docker container.")
+    print("")
+    print("To run the migration, use one of these commands:")
+    print("")
+    print("  docker compose -f docker-compose.prod.yml exec -T backend python scripts/migrate_sql_scripts.py")
+    print("")
+    print("OR if using docker-compose (v1):")
+    print("")
+    print("  docker-compose -f docker-compose.prod.yml exec -T backend python scripts/migrate_sql_scripts.py")
+    print("")
+    sys.exit(1)
 
 
 async def migrate_sql_scripts():
@@ -21,11 +40,24 @@ async def migrate_sql_scripts():
     engine = create_async_engine(settings.database_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     
-    # Path to SQL scripts in backend/sql directory
-    script_dir = Path(__file__).parent.parent / "sql"
+    # Path to SQL scripts - try multiple possible locations
+    # In Docker: /app/sql (mounted volume)
+    # In local dev: backend/sql (relative to scripts directory)
+    possible_paths = [
+        Path("/app/sql"),  # Docker container path
+        Path(__file__).parent.parent / "sql",  # Local development path
+        Path(__file__).parent.parent.parent / "backend" / "sql",  # Alternative local path
+    ]
     
-    if not script_dir.exists():
-        print(f"Warning: {script_dir} does not exist. Skipping migration.")
+    script_dir = None
+    for path in possible_paths:
+        if path.exists() and path.is_dir():
+            script_dir = path
+            print(f"Found SQL scripts directory at: {script_dir}")
+            break
+    
+    if not script_dir:
+        print(f"Warning: SQL scripts directory not found. Tried paths: {possible_paths}")
         return
     
     async with async_session() as session:

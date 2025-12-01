@@ -148,6 +148,9 @@ docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head |
 echo "Creating admin user..."
 docker compose -f docker-compose.prod.yml exec -T backend python scripts/create_initial_user.py || echo "⚠ Admin user creation warning (may already exist)"
 
+echo "Migrating SQL scripts to database..."
+docker compose -f docker-compose.prod.yml exec -T backend python scripts/migrate_sql_scripts.py || echo "⚠ SQL script migration warning (may already exist)"
+
 # Final status
 echo ""
 echo "=============================================="

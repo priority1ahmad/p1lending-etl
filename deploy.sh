@@ -208,6 +208,10 @@ $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend alembic upgrade head
 echo "Creating initial admin user..."
 $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python scripts/create_initial_user.py || true
 
+# Migrate SQL scripts as templates
+echo "Migrating SQL scripts to database..."
+$COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python scripts/migrate_sql_scripts.py || true
+
 echo -e "${GREEN}✓ Database migrations complete${NC}"
 
 # =============================================================================
