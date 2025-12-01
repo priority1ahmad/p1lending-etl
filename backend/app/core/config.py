@@ -27,8 +27,20 @@ class SnowflakeConfig(BaseSettings):
 
 
 class GoogleSheetsConfig(BaseSettings):
-    """Google Sheets configuration"""
-    credentials_file: str = Field(default="google_credentials.json", alias="GOOGLE_CREDENTIALS_FILE")
+    """
+    Google Sheets configuration
+    
+    If credentials_file is not set, the service will automatically search common locations
+    for "google_credentials.json" (backend/secrets/, /app/secrets/, etc.)
+    """
+    credentials_file: Optional[str] = Field(
+        default=None, 
+        alias="GOOGLE_CREDENTIALS_FILE"
+    )
+    credentials_json: Optional[str] = Field(
+        default=None, 
+        alias="GOOGLE_CREDENTIALS_JSON"
+    )
     sheet_id: str = Field(default="19NHuPsTGVQQL95B-YO7hVSlb5jUgQBlP138JlTTuUFI", alias="GOOGLE_SHEET_ID")
     scopes: List[str] = Field(default_factory=lambda: ['https://www.googleapis.com/auth/spreadsheets'])
 

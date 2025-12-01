@@ -7,6 +7,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from typing import Optional, Dict, Any
 import pandas as pd
+import json
+import os
 
 from app.core.config import settings
 from app.core.logger import etl_logger
@@ -19,20 +21,129 @@ class GoogleSheetsConnection:
         self.service = None
         self.logger = etl_logger.logger.getChild("GoogleSheets")
     
+    def _find_credentials_file(self, filename: str) -> Optional[str]:
+        """
+        Search for Google credentials file in common locations.
+        Returns the first found path, or None if not found.
+        """
+        # Get the directory where this file is located (backend/app/services/etl)
+        backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        project_root = os.path.dirname(backend_dir) if os.path.basename(backend_dir) == "backend" else backend_dir
+        cwd = os.getcwd()
+        
+        # Define search locations (in order of priority)
+        search_paths = [
+            # Docker/Production paths
+            "/app/secrets/google_credentials.json",  # Docker container path
+            "/app/google_credentials.json",  # Alternative Docker path
+            
+            # Explicit file path (if absolute)
+            filename if os.path.isabs(filename) else None,
+            
+            # Relative to current working directory
+            os.path.join(cwd, filename),
+            os.path.join(cwd, "backend", filename),
+            os.path.join(cwd, "backend", "secrets", filename),
+            
+            # Relative to backend directory
+            os.path.join(backend_dir, filename),
+            os.path.join(backend_dir, "secrets", filename),
+            
+            # Relative to project root
+            os.path.join(project_root, filename),
+            os.path.join(project_root, "backend", filename),
+            os.path.join(project_root, "backend", "secrets", filename),
+            
+            # Default filename in common locations
+            os.path.join(cwd, "google_credentials.json"),
+            os.path.join(cwd, "backend", "google_credentials.json"),
+            os.path.join(cwd, "backend", "secrets", "google_credentials.json"),
+            os.path.join(backend_dir, "google_credentials.json"),
+            os.path.join(backend_dir, "secrets", "google_credentials.json"),
+            os.path.join(project_root, "google_credentials.json"),
+            os.path.join(project_root, "backend", "google_credentials.json"),
+            os.path.join(project_root, "backend", "secrets", "google_credentials.json"),
+        ]
+        
+        # Filter out None values and check each path
+        for path in filter(None, search_paths):
+            if os.path.exists(path) and os.path.isfile(path):
+                self.logger.debug(f"Found Google credentials at: {path}")
+                return path
+        
+        return None
+    
     def connect(self) -> bool:
         """Establish connection to Google Sheets API"""
         try:
-            credentials = Credentials.from_service_account_file(
-                settings.google_sheets.credentials_file, 
-                scopes=settings.google_sheets.scopes
-            )
+            credentials = None
             
-            self.service = build('sheets', 'v4', credentials=credentials)
-            self.logger.info("✅ Google Sheets API credentials loaded successfully")
-            return True
+            # Try loading from JSON string in .env first (preferred method)
+            if settings.google_sheets.credentials_json:
+                try:
+                    # Parse JSON string from environment variable
+                    creds_dict = json.loads(settings.google_sheets.credentials_json)
+                    credentials = Credentials.from_service_account_info(
+                        creds_dict,
+                        scopes=settings.google_sheets.scopes
+                    )
+                    self.logger.info("✅ Google Sheets API credentials loaded from environment variable (GOOGLE_CREDENTIALS_JSON)")
+                    self.service = build('sheets', 'v4', credentials=credentials)
+                    self.logger.info("✅ Google Sheets API connection established successfully")
+                    return True
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"❌ Failed to parse GOOGLE_CREDENTIALS_JSON: {e}")
+                    return False
+            
+            # Fall back to file-based credentials if JSON not provided
+            credentials_file = settings.google_sheets.credentials_file or "google_credentials.json"
+            
+            # If it's an absolute path, use it directly
+            if os.path.isabs(credentials_file):
+                if os.path.exists(credentials_file):
+                    credentials = Credentials.from_service_account_file(
+                        credentials_file,
+                        scopes=settings.google_sheets.scopes
+                    )
+                    self.logger.info(f"✅ Google Sheets API credentials loaded from file: {credentials_file}")
+                    self.service = build('sheets', 'v4', credentials=credentials)
+                    self.logger.info("✅ Google Sheets API connection established successfully")
+                    return True
+                else:
+                    self.logger.error(f"❌ Google credentials file not found at specified path: {credentials_file}")
+                    return False
+            
+            # Search for the file in common locations
+            found_path = self._find_credentials_file(credentials_file)
+            
+            if found_path:
+                credentials = Credentials.from_service_account_file(
+                    found_path,
+                    scopes=settings.google_sheets.scopes
+                )
+                self.logger.info(f"✅ Google Sheets API credentials loaded from file: {found_path}")
+                self.service = build('sheets', 'v4', credentials=credentials)
+                self.logger.info("✅ Google Sheets API connection established successfully")
+                return True
+            else:
+                # Log all searched locations for debugging
+                self.logger.error("❌ Google credentials file not found in any of the following locations:")
+                self.logger.error("   - /app/secrets/google_credentials.json (Docker)")
+                self.logger.error("   - /app/google_credentials.json (Docker)")
+                self.logger.error(f"   - {os.path.join(os.getcwd(), credentials_file)}")
+                self.logger.error(f"   - {os.path.join(os.getcwd(), 'backend', credentials_file)}")
+                self.logger.error(f"   - {os.path.join(os.getcwd(), 'backend', 'secrets', credentials_file)}")
+                self.logger.error("")
+                self.logger.error("💡 Solutions:")
+                self.logger.error("   1. Set GOOGLE_CREDENTIALS_JSON in your .env file (recommended)")
+                self.logger.error("   2. Place google_credentials.json in backend/secrets/")
+                self.logger.error("   3. Set GOOGLE_CREDENTIALS_FILE to the full path")
+                return False
             
         except Exception as e:
             self.logger.error(f"❌ Failed to load Google credentials: {e}")
+            import traceback
+            self.logger.debug(traceback.format_exc())
             return False
     
     def create_sheet_if_not_exists(self, sheet_name: str) -> bool:
