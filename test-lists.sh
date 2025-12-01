@@ -50,19 +50,19 @@ case $choice in
         echo ""
         echo "Running Litigator List test..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python scripts/test_litigator_list.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_litigator_list.py
         ;;
     2)
         echo ""
         echo "Running DNC List test..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python scripts/test_dnc_list.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_dnc_list.py
         ;;
     3)
         echo ""
         echo "Running both tests..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python scripts/test_both_lists.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_both_lists.py
         ;;
     *)
         echo "Invalid choice"

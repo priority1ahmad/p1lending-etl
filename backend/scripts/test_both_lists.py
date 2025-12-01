@@ -8,8 +8,14 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from scripts.test_litigator_list import test_litigator_list
-from scripts.test_dnc_list import test_dnc_list
+# Import test functions - handle both local and Docker paths
+try:
+    from scripts.test_litigator_list import test_litigator_list
+    from scripts.test_dnc_list import test_dnc_list
+except ImportError:
+    # Fallback for different path structures
+    from test_litigator_list import test_litigator_list
+    from test_dnc_list import test_dnc_list
 
 
 def test_both():
