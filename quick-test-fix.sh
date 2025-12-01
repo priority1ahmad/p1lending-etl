@@ -50,6 +50,25 @@ $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend sh -c "cat > /app/script
 echo ""
 echo "✅ Scripts copied successfully!"
 echo ""
+echo "Verifying scripts are updated..."
+$COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python -c "
+import sys
+sys.path.insert(0, '/app')
+with open('/app/scripts/test_dnc_list.py', 'r') as f:
+    content = f.read()
+    if '313-782-5498' in content:
+        print('✅ test_dnc_list.py has updated phone numbers')
+    else:
+        print('❌ test_dnc_list.py does NOT have updated phone numbers')
+    
+with open('/app/scripts/test_litigator_list.py', 'r') as f:
+    content = f.read()
+    if '313-782-5498' in content:
+        print('✅ test_litigator_list.py has updated phone numbers')
+    else:
+        print('❌ test_litigator_list.py does NOT have updated phone numbers')
+" 2>&1
+echo ""
 echo "Now you can run:"
 echo "  docker compose -f docker-compose.prod.yml exec -T backend python /app/scripts/test_both_lists.py"
 echo ""
