@@ -72,7 +72,7 @@ services:
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
-      - ./backend/backend/logs:/app/backend/logs
+      - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
     depends_on:
       postgres:
@@ -106,7 +106,7 @@ services:
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
-      - ./backend/backend/logs:/app/backend/logs
+      - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
     depends_on:
       postgres:

@@ -10,6 +10,15 @@ from pathlib import Path
 from app.core.config import settings
 
 
+def get_logs_dir() -> Path:
+    """Get the absolute path to the logs directory"""
+    # Get the backend directory (two levels up from backend/app/core)
+    current_file = Path(__file__).resolve()
+    backend_dir = current_file.parent.parent.parent  # backend/app/core -> backend/app -> backend
+    logs_dir = backend_dir / "logs" / "jobs"
+    return logs_dir
+
+
 class ETLLogger:
     """Centralized logging for ETL operations"""
     
@@ -95,8 +104,15 @@ class JobLogger:
         
         # Set up file logging for this job if job_id is provided
         if job_id:
-            log_dir = Path("backend/logs/jobs")
-            log_dir.mkdir(parents=True, exist_ok=True)
+            log_dir = get_logs_dir()
+            try:
+                log_dir.mkdir(parents=True, exist_ok=True)
+            except PermissionError as e:
+                # Fallback to a user-writable location if permission denied
+                import tempfile
+                log_dir = Path(tempfile.gettempdir()) / "p1lending_etl" / "logs" / "jobs"
+                log_dir.mkdir(parents=True, exist_ok=True)
+                self.logger.warning(f"Could not create log directory at {get_logs_dir()}, using {log_dir} instead")
             log_file = log_dir / f"{job_id}.log"
             
             # Add file handler for this job

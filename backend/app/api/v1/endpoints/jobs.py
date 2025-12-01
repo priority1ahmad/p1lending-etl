@@ -20,7 +20,7 @@ from app.api.v1.deps import get_current_user
 from app.workers.etl_tasks import run_etl_job, cancel_job
 from app.services.etl.engine import ETLEngine
 from app.services.etl.snowflake_service import SnowflakeConnection
-from app.core.logger import etl_logger
+from app.core.logger import etl_logger, get_logs_dir
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -557,7 +557,6 @@ async def get_job_logfile(
     current_user: User = Depends(get_current_user)
 ):
     """Get log file content for a job"""
-    import os
     from pathlib import Path
     
     result = await db.execute(select(ETLJob).where(ETLJob.id == job_id))
@@ -570,7 +569,7 @@ async def get_job_logfile(
         )
     
     # Log files are stored in backend/logs/jobs/{job_id}.log
-    log_dir = Path("backend/logs/jobs")
+    log_dir = get_logs_dir()
     log_file = log_dir / f"{job_id}.log"
     
     if not log_file.exists():
