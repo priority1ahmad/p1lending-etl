@@ -32,9 +32,15 @@ def test_dnc_list():
         if not os.path.exists(dnc_checker.db_path):
             print("⚠️  WARNING: DNC database not found!")
             print("   Please ensure the DNC database exists at one of these locations:")
-            print("   - dnc_database.db")
+            print("   - /app/data/dnc_database.db (Docker volume - recommended)")
             print("   - data/dnc_database.db")
-            print("   - /app/data/dnc_database.db (in Docker)")
+            print("   - dnc_database.db")
+            print("   - /home/ubuntu/etl_app/dnc_database.db (Production host)")
+            print()
+            print("   To fix this:")
+            print("   1. Copy DNC database to: /home/ubuntu/etl_app/dnc_database.db")
+            print("   2. Or mount it in docker-compose.prod.yml")
+            print("   3. Or place it in the data directory that's mounted to /app/data")
             print()
             return
         
