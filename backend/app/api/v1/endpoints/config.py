@@ -85,18 +85,25 @@ async def get_config(
     db_client_id = await get_config_value("idicore_client_id", db)
     db_client_secret = await get_config_value("idicore_client_secret", db)
     
-    idicore_client_id = db_client_id if db_client_id else settings.idicore.client_id
-    idicore_client_secret = db_client_secret if db_client_secret else settings.idicore.client_secret
-    google_sheet_url = await get_config_value("google_sheet_url", db) or ""
+    # Only use database values if they're not None and not empty strings
+    # Fall back to settings if database value is None, empty, or just whitespace
+    idicore_client_id = (db_client_id.strip() if db_client_id and db_client_id.strip() 
+                        else settings.idicore.client_id) or ""
+    idicore_client_secret = (db_client_secret.strip() if db_client_secret and db_client_secret.strip() 
+                            else settings.idicore.client_secret) or ""
+    
+    db_google_sheet_url = await get_config_value("google_sheet_url", db)
+    google_sheet_url = (db_google_sheet_url.strip() if db_google_sheet_url and db_google_sheet_url.strip() 
+                      else "") or ""
     
     return ConfigResponse(
         idicore_client_id=idicore_client_id,
         idicore_client_secret=idicore_client_secret,
         google_sheet_url=google_sheet_url,
-        snowflake_account=settings.snowflake.account,
-        snowflake_user=settings.snowflake.user,
-        snowflake_database=settings.snowflake.database,
-        snowflake_schema=settings.snowflake.db_schema,
+        snowflake_account=settings.snowflake.account or "",
+        snowflake_user=settings.snowflake.user or "",
+        snowflake_database=settings.snowflake.database or "",
+        snowflake_schema=settings.snowflake.db_schema or "",
     )
 
 
