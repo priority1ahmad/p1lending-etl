@@ -81,29 +81,53 @@ async def get_config(
     current_user: User = Depends(get_current_user)
 ):
     """Get all configuration"""
+    import logging
+    logger = logging.getLogger("app.api.v1.endpoints.config")
+    
     # Get values from DB, but use defaults from settings if not found or empty
     db_client_id = await get_config_value("idicore_client_id", db)
     db_client_secret = await get_config_value("idicore_client_secret", db)
     
     # Only use database values if they're not None and not empty strings
     # Fall back to settings if database value is None, empty, or just whitespace
-    idicore_client_id = (db_client_id.strip() if db_client_id and db_client_id.strip() 
-                        else settings.idicore.client_id) or ""
-    idicore_client_secret = (db_client_secret.strip() if db_client_secret and db_client_secret.strip() 
-                            else settings.idicore.client_secret) or ""
+    if db_client_id and db_client_id.strip():
+        idicore_client_id = db_client_id.strip()
+        logger.debug("Using idiCORE client_id from database")
+    else:
+        idicore_client_id = (settings.idicore.client_id or "").strip()
+        logger.debug(f"Using idiCORE client_id from settings: '{idicore_client_id[:20]}...' (length: {len(idicore_client_id)})")
+    
+    if db_client_secret and db_client_secret.strip():
+        idicore_client_secret = db_client_secret.strip()
+        logger.debug("Using idiCORE client_secret from database")
+    else:
+        idicore_client_secret = (settings.idicore.client_secret or "").strip()
+        logger.debug(f"Using idiCORE client_secret from settings (length: {len(idicore_client_secret)})")
     
     db_google_sheet_url = await get_config_value("google_sheet_url", db)
-    google_sheet_url = (db_google_sheet_url.strip() if db_google_sheet_url and db_google_sheet_url.strip() 
-                      else "") or ""
+    if db_google_sheet_url and db_google_sheet_url.strip():
+        google_sheet_url = db_google_sheet_url.strip()
+    else:
+        google_sheet_url = ""
+    
+    # Get Snowflake values from settings
+    snowflake_account = (settings.snowflake.account or "").strip()
+    snowflake_user = (settings.snowflake.user or "").strip()
+    snowflake_database = (settings.snowflake.database or "").strip()
+    snowflake_schema = (settings.snowflake.db_schema or "").strip()
+    
+    logger.debug(f"Config response - idiCORE ID: {'set' if idicore_client_id else 'empty'}, "
+                 f"idiCORE Secret: {'set' if idicore_client_secret else 'empty'}, "
+                 f"Snowflake Account: {snowflake_account}")
     
     return ConfigResponse(
         idicore_client_id=idicore_client_id,
         idicore_client_secret=idicore_client_secret,
         google_sheet_url=google_sheet_url,
-        snowflake_account=settings.snowflake.account or "",
-        snowflake_user=settings.snowflake.user or "",
-        snowflake_database=settings.snowflake.database or "",
-        snowflake_schema=settings.snowflake.db_schema or "",
+        snowflake_account=snowflake_account,
+        snowflake_user=snowflake_user,
+        snowflake_database=snowflake_database,
+        snowflake_schema=snowflake_schema,
     )
 
 
