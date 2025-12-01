@@ -45,24 +45,40 @@ else
     COMPOSE_CMD="docker-compose"
 fi
 
+# Try to find the correct script path
+echo "Locating test scripts..."
+SCRIPT_PATH=""
+if $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend test -f /app/scripts/test_litigator_list.py 2>/dev/null; then
+    SCRIPT_PATH="/app/scripts"
+elif $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend test -f scripts/test_litigator_list.py 2>/dev/null; then
+    SCRIPT_PATH="scripts"
+elif $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend test -f /app/backend/scripts/test_litigator_list.py 2>/dev/null; then
+    SCRIPT_PATH="/app/backend/scripts"
+else
+    echo "ERROR: Could not find test scripts in container!"
+    echo "Please run: bash diagnose-container.sh"
+    echo "Or rebuild the container: docker compose -f docker-compose.prod.yml build backend"
+    exit 1
+fi
+
+echo "Found scripts at: $SCRIPT_PATH"
+echo ""
+
 case $choice in
     1)
-        echo ""
         echo "Running Litigator List test..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_litigator_list.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python $SCRIPT_PATH/test_litigator_list.py
         ;;
     2)
-        echo ""
         echo "Running DNC List test..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_dnc_list.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python $SCRIPT_PATH/test_dnc_list.py
         ;;
     3)
-        echo ""
         echo "Running both tests..."
         echo ""
-        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python /app/scripts/test_both_lists.py
+        $COMPOSE_CMD -f docker-compose.prod.yml exec -T backend python $SCRIPT_PATH/test_both_lists.py
         ;;
     *)
         echo "Invalid choice"
