@@ -75,11 +75,9 @@ services:
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
-      # Mount DNC database from production location
-      # Primary: /home/ubuntu/etl_app/dnc_database.db -> /app/data/dnc_database.db
-      - /home/ubuntu/etl_app/dnc_database.db:/app/data/dnc_database.db:ro
-      # Fallback: local dnc_database.db if production path doesn't exist
-      - ./dnc_database.db:/app/data/dnc_database.db:ro
+      # Mount DNC database from production location to /app/dnc_database.db
+      # (mounted outside /app/data to avoid volume conflict)
+      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -115,11 +113,9 @@ services:
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
-      # Mount DNC database from production location
-      # Primary: /home/ubuntu/etl_app/dnc_database.db -> /app/data/dnc_database.db
-      - /home/ubuntu/etl_app/dnc_database.db:/app/data/dnc_database.db:ro
-      # Fallback: local dnc_database.db if production path doesn't exist
-      - ./dnc_database.db:/app/data/dnc_database.db:ro
+      # Mount DNC database from production location to /app/dnc_database.db
+      # (mounted outside /app/data to avoid volume conflict)
+      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy

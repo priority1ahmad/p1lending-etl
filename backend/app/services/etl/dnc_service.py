@@ -24,13 +24,13 @@ class DNCCheckerDB:
         # Default DNC file path (can be overridden)
         if dnc_file_path is None:
             # Look for DNC file in common locations
-            # Priority: Docker volume path first, then production host path, then local paths
+            # Priority: Docker mount path first, then production host path, then local paths
             possible_paths = [
-                "/app/data/dnc_database.db",  # Docker volume mount (production) - mounted from /home/ubuntu/etl_app/dnc_database.db
+                "/app/dnc_database.db",  # Docker mount (production) - mounted from /home/ubuntu/etl_app/dnc_database.db
+                "/app/data/dnc_database.db",  # Docker volume path (if mounted separately)
                 "/home/ubuntu/etl_app/dnc_database.db",  # Production host path (primary location)
                 "data/dnc_database.db",       # Local data directory
                 "dnc_database.db",            # Current directory
-                "/app/dnc_database.db",       # Docker app directory
                 "../old_app/dnc_database.db", # Old app location
                 "/home/ubuntu/etl_app/data/dnc_database.db",  # Production data path (alternative)
             ]
@@ -54,10 +54,11 @@ class DNCCheckerDB:
         if not os.path.exists(self.db_path):
             self.logger.warning(f"DNC database not found at {self.db_path}. DNC checking will be disabled.")
             self.logger.warning(f"Please ensure the DNC database file exists at one of these locations:")
-            self.logger.warning(f"  - /app/data/dnc_database.db (Docker volume - recommended)")
+            self.logger.warning(f"  - /app/dnc_database.db (Docker mount - recommended, from /home/ubuntu/etl_app/dnc_database.db)")
+            self.logger.warning(f"  - /app/data/dnc_database.db (Docker volume)")
+            self.logger.warning(f"  - /home/ubuntu/etl_app/dnc_database.db (Production host)")
             self.logger.warning(f"  - {os.path.abspath('data/dnc_database.db')}")
             self.logger.warning(f"  - {os.path.abspath('dnc_database.db')}")
-            self.logger.warning(f"  - /home/ubuntu/etl_app/dnc_database.db (Production host)")
             return False
         
         # Try to connect and verify table exists
