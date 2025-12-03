@@ -231,7 +231,7 @@ async def get_job_logs(
 @router.post("/preview", response_model=List[JobPreviewResponse])
 async def preview_jobs(
     script_ids: List[UUID] = Body(..., description="List of script IDs to preview"),
-    row_limit: Optional[int] = Query(None, ge=1, le=1000, description="Optional row limit to return actual data rows"),
+    row_limit: Optional[int] = Query(None, ge=1, le=100000, description="Optional row limit to return actual data rows"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
