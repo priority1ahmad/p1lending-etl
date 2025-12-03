@@ -375,7 +375,7 @@ async def preview_jobs(
                     else:
                         total_rows = int(row.iloc[0])
                 
-                # Check against PERSON_CACHE for filtering
+                # Check against PERSON_CACHE for filtering (execute full query like old app for accuracy)
                 preview_job.message = "Checking processed records..."
                 preview_job.progress = 80
                 await db.commit()
@@ -383,16 +383,21 @@ async def preview_jobs(
                 already_processed = 0
                 unprocessed = total_rows
                 
-                if data_result is not None and not data_result.empty and row_count > 0:
-                    # Find the Address column (flexible matching)
-                    address_column = None
-                    for col in data_result.columns:
-                        if 'address' in col.lower():
-                            address_column = col
-                            break
+                # Execute the FULL query to get accurate filtering count (like old app)
+                # This matches the old app's behavior which prioritizes accuracy
+                try:
+                    # Execute the full query (no LIMIT) - same as old app
+                    full_df = snowflake_conn.execute_query(cleaned_sql)
                     
-                    if address_column:
-                        try:
+                    if full_df is not None and not full_df.empty:
+                        # Find the Address column (flexible matching)
+                        address_column = None
+                        for col in full_df.columns:
+                            if 'address' in col.lower():
+                                address_column = col
+                                break
+                        
+                        if address_column:
                             # Query Snowflake for cached addresses
                             cache_query = """
                             SELECT DISTINCT UPPER(TRIM("address")) as cached_address
@@ -405,23 +410,27 @@ async def preview_jobs(
                             if cache_result is not None and not cache_result.empty:
                                 cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
                             
-                            # Count processed in the sample
-                            sample_processed = 0
-                            for _, row in data_result.iterrows():
+                            # Count processed records (exact count, not estimation)
+                            processed_count = 0
+                            for _, row in full_df.iterrows():
                                 address = str(row[address_column]).upper().strip() if pd.notna(row[address_column]) else ''
                                 if address and address in cached_addresses:
-                                    sample_processed += 1
+                                    processed_count += 1
                             
-                            # Estimate total processed based on sample (if we have a sample)
-                            if row_count > 0:
-                                processed_ratio = sample_processed / row_count
-                                already_processed = int(total_rows * processed_ratio)
-                                unprocessed = total_rows - already_processed
-                        except Exception as e:
-                            etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
-                            # If filtering fails, assume all are unprocessed
-                            already_processed = 0
-                            unprocessed = total_rows
+                            already_processed = processed_count
+                            unprocessed = len(full_df) - already_processed
+                            
+                            etl_logger.info(f"Preview check: {len(full_df)} total, {already_processed} already processed, {unprocessed} new")
+                        else:
+                            etl_logger.warning("No Address column found in query results")
+                    else:
+                        etl_logger.warning("Full query returned no results")
+                        
+                except Exception as e:
+                    etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
+                    # If filtering fails, assume all are unprocessed
+                    already_processed = 0
+                    unprocessed = total_rows
                 
                 # Ensure rows_data is a list (not None) for serialization
                 if rows_data is None:
@@ -499,7 +508,7 @@ async def preview_jobs(
                     else:
                         total_rows = int(row.iloc[0])
                 
-                # For filtering check, sample a subset (up to 1000 rows) to estimate
+                # Check against PERSON_CACHE using FULL query execution (like old app for accuracy)
                 already_processed = 0
                 unprocessed = total_rows
                 
@@ -508,21 +517,19 @@ async def preview_jobs(
                     preview_job.progress = 70
                     await db.commit()
                     
-                    # Sample up to 1000 rows for filtering check
-                    sample_size = min(1000, total_rows)
-                    sample_query = f"{cleaned_sql} LIMIT {sample_size}"
-                    sample_df = snowflake_conn.execute_query(sample_query)
-                    
-                    if sample_df is not None and not sample_df.empty:
-                        # Find the Address column
-                        address_column = None
-                        for col in sample_df.columns:
-                            if 'address' in col.lower():
-                                address_column = col
-                                break
+                    try:
+                        # Execute the FULL query (no sampling, like old app)
+                        full_df = snowflake_conn.execute_query(cleaned_sql)
                         
-                        if address_column:
-                            try:
+                        if full_df is not None and not full_df.empty:
+                            # Find the Address column
+                            address_column = None
+                            for col in full_df.columns:
+                                if 'address' in col.lower():
+                                    address_column = col
+                                    break
+                            
+                            if address_column:
                                 # Query Snowflake for cached addresses
                                 cache_query = """
                                 SELECT DISTINCT UPPER(TRIM("address")) as cached_address
@@ -535,23 +542,27 @@ async def preview_jobs(
                                 if cache_result is not None and not cache_result.empty:
                                     cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
                                 
-                                # Count processed in sample
-                                sample_processed = 0
-                                for _, row in sample_df.iterrows():
+                                # Count processed records (exact count, not estimation)
+                                processed_count = 0
+                                for _, row in full_df.iterrows():
                                     address = str(row[address_column]).upper().strip() if pd.notna(row[address_column]) else ''
                                     if address and address in cached_addresses:
-                                        sample_processed += 1
+                                        processed_count += 1
                                 
-                                # Estimate total processed based on sample
-                                if sample_size > 0:
-                                    processed_ratio = sample_processed / sample_size
-                                    already_processed = int(total_rows * processed_ratio)
-                                    unprocessed = total_rows - already_processed
-                            except Exception as e:
-                                etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
-                                # If filtering fails, assume all are unprocessed
-                                already_processed = 0
-                                unprocessed = total_rows
+                                already_processed = processed_count
+                                unprocessed = len(full_df) - already_processed
+                                
+                                etl_logger.info(f"Preview check: {len(full_df)} total, {already_processed} already processed, {unprocessed} new")
+                            else:
+                                etl_logger.warning("No Address column found in query results")
+                        else:
+                            etl_logger.warning("Full query returned no results")
+                            
+                    except Exception as e:
+                        etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
+                        # If filtering fails, assume all are unprocessed
+                        already_processed = 0
+                        unprocessed = total_rows
                 
                 preview_result = JobPreviewResponse(
                     script_name=script.name,
