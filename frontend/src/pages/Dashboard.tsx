@@ -1295,28 +1295,47 @@ export const Dashboard: React.FC = () => {
               )}
               
               {item.rows && item.rows.length > 0 ? (
-                <TableContainer sx={{ mt: 2, maxHeight: '500px', overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        {Object.keys(item.rows[0]).map((key) => (
-                          <TableCell key={key}>{key}</TableCell>
-                        ))}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {item.rows.map((row, rowIndex) => (
-                        <TableRow key={rowIndex}>
-                          {Object.values(row).map((value: any, cellIndex) => (
-                            <TableCell key={cellIndex}>
-                              {value !== null && value !== undefined ? String(value) : ''}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
+                <>
+                  {/* Limit display to first 100 rows to save RAM */}
+                  {(() => {
+                    const MAX_DISPLAY_ROWS = 100;
+                    const displayRows = item.rows.slice(0, MAX_DISPLAY_ROWS);
+                    const totalRows = item.rows.length;
+                    const hasMoreRows = totalRows > MAX_DISPLAY_ROWS;
+                    
+                    return (
+                      <>
+                        {hasMoreRows && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1, fontStyle: 'italic' }}>
+                            Showing first {MAX_DISPLAY_ROWS.toLocaleString()} of {totalRows.toLocaleString()} rows (to save memory)
+                          </Typography>
+                        )}
+                        <TableContainer sx={{ mt: hasMoreRows ? 0 : 2, maxHeight: '500px', overflow: 'auto' }}>
+                          <Table size="small" stickyHeader>
+                            <TableHead>
+                              <TableRow>
+                                {Object.keys(displayRows[0]).map((key) => (
+                                  <TableCell key={key}>{key}</TableCell>
+                                ))}
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {displayRows.map((row, rowIndex) => (
+                                <TableRow key={rowIndex}>
+                                  {Object.values(row).map((value: any, cellIndex) => (
+                                    <TableCell key={cellIndex}>
+                                      {value !== null && value !== undefined ? String(value) : ''}
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </>
+                    );
+                  })()}
+                </>
               ) : (
                 <Typography variant="body2" sx={{ mt: 2 }}>
                   No row data available. Set a row limit to preview actual data.
