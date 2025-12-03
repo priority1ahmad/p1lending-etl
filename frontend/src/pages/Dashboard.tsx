@@ -1376,7 +1376,18 @@ export const Dashboard: React.FC = () => {
                 variant="contained"
                 startIcon={<PlayArrow />}
               >
-                {previewMutation.isPending ? 'Loading Preview...' : 'Execute ETL Job'}
+                {(() => {
+                  if (previewMutation.isPending) {
+                    return 'Loading Preview...';
+                  }
+                  // Calculate the number of rows that will be processed
+                  const unprocessedCount = previewData[0]?.unprocessed ?? 0;
+                  const rowLimitNum = rowLimit ? parseInt(rowLimit) : null;
+                  const rowsToProcess = rowLimitNum 
+                    ? Math.min(rowLimitNum, unprocessedCount)
+                    : unprocessedCount;
+                  return `Execute ETL Job (${rowsToProcess.toLocaleString()} rows)`;
+                })()}
               </Button>
             </>
           ) : (
