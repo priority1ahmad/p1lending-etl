@@ -223,8 +223,8 @@ export const Dashboard: React.FC = () => {
     if (!script) return;
 
     // Always show preview first as confirmation
-    setPreviewForExecution(true); // Mark this as a confirmation preview
-    handleGetPreview(); // Show preview dialog
+    // Pass true to indicate this is for execution confirmation
+    handleGetPreview(true); // Show preview dialog with confirmation buttons
   };
 
   const handleConfirmAndExecuteETL = () => {
@@ -251,13 +251,13 @@ export const Dashboard: React.FC = () => {
     setProcessedRows([]);
   };
 
-  const handleGetPreview = () => {
+  const handleGetPreview = (isForExecution: boolean = false) => {
     if (!selectedScriptId) {
       alert('Please select a script');
       return;
     }
-    // This is a manual preview (not for execution), ensure flag is false
-    setPreviewForExecution(false);
+    // Set the flag based on the parameter
+    setPreviewForExecution(isForExecution);
     // Open dialog immediately to show loading state
     setPreviewDialogOpen(true);
     setPreviewData([]); // Clear previous data
