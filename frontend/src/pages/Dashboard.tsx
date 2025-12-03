@@ -256,10 +256,8 @@ export const Dashboard: React.FC = () => {
       alert('Please select a script');
       return;
     }
-    // If this is a manual preview (not for execution), reset the flag
-    if (!previewForExecution) {
-      setPreviewForExecution(false);
-    }
+    // This is a manual preview (not for execution), ensure flag is false
+    setPreviewForExecution(false);
     // Open dialog immediately to show loading state
     setPreviewDialogOpen(true);
     setPreviewData([]); // Clear previous data
@@ -1324,7 +1322,7 @@ export const Dashboard: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions>
-          {previewForExecution && previewData.length > 0 && !previewMutation.isPending ? (
+          {previewForExecution ? (
             <>
               <Button 
                 onClick={() => {
@@ -1332,6 +1330,7 @@ export const Dashboard: React.FC = () => {
                   setPreviewForExecution(false);
                   previewMutation.reset();
                 }}
+                disabled={previewMutation.isPending}
                 sx={{
                   borderColor: '#1E3A5F',
                   color: '#1E3A5F',
@@ -1371,7 +1370,7 @@ export const Dashboard: React.FC = () => {
                 variant="contained"
                 startIcon={<PlayArrow />}
               >
-                Execute ETL Job
+                {previewMutation.isPending ? 'Loading Preview...' : 'Execute ETL Job'}
               </Button>
             </>
           ) : (
