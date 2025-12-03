@@ -426,8 +426,18 @@ async def preview_jobs(
                             
                             cached_addresses = set()
                             if cache_result is not None and not cache_result.empty:
-                                cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
-                                etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                                # Handle case-insensitive column name matching
+                                cache_col = None
+                                for col in cache_result.columns:
+                                    if col.lower() == 'cached_address':
+                                        cache_col = col
+                                        break
+                                
+                                if cache_col:
+                                    cached_addresses = set(cache_result[cache_col].str.upper().str.strip().tolist())
+                                    etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                                else:
+                                    etl_logger.warning(f"Could not find cached_address column. Available columns: {list(cache_result.columns)}")
                             else:
                                 etl_logger.warning("PERSON_CACHE query returned no results - cache may be empty or query failed")
                             
@@ -462,7 +472,9 @@ async def preview_jobs(
                         etl_logger.warning("Full query returned no results")
                         
                 except Exception as e:
-                    etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}", exc_info=True)
+                    import traceback
+                    etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}")
+                    etl_logger.error(f"Traceback: {traceback.format_exc()}")
                     # If filtering fails, assume all are unprocessed
                     already_processed = 0
                     unprocessed = total_rows
@@ -593,8 +605,18 @@ async def preview_jobs(
                                 
                                 cached_addresses = set()
                                 if cache_result is not None and not cache_result.empty:
-                                    cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
-                                    etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                                    # Handle case-insensitive column name matching
+                                    cache_col = None
+                                    for col in cache_result.columns:
+                                        if col.lower() == 'cached_address':
+                                            cache_col = col
+                                            break
+                                    
+                                    if cache_col:
+                                        cached_addresses = set(cache_result[cache_col].str.upper().str.strip().tolist())
+                                        etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                                    else:
+                                        etl_logger.warning(f"Could not find cached_address column. Available columns: {list(cache_result.columns)}")
                                 else:
                                     etl_logger.warning("PERSON_CACHE query returned no results - cache may be empty or query failed")
                                 
@@ -629,7 +651,9 @@ async def preview_jobs(
                             etl_logger.warning("Full query returned no results")
                             
                     except Exception as e:
-                        etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}", exc_info=True)
+                        import traceback
+                        etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}")
+                        etl_logger.error(f"Traceback: {traceback.format_exc()}")
                         # If filtering fails, assume all are unprocessed
                         already_processed = 0
                         unprocessed = total_rows
