@@ -129,7 +129,20 @@ class ETLEngine:
                 
                 cached_addresses = set()
                 if cache_result is not None and not cache_result.empty:
-                    cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
+                    # Handle case-insensitive column name matching (Snowflake may return different case)
+                    cached_address_col = None
+                    for col in cache_result.columns:
+                        if col.lower() == 'cached_address':
+                            cached_address_col = col
+                            break
+                    
+                    if cached_address_col:
+                        cached_addresses = set(cache_result[cached_address_col].str.upper().str.strip().tolist())
+                    else:
+                        self.logger.log_step("Data Filtering", f"Warning: 'cached_address' column not found in cache result. Available columns: {list(cache_result.columns)}")
+                        # Fallback: try to use first column if cached_address not found
+                        if len(cache_result.columns) > 0:
+                            cached_addresses = set(cache_result.iloc[:, 0].astype(str).str.upper().str.strip().tolist())
                 
                 self.logger.log_step("Data Filtering", f"Found {len(cached_addresses)} cached addresses in PERSON_CACHE")
                 
