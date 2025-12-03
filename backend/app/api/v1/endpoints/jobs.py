@@ -398,36 +398,71 @@ async def preview_jobs(
                                 break
                         
                         if address_column:
+                            etl_logger.info(f"Using address column: '{address_column}' for preview filtering")
+                            
+                            # First, check if PERSON_CACHE has any data at all
+                            count_query = """
+                            SELECT COUNT(*) as total_count,
+                                   COUNT(DISTINCT "address") as distinct_addresses,
+                                   COUNT(DISTINCT UPPER(TRIM("address"))) as distinct_normalized_addresses
+                            FROM PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE
+                            WHERE "address" IS NOT NULL AND "address" != ''
+                            """
+                            count_result = snowflake_conn.execute_query(count_query)
+                            if count_result is not None and not count_result.empty:
+                                total_count = int(count_result.iloc[0]['total_count']) if 'total_count' in count_result.columns else 0
+                                distinct_addresses = int(count_result.iloc[0]['distinct_addresses']) if 'distinct_addresses' in count_result.columns else 0
+                                distinct_normalized = int(count_result.iloc[0]['distinct_normalized_addresses']) if 'distinct_normalized_addresses' in count_result.columns else 0
+                                etl_logger.info(f"PERSON_CACHE stats: {total_count:,} total rows, {distinct_addresses:,} distinct addresses, {distinct_normalized:,} distinct normalized addresses")
+                            
                             # Query Snowflake for cached addresses
                             cache_query = """
                             SELECT DISTINCT UPPER(TRIM("address")) as cached_address
                             FROM PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE
                             WHERE "address" IS NOT NULL AND "address" != ''
                             """
+                            etl_logger.info(f"Querying PERSON_CACHE for cached addresses...")
                             cache_result = snowflake_conn.execute_query(cache_query)
                             
                             cached_addresses = set()
                             if cache_result is not None and not cache_result.empty:
                                 cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
+                                etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                            else:
+                                etl_logger.warning("PERSON_CACHE query returned no results - cache may be empty or query failed")
                             
                             # Count processed records (exact count, not estimation)
                             processed_count = 0
-                            for _, row in full_df.iterrows():
+                            sample_addresses_checked = []
+                            sample_matches = []
+                            
+                            for idx, (_, row) in enumerate(full_df.iterrows()):
                                 address = str(row[address_column]).upper().strip() if pd.notna(row[address_column]) else ''
+                                
+                                # Collect sample addresses for logging
+                                if idx < 5 and address:
+                                    sample_addresses_checked.append(address)
+                                
                                 if address and address in cached_addresses:
                                     processed_count += 1
+                                    if len(sample_matches) < 3:
+                                        sample_matches.append(address)
                             
                             already_processed = processed_count
                             unprocessed = len(full_df) - already_processed
                             
-                            etl_logger.info(f"Preview check: {len(full_df)} total, {already_processed} already processed, {unprocessed} new")
+                            etl_logger.info(f"Preview check: {len(full_df):,} total, {already_processed:,} already processed, {unprocessed:,} new")
+                            if sample_addresses_checked:
+                                etl_logger.info(f"Sample addresses checked: {', '.join(sample_addresses_checked[:3])}")
+                            if sample_matches:
+                                etl_logger.info(f"Sample matched addresses: {', '.join(sample_matches[:3])}")
                         else:
-                            etl_logger.warning("No Address column found in query results")
+                            etl_logger.warning(f"No Address column found in query results. Available columns: {list(full_df.columns)}")
                     else:
                         etl_logger.warning("Full query returned no results")
                         
                 except Exception as e:
-                    etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
+                    etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}", exc_info=True)
                     # If filtering fails, assume all are unprocessed
                     already_processed = 0
                     unprocessed = total_rows
@@ -530,36 +565,71 @@ async def preview_jobs(
                                     break
                             
                             if address_column:
+                                etl_logger.info(f"Using address column: '{address_column}' for preview filtering")
+                                
+                                # First, check if PERSON_CACHE has any data at all
+                                count_query = """
+                                SELECT COUNT(*) as total_count,
+                                       COUNT(DISTINCT "address") as distinct_addresses,
+                                       COUNT(DISTINCT UPPER(TRIM("address"))) as distinct_normalized_addresses
+                                FROM PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE
+                                WHERE "address" IS NOT NULL AND "address" != ''
+                                """
+                                count_result = snowflake_conn.execute_query(count_query)
+                                if count_result is not None and not count_result.empty:
+                                    total_count = int(count_result.iloc[0]['total_count']) if 'total_count' in count_result.columns else 0
+                                    distinct_addresses = int(count_result.iloc[0]['distinct_addresses']) if 'distinct_addresses' in count_result.columns else 0
+                                    distinct_normalized = int(count_result.iloc[0]['distinct_normalized_addresses']) if 'distinct_normalized_addresses' in count_result.columns else 0
+                                    etl_logger.info(f"PERSON_CACHE stats: {total_count:,} total rows, {distinct_addresses:,} distinct addresses, {distinct_normalized:,} distinct normalized addresses")
+                                
                                 # Query Snowflake for cached addresses
                                 cache_query = """
                                 SELECT DISTINCT UPPER(TRIM("address")) as cached_address
                                 FROM PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE
                                 WHERE "address" IS NOT NULL AND "address" != ''
                                 """
+                                etl_logger.info(f"Querying PERSON_CACHE for cached addresses...")
                                 cache_result = snowflake_conn.execute_query(cache_query)
                                 
                                 cached_addresses = set()
                                 if cache_result is not None and not cache_result.empty:
                                     cached_addresses = set(cache_result['cached_address'].str.upper().str.strip().tolist())
+                                    etl_logger.info(f"Found {len(cached_addresses):,} unique cached addresses in PERSON_CACHE")
+                                else:
+                                    etl_logger.warning("PERSON_CACHE query returned no results - cache may be empty or query failed")
                                 
                                 # Count processed records (exact count, not estimation)
                                 processed_count = 0
-                                for _, row in full_df.iterrows():
+                                sample_addresses_checked = []
+                                sample_matches = []
+                                
+                                for idx, (_, row) in enumerate(full_df.iterrows()):
                                     address = str(row[address_column]).upper().strip() if pd.notna(row[address_column]) else ''
+                                    
+                                    # Collect sample addresses for logging
+                                    if idx < 5 and address:
+                                        sample_addresses_checked.append(address)
+                                    
                                     if address and address in cached_addresses:
                                         processed_count += 1
+                                        if len(sample_matches) < 3:
+                                            sample_matches.append(address)
                                 
                                 already_processed = processed_count
                                 unprocessed = len(full_df) - already_processed
                                 
-                                etl_logger.info(f"Preview check: {len(full_df)} total, {already_processed} already processed, {unprocessed} new")
+                                etl_logger.info(f"Preview check: {len(full_df):,} total, {already_processed:,} already processed, {unprocessed:,} new")
+                                if sample_addresses_checked:
+                                    etl_logger.info(f"Sample addresses checked: {', '.join(sample_addresses_checked[:3])}")
+                                if sample_matches:
+                                    etl_logger.info(f"Sample matched addresses: {', '.join(sample_matches[:3])}")
                             else:
-                                etl_logger.warning("No Address column found in query results")
+                                etl_logger.warning(f"No Address column found in query results. Available columns: {list(full_df.columns)}")
                         else:
                             etl_logger.warning("Full query returned no results")
                             
                     except Exception as e:
-                        etl_logger.warning(f"Error checking PERSON_CACHE in preview: {e}")
+                        etl_logger.error(f"Error checking PERSON_CACHE in preview: {e}", exc_info=True)
                         # If filtering fails, assume all are unprocessed
                         already_processed = 0
                         unprocessed = total_rows

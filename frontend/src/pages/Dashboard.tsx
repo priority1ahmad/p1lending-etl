@@ -1189,8 +1189,8 @@ export const Dashboard: React.FC = () => {
                 Total Rows: {(item.total_rows ?? item.row_count).toLocaleString()}
               </Typography>
               
-              {/* Processing Status */}
-              {(item.already_processed !== undefined || item.unprocessed !== undefined) && (
+              {/* Processing Status - Always show when we have preview data */}
+              {item.total_rows !== undefined && (
                 <Box sx={{ mt: 2, mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
                   <Typography 
                     variant="subtitle1" 
@@ -1205,28 +1205,24 @@ export const Dashboard: React.FC = () => {
                     Processing Status
                   </Typography>
                   <Grid container spacing={2}>
-                    {(item.already_processed !== undefined) && (
-                      <>
-                        {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
-                        <Grid item xs={12} sm={6}>
-                          <Typography variant="body2" color="text.secondary">
-                            Already Processed
-                          </Typography>
-                          <Typography variant="h6" color="info.main">
-                            {item.already_processed.toLocaleString()}
-                          </Typography>
-                        </Grid>
-                        {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
-                        <Grid item xs={12} sm={6}>
-                          <Typography variant="body2" color="text.secondary">
-                            New to Process
-                          </Typography>
-                          <Typography variant="h6" color="success.main">
-                            {(item.unprocessed ?? 0).toLocaleString()}
-                          </Typography>
-                        </Grid>
-                      </>
-                    )}
+                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Already Processed
+                      </Typography>
+                      <Typography variant="h6" color="info.main">
+                        {(item.already_processed ?? 0).toLocaleString()}
+                      </Typography>
+                    </Grid>
+                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        New to Process
+                      </Typography>
+                      <Typography variant="h6" color="success.main">
+                        {(item.unprocessed ?? 0).toLocaleString()}
+                      </Typography>
+                    </Grid>
                   </Grid>
                 </Box>
               )}
