@@ -55,6 +55,7 @@ export const Dashboard: React.FC = () => {
   const [logViewerOpen, setLogViewerOpen] = useState(false);
   const [logFileContent, setLogFileContent] = useState<string>('');
   const [logFileLoading, setLogFileLoading] = useState(false);
+  const [previewForExecution, setPreviewForExecution] = useState(false); // Track if preview is for job confirmation
   // const [previewStats, setPreviewStats] = useState<any>(null);
 
   const { data: scripts } = useQuery({
@@ -221,6 +222,26 @@ export const Dashboard: React.FC = () => {
     const script = scripts?.find((s) => s.id === selectedScriptId);
     if (!script) return;
 
+    // Always show preview first as confirmation
+    setPreviewForExecution(true); // Mark this as a confirmation preview
+    handleGetPreview(); // Show preview dialog
+  };
+
+  const handleConfirmAndExecuteETL = () => {
+    if (!selectedScriptId) {
+      alert('Please select a script');
+      return;
+    }
+
+    const script = scripts?.find((s) => s.id === selectedScriptId);
+    if (!script) return;
+
+    // Close preview dialog
+    setPreviewDialogOpen(false);
+    setPreviewForExecution(false);
+    previewMutation.reset();
+
+    // Now start the actual ETL job
     createJobMutation.mutate({
       script_id: selectedScriptId,
       job_type: 'single_script',
@@ -234,6 +255,10 @@ export const Dashboard: React.FC = () => {
     if (!selectedScriptId) {
       alert('Please select a script');
       return;
+    }
+    // If this is a manual preview (not for execution), reset the flag
+    if (!previewForExecution) {
+      setPreviewForExecution(false);
     }
     // Open dialog immediately to show loading state
     setPreviewDialogOpen(true);
@@ -1055,7 +1080,14 @@ export const Dashboard: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          Preview
+          <Typography variant="h6">
+            {previewForExecution ? 'ETL Job Preview & Confirmation' : 'ETL Job Preview'}
+          </Typography>
+          {previewForExecution && (
+            <Typography variant="body2" color="warning.main" sx={{ mt: 1 }}>
+              ⚠️ Large queries may take 5-10 minutes to process. Please review the preview before confirming.
+            </Typography>
+          )}
           {previewMutation.isPending && (
             <CircularProgress size={20} sx={{ ml: 2, verticalAlign: 'middle' }} />
           )}
@@ -1123,7 +1155,32 @@ export const Dashboard: React.FC = () => {
               No preview data available
             </Typography>
           ) : (
-            previewData.map((item, index) => (
+            <>
+              {previewForExecution && previewData.length > 0 && (
+                <Box sx={{ mb: 2, p: 2, bgcolor: 'warning.light', borderRadius: 1, border: '1px solid', borderColor: 'warning.main' }}>
+                  <Typography variant="body2" color="warning.dark" sx={{ fontWeight: 600, mb: 1 }}>
+                    ⚠️ Performance Notice
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Large queries with many records may take 5-10 minutes to complete. The ETL process will:
+                  </Typography>
+                  <Box component="ul" sx={{ mt: 1, mb: 0, pl: 3 }}>
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      Check each record against the processed cache
+                    </Typography>
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      Look up phone numbers and emails via idiCORE API
+                    </Typography>
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      Check against litigator and DNC lists
+                    </Typography>
+                    <Typography component="li" variant="body2" color="text.secondary">
+                      Upload results to Google Sheets and Snowflake
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              {previewData.map((item, index) => (
             <Box key={index} sx={{ mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 {item.script_name}
@@ -1266,34 +1323,88 @@ export const Dashboard: React.FC = () => {
                 </Typography>
               )}
             </Box>
-            ))
+            ))}
+            </>
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
-            onClick={() => {
-              setPreviewDialogOpen(false);
-              previewMutation.reset();
-            }}
-            disabled={previewMutation.isPending}
-            sx={{
-              borderColor: '#1E3A5F',
-              color: '#1E3A5F',
-              borderWidth: '2px',
-              fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.025em',
-              '&:hover': {
+          {previewForExecution && previewData.length > 0 && !previewMutation.isPending ? (
+            <>
+              <Button 
+                onClick={() => {
+                  setPreviewDialogOpen(false);
+                  setPreviewForExecution(false);
+                  previewMutation.reset();
+                }}
+                sx={{
+                  borderColor: '#1E3A5F',
+                  color: '#1E3A5F',
+                  borderWidth: '2px',
+                  fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  '&:hover': {
+                    borderWidth: '2px',
+                    backgroundColor: '#1E3A5F',
+                    color: '#FFFFFF',
+                  },
+                }}
+                variant="outlined"
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleConfirmAndExecuteETL}
+                disabled={previewMutation.isPending || previewData.length === 0}
+                sx={{
+                  backgroundColor: '#1E3A5F',
+                  color: '#FFFFFF',
+                  fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.025em',
+                  '&:hover': {
+                    backgroundColor: '#2a4d7a',
+                  },
+                  '&:disabled': {
+                    backgroundColor: '#cccccc',
+                    color: '#666666',
+                  },
+                }}
+                variant="contained"
+                startIcon={<PlayArrow />}
+              >
+                Execute ETL Job
+              </Button>
+            </>
+          ) : (
+            <Button 
+              onClick={() => {
+                setPreviewDialogOpen(false);
+                setPreviewForExecution(false);
+                previewMutation.reset();
+              }}
+              disabled={previewMutation.isPending}
+              sx={{
+                borderColor: '#1E3A5F',
+                color: '#1E3A5F',
                 borderWidth: '2px',
-                backgroundColor: '#1E3A5F',
-                color: '#FFFFFF',
-              },
-            }}
-            variant="outlined"
-          >
-            Close
-          </Button>
+                fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.025em',
+                '&:hover': {
+                  borderWidth: '2px',
+                  backgroundColor: '#1E3A5F',
+                  color: '#FFFFFF',
+                },
+              }}
+              variant="outlined"
+            >
+              Close
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
