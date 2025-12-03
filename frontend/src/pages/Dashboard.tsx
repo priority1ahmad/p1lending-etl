@@ -305,6 +305,59 @@ export const Dashboard: React.FC = () => {
             clearInterval(messageIntervalRef.current);
             messageIntervalRef.current = null;
           }
+        },
+        onSuccess: (data) => {
+          setPreviewData(data);
+        },
+        onError: (error) => {
+          console.error('Preview error:', error);
+        }
+      }
+    );
+  };
+    
+    // Clear any existing interval
+    if (messageIntervalRef.current) {
+      clearInterval(messageIntervalRef.current);
+      messageIntervalRef.current = null;
+    }
+    
+    // Poll for the latest preview job status while mutation is pending
+    messageIntervalRef.current = setInterval(async () => {
+      if (previewMutation.isPending) {
+        try {
+          // Get the latest preview job for this script
+          const response = await jobsApi.list(0, 10);
+          const previewJobs = response.jobs.filter(
+            job => job.job_type === 'preview' && 
+                   job.script_id === selectedScriptId &&
+                   (job.status === 'running' || job.status === 'pending')
+          );
+          
+          if (previewJobs.length > 0) {
+            const latestPreviewJob = previewJobs[0];
+            if (latestPreviewJob.message) {
+              setPreviewLoadingMessage(latestPreviewJob.message);
+            }
+          }
+        } catch (error) {
+          // Silently fail - don't interrupt the preview
+        }
+      }
+    }, 500); // Poll every 500ms for status updates
+    
+    // Clear interval when mutation completes
+    previewMutation.mutate(
+      { 
+        scriptIds: [selectedScriptId], 
+        rowLimit: rowLimit ? parseInt(rowLimit) : undefined 
+      },
+      {
+        onSettled: () => {
+          if (messageIntervalRef.current) {
+            clearInterval(messageIntervalRef.current);
+            messageIntervalRef.current = null;
+          }
         }
       }
     );
@@ -398,7 +451,7 @@ export const Dashboard: React.FC = () => {
                   <Button
                     variant="outlined"
                     startIcon={<Preview />}
-                    onClick={handleGetPreview}
+                    onClick={() => handleGetPreview(false)}
                     disabled={!selectedScriptId || previewMutation.isPending}
                     sx={{
                       borderColor: '#1E3A5F',
