@@ -46,7 +46,10 @@ export interface JobCreate {
 
 export interface JobPreview {
   script_name: string;
-  row_count: number;
+  row_count: number;  // For backward compatibility
+  total_rows?: number;  // Total rows from query
+  already_processed?: number;  // Rows already in PERSON_CACHE
+  unprocessed?: number;  // New rows that will be processed
   rows?: Array<Record<string, any>>;
 }
 

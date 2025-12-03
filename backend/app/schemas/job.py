@@ -64,6 +64,9 @@ class JobLogResponse(BaseModel):
 class JobPreviewResponse(BaseModel):
     """Job preview response schema"""
     script_name: str
-    row_count: int
+    row_count: int  # Total rows from query (for backward compatibility)
+    total_rows: Optional[int] = None  # Total rows from query
+    already_processed: Optional[int] = None  # Rows already in PERSON_CACHE
+    unprocessed: Optional[int] = None  # New rows that will be processed
     rows: Optional[List[Dict[str, Any]]] = None
 

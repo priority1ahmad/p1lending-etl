@@ -33,7 +33,7 @@ import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
-import type { ETLJob, JobCreate } from '../services/api/jobs';
+import type { ETLJob, JobCreate, JobPreview } from '../services/api/jobs';
 import { io, Socket } from 'socket.io-client';
 
 export const Dashboard: React.FC = () => {
@@ -43,7 +43,7 @@ export const Dashboard: React.FC = () => {
   const [currentJob, setCurrentJob] = useState<ETLJob | null>(null);
   const [logs, setLogs] = useState<Array<{ level: string; message: string; timestamp: string }>>([]);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [previewData, setPreviewData] = useState<Array<{ script_name: string; row_count: number; rows?: Array<Record<string, any>> }>>([]);
+  const [previewData, setPreviewData] = useState<Array<JobPreview>>([]);
   const [previewLoadingMessage, setPreviewLoadingMessage] = useState<string>('Initializing preview...');
   const [processedRows, setProcessedRows] = useState<Array<{ row_number: number; first_name: string; last_name: string; address: string; status: string; batch?: number }>>([]);
   const socketRef = useRef<Socket | null>(null);
@@ -1129,8 +1129,50 @@ export const Dashboard: React.FC = () => {
                 {item.script_name}
               </Typography>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Total Rows: {item.row_count.toLocaleString()}
+                Total Rows: {(item.total_rows ?? item.row_count).toLocaleString()}
               </Typography>
+              
+              {/* Processing Status */}
+              {(item.already_processed !== undefined || item.unprocessed !== undefined) && (
+                <Box sx={{ mt: 2, mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                  <Typography 
+                    variant="subtitle1" 
+                    gutterBottom
+                    sx={{
+                      fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                      fontWeight: 600,
+                      color: '#1E3A5F',
+                      mb: 1.5,
+                    }}
+                  >
+                    Processing Status
+                  </Typography>
+                  <Grid container spacing={2}>
+                    {(item.already_processed !== undefined) && (
+                      <>
+                        {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            Already Processed
+                          </Typography>
+                          <Typography variant="h6" color="info.main">
+                            {item.already_processed.toLocaleString()}
+                          </Typography>
+                        </Grid>
+                        {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                        <Grid item xs={12} sm={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            New to Process
+                          </Typography>
+                          <Typography variant="h6" color="success.main">
+                            {(item.unprocessed ?? 0).toLocaleString()}
+                          </Typography>
+                        </Grid>
+                      </>
+                    )}
+                  </Grid>
+                </Box>
+              )}
               
               {/* Stats Section */}
               {currentJob && (currentJob.status === 'completed' || currentJob.status === 'failed') && (
