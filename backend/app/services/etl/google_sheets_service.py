@@ -289,6 +289,20 @@ class GoogleSheetsConnection:
             self.logger.error(f"❌ Failed to upload to sheets: {e}")
             return None
     
+    def clear_sheet(self, sheet_name: str) -> bool:
+        """Clear all data from a sheet (keeps the sheet structure)"""
+        try:
+            self.service.spreadsheets().values().clear(
+                spreadsheetId=settings.google_sheets.sheet_id,
+                range=f"{sheet_name}!A:ZZ"
+            ).execute()
+            
+            self.logger.info(f"✅ Cleared sheet '{sheet_name}'")
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to clear sheet: {e}")
+            return False
+    
     def get_sheet_info(self) -> Dict[str, Any]:
         """Get information about the spreadsheet"""
         try:

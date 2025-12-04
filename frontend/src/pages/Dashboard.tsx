@@ -93,6 +93,25 @@ export const Dashboard: React.FC = () => {
     }
   }, [latestJob]);
 
+  // Fetch initial logs when job starts
+  useEffect(() => {
+    if (currentJob && currentJob.status === 'running' && currentJob.id) {
+      // Fetch initial logs from API
+      jobsApi.getLogs(currentJob.id, 0, 1000).then((initialLogs) => {
+        if (initialLogs && initialLogs.length > 0) {
+          setLogs(initialLogs.map(log => ({
+            level: log.level || 'INFO',
+            message: log.message,
+            timestamp: log.created_at || new Date().toISOString(),
+          })));
+        }
+      }).catch(err => console.error('Failed to fetch initial logs:', err));
+    } else if (!currentJob || currentJob.status !== 'running') {
+      // Clear logs when job stops
+      setLogs([]);
+    }
+  }, [currentJob?.id, currentJob?.status]);
+
   // Socket.io connection for real-time updates
   useEffect(() => {
     if (currentJob && currentJob.status === 'running') {
