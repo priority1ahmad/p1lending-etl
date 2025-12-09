@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -13,6 +13,8 @@ import {
   Avatar,
   IconButton,
   Tooltip,
+  Popover,
+  Paper,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -23,6 +25,8 @@ import {
   ChevronRight as ChevronRightIcon,
   Refresh as RefreshIcon,
   TableChart as TableChartIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
@@ -43,7 +47,6 @@ const navItems: NavItem[] = [
   { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
   { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
   { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
-  { label: 'Configuration', path: '/config', icon: <SettingsIcon /> },
 ];
 
 interface SidebarProps {
@@ -55,6 +58,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clearAuth } = useAuthStore();
+  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
+  const [isSettingsHovered, setIsSettingsHovered] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -65,6 +70,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       clearAuth();
       navigate('/login');
     }
+  };
+
+  const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
+    setSettingsAnchor(event.currentTarget);
+  };
+
+  const handleSettingsMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
+    setIsSettingsHovered(true);
+    setSettingsAnchor(event.currentTarget);
+  };
+
+  const handleSettingsMouseLeave = () => {
+    setIsSettingsHovered(false);
+    // Delay closing to allow mouse to move to popover
+    setTimeout(() => {
+      if (!isSettingsHovered) {
+        setSettingsAnchor(null);
+      }
+    }, 100);
+  };
+
+  const handlePopoverClose = () => {
+    setIsSettingsHovered(false);
+    setSettingsAnchor(null);
+  };
+
+  const handleSettingsNavigate = (path: string) => {
+    navigate(path);
+    handlePopoverClose();
   };
 
   const isActive = (path: string) => {
@@ -221,6 +255,149 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           </ListItem>
         ))}
       </List>
+
+      {/* Application Settings Menu */}
+      <Box sx={{ px: 1.5, pb: 1, mt: 'auto' }}>
+        <Tooltip
+          title={collapsed ? 'Application Settings' : ''}
+          placement="right"
+          arrow
+        >
+          <ListItemButton
+            onClick={handleSettingsClick}
+            onMouseEnter={handleSettingsMouseEnter}
+            onMouseLeave={handleSettingsMouseLeave}
+            sx={{
+              borderRadius: 1.5,
+              px: collapsed ? 1.5 : 2,
+              py: 1.25,
+              justifyContent: collapsed ? 'center' : 'space-between',
+              backgroundColor: location.pathname === '/config'
+                ? 'rgba(80, 164, 217, 0.15)'
+                : 'transparent',
+              '&:hover': {
+                backgroundColor: location.pathname === '/config'
+                  ? 'rgba(80, 164, 217, 0.2)'
+                  : 'rgba(255, 255, 255, 0.08)',
+              },
+              transition: 'background-color 0.15s ease',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 1.5 }}>
+              <ListItemIcon
+                sx={{
+                  minWidth: collapsed ? 0 : 40,
+                  color: location.pathname === '/config'
+                    ? brandColors.skyBlue
+                    : 'rgba(255, 255, 255, 0.7)',
+                  justifyContent: 'center',
+                }}
+              >
+                <SettingsIcon />
+              </ListItemIcon>
+              {!collapsed && (
+                <ListItemText
+                  primary="Application Settings"
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                    fontWeight: location.pathname === '/config' ? 600 : 400,
+                    color: location.pathname === '/config'
+                      ? '#FFFFFF'
+                      : 'rgba(255, 255, 255, 0.8)',
+                  }}
+                />
+              )}
+            </Box>
+            {!collapsed && (
+              <Box sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
+                {Boolean(settingsAnchor) ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+              </Box>
+            )}
+          </ListItemButton>
+        </Tooltip>
+
+        {/* Settings Mega Menu Popover */}
+        <Popover
+          open={Boolean(settingsAnchor)}
+          anchorEl={settingsAnchor}
+          onClose={handlePopoverClose}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'bottom',
+            horizontal: 'left',
+          }}
+          sx={{
+            ml: 1,
+            '& .MuiPopover-paper': {
+              backgroundColor: brandColors.navy,
+              borderRadius: 2,
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              minWidth: 220,
+            },
+          }}
+          disableRestoreFocus
+          slotProps={{
+            paper: {
+              onMouseEnter: () => setIsSettingsHovered(true),
+              onMouseLeave: handlePopoverClose,
+            },
+          }}
+        >
+          <Paper
+            elevation={0}
+            sx={{
+              backgroundColor: 'transparent',
+              p: 1,
+            }}
+          >
+            <List sx={{ py: 0.5 }}>
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleSettingsNavigate('/config')}
+                  sx={{
+                    borderRadius: 1.5,
+                    px: 2,
+                    py: 1.25,
+                    backgroundColor: location.pathname === '/config'
+                      ? 'rgba(80, 164, 217, 0.15)'
+                      : 'transparent',
+                    '&:hover': {
+                      backgroundColor: location.pathname === '/config'
+                        ? 'rgba(80, 164, 217, 0.2)'
+                        : 'rgba(255, 255, 255, 0.08)',
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 40,
+                      color: location.pathname === '/config'
+                        ? brandColors.skyBlue
+                        : 'rgba(255, 255, 255, 0.7)',
+                    }}
+                  >
+                    <SettingsIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary="Configuration"
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: location.pathname === '/config' ? 600 : 400,
+                      color: location.pathname === '/config'
+                        ? '#FFFFFF'
+                        : 'rgba(255, 255, 255, 0.8)',
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            </List>
+          </Paper>
+        </Popover>
+      </Box>
 
       {/* Collapse Toggle */}
       <Box sx={{ px: 1.5, pb: 1 }}>

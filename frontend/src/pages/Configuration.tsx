@@ -19,7 +19,6 @@ export const Configuration: React.FC = () => {
   const queryClient = useQueryClient();
   const [idicoreClientId, setIdicoreClientId] = useState('');
   const [idicoreClientSecret, setIdicoreClientSecret] = useState('');
-  const [googleSheetUrl, setGoogleSheetUrl] = useState('');
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [saveStatus, setSaveStatus] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -32,7 +31,6 @@ export const Configuration: React.FC = () => {
     if (config) {
       setIdicoreClientId(config.idicore_client_id || '');
       setIdicoreClientSecret(config.idicore_client_secret || '');
-      setGoogleSheetUrl(config.google_sheet_url || '');
     }
   }, [config]);
 
@@ -68,18 +66,10 @@ export const Configuration: React.FC = () => {
     },
   });
 
-  const testGoogleSheetsMutation = useMutation({
-    mutationFn: () => configApi.testGoogleSheets(),
-    onSuccess: (data) => {
-      setTestResults((prev) => ({ ...prev, googleSheets: data }));
-    },
-  });
-
   const handleSave = () => {
     updateMutation.mutate({
       idicore_client_id: idicoreClientId,
       idicore_client_secret: idicoreClientSecret,
-      google_sheet_url: googleSheetUrl,
     });
   };
 
@@ -201,95 +191,6 @@ export const Configuration: React.FC = () => {
                   sx={{ mt: 2 }}
                 >
                   {testResults.idicore.message}
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Google Sheets Configuration */}
-        {/* @ts-expect-error - Material-UI v7 Grid item prop type issue */}
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography 
-                variant="h6" 
-                gutterBottom
-                sx={{
-                  fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-                  fontWeight: 600,
-                  color: '#1E3A5F',
-                }}
-              >
-                Google Sheets
-              </Typography>
-              <TextField
-                fullWidth
-                label="Sheet URL"
-                value={googleSheetUrl}
-                onChange={(e) => setGoogleSheetUrl(e.target.value)}
-                margin="normal"
-              />
-              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => testGoogleSheetsMutation.mutate()}
-                  disabled={testGoogleSheetsMutation.isPending}
-                  sx={{
-                    borderColor: '#1E3A5F',
-                    color: '#1E3A5F',
-                    borderWidth: '2px',
-                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.025em',
-                    '&:hover': {
-                      borderWidth: '2px',
-                      backgroundColor: '#1E3A5F',
-                      color: '#FFFFFF',
-                    },
-                  }}
-                >
-                  {testGoogleSheetsMutation.isPending ? 'Testing...' : 'Test Connection'}
-                </Button>
-                <Button 
-                  variant="contained" 
-                  startIcon={<Save />} 
-                  onClick={handleSave}
-                  sx={{
-                    background: 'linear-gradient(135deg, #E8632B 0%, #F07D4A 100%)',
-                    color: '#FFFFFF',
-                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.025em',
-                    boxShadow: '0 4px 14px 0 rgba(232, 99, 43, 0.35)',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #E8632B 0%, #F07D4A 100%)',
-                      boxShadow: '0 6px 20px 0 rgba(232, 99, 43, 0.45)',
-                      transform: 'translateY(-2px)',
-                    },
-                  }}
-                >
-                  Save
-                </Button>
-              </Box>
-              {saveStatus && (
-                <Alert
-                  severity={saveStatus.success ? 'success' : 'error'}
-                  icon={saveStatus.success ? <CheckCircle /> : <ErrorIcon />}
-                  sx={{ mt: 2 }}
-                >
-                  {saveStatus.message}
-                </Alert>
-              )}
-              {testResults.googleSheets && (
-                <Alert
-                  severity={testResults.googleSheets.success ? 'success' : 'error'}
-                  icon={testResults.googleSheets.success ? <CheckCircle /> : <ErrorIcon />}
-                  sx={{ mt: 2 }}
-                >
-                  {testResults.googleSheets.message}
                 </Alert>
               )}
             </CardContent>

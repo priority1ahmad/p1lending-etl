@@ -170,6 +170,23 @@ const theme = createTheme({
     '0 20px 25px -5px rgba(16, 66, 101, 0.1), 0 10px 10px -5px rgba(16, 66, 101, 0.04)',
     '0 25px 50px -12px rgba(16, 66, 101, 0.25)',
   ],
+  transitions: {
+    easing: {
+      easeInOut: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      easeOut: 'cubic-bezier(0.0, 0, 0.2, 1)',
+      easeIn: 'cubic-bezier(0.4, 0, 1, 1)',
+      sharp: 'cubic-bezier(0.4, 0, 0.6, 1)',
+    },
+    duration: {
+      shortest: 150,
+      shorter: 200,
+      short: 250,
+      standard: 300,
+      complex: 375,
+      enteringScreen: 225,
+      leavingScreen: 195,
+    },
+  },
   components: {
     MuiButton: {
       styleOverrides: {
@@ -178,12 +195,19 @@ const theme = createTheme({
           textTransform: 'none',
           borderRadius: 6,
           padding: '8px 16px',
-          transition: 'all 0.15s ease',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+          '&:active': {
+            transform: 'scale(0.98)',
+          },
         },
         contained: {
           boxShadow: '0 1px 3px 0 rgba(16, 66, 101, 0.1), 0 1px 2px 0 rgba(16, 66, 101, 0.06)',
           '&:hover': {
             boxShadow: '0 4px 6px -1px rgba(16, 66, 101, 0.1), 0 2px 4px -1px rgba(16, 66, 101, 0.06)',
+            transform: 'translateY(-1px)',
+          },
+          '&:active': {
+            transform: 'translateY(0) scale(0.98)',
           },
         },
         containedPrimary: {
@@ -203,6 +227,7 @@ const theme = createTheme({
           '&:hover': {
             borderWidth: '1.5px',
             backgroundColor: 'rgba(16, 66, 101, 0.04)',
+            transform: 'translateY(-1px)',
           },
         },
         text: {
@@ -218,10 +243,11 @@ const theme = createTheme({
           borderRadius: 12,
           boxShadow: '0 1px 3px 0 rgba(16, 66, 101, 0.1), 0 1px 2px 0 rgba(16, 66, 101, 0.06)',
           border: '1px solid #E2E8F0',
-          transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           '&:hover': {
-            boxShadow: '0 4px 6px -1px rgba(16, 66, 101, 0.1), 0 2px 4px -1px rgba(16, 66, 101, 0.06)',
+            boxShadow: '0 10px 15px -3px rgba(16, 66, 101, 0.1), 0 4px 6px -2px rgba(16, 66, 101, 0.05)',
             borderColor: '#CBD5E0',
+            transform: 'translateY(-2px)',
           },
         },
       },
