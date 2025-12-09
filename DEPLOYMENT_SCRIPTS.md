@@ -2,6 +2,8 @@
 
 This document explains how to use the automated deployment scripts for the P1Lending ETL staging server.
 
+**IMPORTANT:** These scripts are designed to run **directly on the staging server**, not from your local machine via SSH.
+
 ---
 
 ## Available Scripts
@@ -18,7 +20,6 @@ This document explains how to use the automated deployment scripts for the P1Len
 ### File: `deploy-staging-auto.sh`
 
 **Features:**
-- ✅ SSH connection verification
 - ✅ Code pull with change summary
 - ✅ .env backup (timestamped)
 - ✅ Database migrations
@@ -27,73 +28,72 @@ This document explains how to use the automated deployment scripts for the P1Len
 - ✅ Log preview
 - ✅ Deployment summary
 
-### Usage
+### Usage (On Staging Server)
 
 ```bash
-# Basic usage (uses defaults)
+# SSH into staging server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+
+# Navigate to app directory
+cd ~/etl_app
+
+# Run deployment script
 ./deploy-staging-auto.sh
-
-# Specify server IP
-./deploy-staging-auto.sh 13.218.65.240
-
-# Specify server and SSH key
-./deploy-staging-auto.sh 13.218.65.240 ~/.ssh/staging_key.pem
-
-# Use domain name
-./deploy-staging-auto.sh staging.etl.p1lending.io ~/.ssh/id_rsa
 ```
 
-### Default Values
+### Configuration
 
 ```bash
-SERVER: 13.218.65.240
-SSH_KEY: ~/.ssh/staging_key.pem
-SSH_USER: ubuntu
-REMOTE_DIR: ~/etl_app
+APP_DIR: Current directory (pwd)
 BRANCH: staging
 ```
 
 ### What It Does
 
-1. **Tests SSH connection** - Verifies access to server
-2. **Checks app directory** - Ensures git repo exists
-3. **Pulls latest code** - Shows commits being deployed
-4. **Backs up .env** - Creates timestamped backup
-5. **Runs migrations** - Applies database schema changes
-6. **Rebuilds images** - Full Docker image rebuild (no cache)
-7. **Restarts services** - Brings up all containers
-8. **Verifies health** - Checks backend and frontend
-9. **Shows logs** - Displays recent logs from all services
-10. **Provides summary** - Shows deployed commit and access URLs
+1. **Validates directory** - Ensures running from ~/etl_app
+2. **Pulls latest code** - Shows commits being deployed
+3. **Backs up .env** - Creates timestamped backup
+4. **Runs migrations** - Applies database schema changes
+5. **Rebuilds images** - Full Docker image rebuild (no cache)
+6. **Restarts services** - Brings up all containers
+7. **Verifies health** - Checks backend and frontend
+8. **Shows logs** - Displays recent logs from all services
+9. **Provides summary** - Shows deployed commit
 
 ### Example Output
 
 ```
 ========================================
-P1Lending ETL - Auto Deploy to Staging
+P1Lending ETL - Auto Deploy Staging
 ========================================
 
-Server: 13.218.65.240
-SSH Key: ~/.ssh/staging_key.pem
+Directory: /home/ubuntu/etl_app
 Branch: staging
-Remote Dir: ~/etl_app
 
-This will deploy the latest staging code to the server.
+This will deploy the latest staging code.
 Continue? (y/N): y
 
 ========================================
-Step 1: Testing SSH Connection
+Step 1: Pulling Latest Code
 ========================================
 
-▶ Connecting to ubuntu@13.218.65.240...
-✓ SSH connection verified
+▶ Fetching updates from GitHub...
+Fetching from origin...
+
+Changes to be deployed:
+  b89531a - Add automated deployment scripts for staging
+  c37211c - Fix staging: restructure sidebar, enhance UI, add documentation
+
+Pulling latest staging code...
+✓ Latest code pulled successfully
 
 ========================================
-Step 2: Verifying Application Directory
+Step 2: Backing Up Configuration
 ========================================
 
-▶ Checking if ~/etl_app exists...
-✓ Application directory exists
+▶ Creating backup of .env file...
+✓ Backup created: .env.backup.20241208_143022
+✓ Configuration backed up
 
 [... continues through all steps ...]
 
@@ -104,13 +104,12 @@ Deployment Summary
 ✓ Deployment completed successfully!
 
 Deployed Commit:
-  c37211c - Fix staging: restructure sidebar, enhance UI, add documentation
+  b89531a - Add automated deployment scripts for staging
 
-Access URLs:
-  Frontend: http://13.218.65.240:3000
-  Backend API: http://13.218.65.240:8000
-  API Docs: http://13.218.65.240:8000/docs
-  Health: http://13.218.65.240:8000/health
+Useful Commands:
+  View logs: docker-compose -f docker-compose.prod.yml logs -f
+  Restart: docker-compose -f docker-compose.prod.yml restart
+  Status: docker-compose -f docker-compose.prod.yml ps
 ```
 
 ---
@@ -124,14 +123,17 @@ Access URLs:
 - ⚡ Minimal output
 - ⚡ Perfect for rapid iteration
 
-### Usage
+### Usage (On Staging Server)
 
 ```bash
-# Deploy with defaults
-./quick-deploy.sh
+# SSH into staging server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
 
-# Specify server
-./quick-deploy.sh 13.218.65.240
+# Navigate to app directory
+cd ~/etl_app
+
+# Run quick deployment
+./quick-deploy.sh
 ```
 
 ### What It Does
@@ -143,15 +145,13 @@ Access URLs:
 ### Example Output
 
 ```
-🚀 Quick Deploy to 13.218.65.240
+🚀 Quick Deploy
 
 ⬇️  Pulling latest code...
 🔄 Restarting services...
 ✓ Done!
 
 ✓ Deployment complete!
-Frontend: http://13.218.65.240:3000
-Backend: http://13.218.65.240:8000/docs
 ```
 
 **Use this when:**
@@ -170,25 +170,10 @@ Backend: http://13.218.65.240:8000/docs
 
 ## Prerequisites
 
-### On Your Local Machine
-
-1. **SSH Key** - Access to staging server
-   ```bash
-   # Ensure correct permissions
-   chmod 400 ~/.ssh/staging_key.pem
-   ```
-
-2. **Network Access** - Can reach staging server
-   ```bash
-   # Test connection
-   ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
-   ```
-
 ### On Staging Server
 
 1. **Git Repository Cloned**
    ```bash
-   ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
    git clone -b staging https://github.com/priority1ahmad/p1lending-etl.git ~/etl_app
    cd ~/etl_app
    ```
@@ -211,6 +196,22 @@ Backend: http://13.218.65.240:8000/docs
    docker-compose -f docker-compose.prod.yml up -d
    ```
 
+5. **Scripts Executable**
+   ```bash
+   chmod +x deploy-staging-auto.sh quick-deploy.sh
+   ```
+
+### On Your Local Machine
+
+1. **SSH Key** - Access to staging server
+   ```bash
+   # Ensure correct permissions
+   chmod 400 ~/.ssh/staging_key.pem
+
+   # Test connection
+   ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+   ```
+
 ---
 
 ## Workflow Examples
@@ -218,7 +219,7 @@ Backend: http://13.218.65.240:8000/docs
 ### Scenario 1: Making a Code Change
 
 ```bash
-# 1. Make your changes locally
+# 1. Make your changes locally (on your dev machine)
 vim frontend/src/pages/Dashboard.tsx
 
 # 2. Commit to staging
@@ -226,14 +227,16 @@ git add -A
 git commit -m "Update dashboard UI"
 git push origin staging
 
-# 3. Deploy
+# 3. SSH into staging server and deploy
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
 ./quick-deploy.sh
 ```
 
 ### Scenario 2: Database Schema Change
 
 ```bash
-# 1. Create migration locally
+# 1. Create migration locally (on your dev machine)
 docker-compose -f docker-compose.prod.yml exec backend alembic revision --autogenerate -m "Add new field"
 
 # 2. Commit migration
@@ -241,27 +244,31 @@ git add backend/alembic/versions/
 git commit -m "Add new field migration"
 git push origin staging
 
-# 3. Deploy with migration
+# 3. SSH into staging server and deploy with migration
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
 ./deploy-staging-auto.sh
 ```
 
 ### Scenario 3: Major Feature Deployment
 
 ```bash
-# 1. Ensure all code is committed and pushed
+# 1. Ensure all code is committed and pushed (on your dev machine)
 git status
 git push origin staging
 
-# 2. Use full deployment script
-./deploy-staging-auto.sh
-
-# 3. Monitor logs
+# 2. SSH into staging server
 ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
 cd ~/etl_app
+
+# 3. Use full deployment script
+./deploy-staging-auto.sh
+
+# 4. Monitor logs (already on the server)
 docker-compose -f docker-compose.prod.yml logs -f
 
-# 4. Test thoroughly
-# - Open frontend
+# 5. Test thoroughly
+# - Open frontend in browser
 # - Test login
 # - Run ETL job
 # - Check real-time updates
@@ -271,10 +278,25 @@ docker-compose -f docker-compose.prod.yml logs -f
 
 ## Troubleshooting
 
+### "docker-compose.prod.yml not found"
+
+**Error:** Script exits saying docker-compose.prod.yml not found
+**Solution:**
+```bash
+# Make sure you're in the correct directory
+cd ~/etl_app
+pwd  # Should show /home/ubuntu/etl_app
+
+# Now run the script
+./deploy-staging-auto.sh
+```
+
 ### "Permission denied (publickey)"
 
+**Error:** Can't SSH into staging server
+**Solution:**
 ```bash
-# Check SSH key permissions
+# Check SSH key permissions on your local machine
 ls -la ~/.ssh/staging_key.pem
 # Should be: -r-------- (chmod 400)
 
@@ -285,25 +307,23 @@ chmod 400 ~/.ssh/staging_key.pem
 ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240 "echo 'Connected!'"
 ```
 
-### "Application directory not found"
+### "Permission denied" when running scripts
 
+**Error:** `./deploy-staging-auto.sh: Permission denied`
+**Solution:**
 ```bash
-# Clone repository on server
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
-git clone -b staging https://github.com/priority1ahmad/p1lending-etl.git ~/etl_app
-exit
+# Make scripts executable
+chmod +x deploy-staging-auto.sh quick-deploy.sh
 
-# Try deployment again
+# Now run the script
 ./deploy-staging-auto.sh
 ```
 
 ### "Migration failed"
 
+**Error:** Database migration fails during deployment
+**Solution:**
 ```bash
-# SSH into server
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
-cd ~/etl_app
-
 # Check migration status
 docker-compose -f docker-compose.prod.yml exec backend alembic current
 
@@ -316,11 +336,9 @@ docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
 
 ### "Container won't start"
 
+**Error:** Docker container fails to start
+**Solution:**
 ```bash
-# SSH into server
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
-cd ~/etl_app
-
 # Check container status
 docker-compose -f docker-compose.prod.yml ps
 
@@ -334,6 +352,8 @@ docker-compose -f docker-compose.prod.yml restart backend
 
 ### "Health check fails"
 
+**Error:** Health check fails during deployment verification
+**Solution:**
 ```bash
 # Wait a bit longer (containers may still be starting)
 sleep 30
@@ -352,48 +372,49 @@ ss -tulpn | grep -E ':(3000|8000)'
 
 ### Deploy from a Specific Branch
 
-Edit the script and change:
+Temporarily switch to a different branch:
 ```bash
-BRANCH="staging"
-# to
-BRANCH="feature-branch"
-```
-
-Or modify on-the-fly:
-```bash
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240 bash << 'EOF'
+# SSH into server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
 cd ~/etl_app
+
+# Switch to different branch
 git fetch origin
 git checkout feature-branch
 git pull origin feature-branch
+
+# Deploy
 docker-compose -f docker-compose.prod.yml up -d --build
-EOF
 ```
 
 ### Skip Rebuild (Faster)
 
-Modify `quick-deploy.sh` to skip rebuild:
+For very fast restarts without rebuilding images:
 ```bash
+# Pull code
+git pull origin staging
+
+# Just restart (no rebuild)
 docker-compose -f docker-compose.prod.yml up -d
-# Instead of:
-docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
 ### Deploy with Rollback Option
 
 ```bash
+# SSH into server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
+
 # Before deploying, save current commit
-CURRENT=$(ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240 "cd ~/etl_app && git rev-parse HEAD")
+CURRENT=$(git rev-parse HEAD)
+echo "Current commit: $CURRENT"
 
 # Deploy
 ./deploy-staging-auto.sh
 
 # If something goes wrong, rollback
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240 bash << EOF
-cd ~/etl_app
 git checkout $CURRENT
 docker-compose -f docker-compose.prod.yml up -d --build
-EOF
 ```
 
 ---
@@ -417,9 +438,12 @@ git log --oneline -5
 
 ### 3. Monitor After Deployment
 ```bash
+# SSH into server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
+
 # Watch logs for errors
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240 \
-  "cd ~/etl_app && docker-compose -f docker-compose.prod.yml logs -f --tail=50"
+docker-compose -f docker-compose.prod.yml logs -f --tail=50
 ```
 
 ### 4. Keep .env Backups
@@ -429,9 +453,8 @@ The full deployment script automatically creates backups:
 .env.backup.20241208_151533
 ```
 
-To restore:
+To restore (on staging server):
 ```bash
-ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
 cd ~/etl_app
 cp .env.backup.YYYYMMDD_HHMMSS .env
 docker-compose -f docker-compose.prod.yml restart
@@ -441,11 +464,15 @@ docker-compose -f docker-compose.prod.yml restart
 
 **Frontend changes** (UI, styling, components):
 ```bash
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
 ./quick-deploy.sh
 ```
 
 **Backend changes** (API, database, migrations):
 ```bash
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+cd ~/etl_app
 ./deploy-staging-auto.sh
 ```
 
@@ -455,14 +482,22 @@ docker-compose -f docker-compose.prod.yml restart
 
 ### Cron Job for Auto-Deploy
 
+Set up automatic nightly deployments on the staging server:
+
 ```bash
-# Deploy every night at 2 AM
-0 2 * * * /home/user/projects/LodasoftETL/new_app/quick-deploy.sh >> /var/log/auto-deploy.log 2>&1
+# SSH into staging server
+ssh -i ~/.ssh/staging_key.pem ubuntu@13.218.65.240
+
+# Edit crontab
+crontab -e
+
+# Add this line (deploy every night at 2 AM)
+0 2 * * * cd /home/ubuntu/etl_app && ./quick-deploy.sh >> /var/log/auto-deploy.log 2>&1
 ```
 
 ### GitHub Actions Webhook
 
-Set up auto-deploy on push to staging branch:
+Set up auto-deploy on push to staging branch (requires webhook on server):
 
 ```yaml
 # .github/workflows/deploy-staging.yml
@@ -475,27 +510,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Deploy
-        run: ./deploy-staging-auto.sh ${{ secrets.STAGING_SERVER }} ${{ secrets.SSH_KEY }}
+      - name: Trigger Deploy
+        run: |
+          ssh -i ${{ secrets.SSH_KEY }} ubuntu@${{ secrets.STAGING_SERVER }} \
+            'cd ~/etl_app && ./quick-deploy.sh'
 ```
 
 ---
 
 ## Summary
 
-| When to Use | Script | Command |
-|-------------|--------|---------|
-| First deployment | Full script | `./deploy-staging-auto.sh` |
-| Database changes | Full script | `./deploy-staging-auto.sh` |
-| Major features | Full script | `./deploy-staging-auto.sh` |
-| Bug fixes | Quick script | `./quick-deploy.sh` |
-| UI tweaks | Quick script | `./quick-deploy.sh` |
-| Frontend changes | Quick script | `./quick-deploy.sh` |
-| Testing iteration | Quick script | `./quick-deploy.sh` |
+| When to Use | Script | On Staging Server |
+|-------------|--------|-------------------|
+| First deployment | Full script | `cd ~/etl_app && ./deploy-staging-auto.sh` |
+| Database changes | Full script | `cd ~/etl_app && ./deploy-staging-auto.sh` |
+| Major features | Full script | `cd ~/etl_app && ./deploy-staging-auto.sh` |
+| Bug fixes | Quick script | `cd ~/etl_app && ./quick-deploy.sh` |
+| UI tweaks | Quick script | `cd ~/etl_app && ./quick-deploy.sh` |
+| Frontend changes | Quick script | `cd ~/etl_app && ./quick-deploy.sh` |
+| Testing iteration | Quick script | `cd ~/etl_app && ./quick-deploy.sh` |
 
 ---
 
-**Remember**: Always commit and push to staging branch before running deployment scripts!
+**Remember**:
+1. Always commit and push to staging branch before deploying
+2. SSH into the staging server first
+3. Run the script from ~/etl_app directory
+4. Make sure scripts are executable (`chmod +x *.sh`)
 
 ---
 
