@@ -175,7 +175,7 @@ services:
     container_name: p1lending-new-frontend
     restart: unless-stopped
     ports:
-      - "80:80"  # Access new app at http://your-ec2-ip
+      - "3000:80"  # Nginx proxies from port 80 to this
     depends_on:
       - backend
     networks:
