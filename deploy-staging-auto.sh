@@ -32,6 +32,18 @@ NC='\033[0m' # No Color
 APP_DIR="$(pwd)"
 BRANCH="staging"
 
+# Detect docker-compose command
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+elif docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+else
+    echo -e "${RED}✗ Docker Compose not found!${NC}"
+    echo "Please install Docker Compose:"
+    echo "  https://docs.docker.com/compose/install/"
+    exit 1
+fi
+
 # Helper functions
 print_header() {
     echo -e "\n${BLUE}========================================${NC}"
@@ -128,7 +140,7 @@ print_step "Applying Alembic migrations..."
 # Check if backend container is running
 if docker ps | grep -q "backend"; then
     echo "Running migrations in backend container..."
-    docker-compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+    $DOCKER_COMPOSE -f docker-compose.prod.yml exec -T backend alembic upgrade head
 
     if [ $? -eq 0 ]; then
         echo "✓ Migrations applied successfully"
@@ -146,15 +158,15 @@ print_header "Step 4: Rebuilding & Restarting Services"
 print_step "Building Docker images..."
 
 echo "Stopping existing containers..."
-docker-compose -f docker-compose.prod.yml down
+$DOCKER_COMPOSE -f docker-compose.prod.yml down
 
 echo ""
 echo "Building new images (this may take a few minutes)..."
-docker-compose -f docker-compose.prod.yml build --no-cache frontend backend
+$DOCKER_COMPOSE -f docker-compose.prod.yml build --no-cache frontend backend
 
 echo ""
 echo "Starting all services..."
-docker-compose -f docker-compose.prod.yml up -d
+$DOCKER_COMPOSE -f docker-compose.prod.yml up -d
 
 echo ""
 echo "Waiting for services to be healthy..."
@@ -175,7 +187,7 @@ print_header "Step 5: Verifying Deployment"
 # Check container status
 print_step "Checking container status..."
 echo "Container Status:"
-docker-compose -f docker-compose.prod.yml ps
+$DOCKER_COMPOSE -f docker-compose.prod.yml ps
 
 # Check backend health
 print_step "Testing backend health endpoint..."
@@ -200,15 +212,15 @@ print_info "Last 10 lines from each service:"
 
 echo ""
 echo "=== Backend Logs ==="
-docker-compose -f docker-compose.prod.yml logs --tail=10 backend 2>&1 | tail -10
+$DOCKER_COMPOSE -f docker-compose.prod.yml logs --tail=10 backend 2>&1 | tail -10
 
 echo ""
 echo "=== Frontend Logs ==="
-docker-compose -f docker-compose.prod.yml logs --tail=10 frontend 2>&1 | tail -10
+$DOCKER_COMPOSE -f docker-compose.prod.yml logs --tail=10 frontend 2>&1 | tail -10
 
 echo ""
 echo "=== Celery Worker Logs ==="
-docker-compose -f docker-compose.prod.yml logs --tail=10 celery-worker 2>&1 | tail -10
+$DOCKER_COMPOSE -f docker-compose.prod.yml logs --tail=10 celery-worker 2>&1 | tail -10
 
 # Step 7: Deployment summary
 print_header "Deployment Summary"
@@ -222,9 +234,9 @@ echo "Deployed Commit:"
 echo "  $DEPLOYED_COMMIT"
 echo ""
 echo "Useful Commands:"
-echo "  View logs: docker-compose -f docker-compose.prod.yml logs -f"
-echo "  Restart: docker-compose -f docker-compose.prod.yml restart"
-echo "  Status: docker-compose -f docker-compose.prod.yml ps"
+echo "  View logs: $DOCKER_COMPOSE -f docker-compose.prod.yml logs -f"
+echo "  Restart: $DOCKER_COMPOSE -f docker-compose.prod.yml restart"
+echo "  Status: $DOCKER_COMPOSE -f docker-compose.prod.yml ps"
 echo ""
 
 print_info "Monitor the application for a few minutes to ensure stability"
