@@ -32,7 +32,6 @@ import {
   InputLabel,
   Tooltip,
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
 import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
@@ -128,8 +127,8 @@ export const ETLResults: React.FC = () => {
 
       {/* Statistics Cards */}
       {stats && (
-        <Grid2 container spacing={3} sx={{ mb: 4 }}>
-          <Grid2 xs={12} sm={6} md={3}>
+        <Box sx={{ display: 'flex', gap: 3, mb: 4, flexWrap: 'wrap' }}>
+          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -143,8 +142,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -158,8 +157,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -173,8 +172,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Box>
+          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -191,13 +190,13 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-        </Grid2>
+          </Box>
+        </Box>
       )}
 
-      <Grid2 container spacing={3}>
+      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
         {/* Jobs List */}
-        <Grid2 xs={12} md={4}>
+        <Box sx={{ flex: '1 1 300px', minWidth: 0, maxWidth: { md: '400px' } }}>
           <Card>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -243,10 +242,10 @@ export const ETLResults: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid2>
+        </Box>
 
         {/* Results Table */}
-        <Grid2 xs={12} md={8}>
+        <Box sx={{ flex: '1 1 600px', minWidth: 0 }}>
           <Card>
             <CardContent>
               {!selectedJobId ? (
@@ -394,8 +393,8 @@ export const ETLResults: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Box>
+      </Box>
     </Container>
   );
 };
