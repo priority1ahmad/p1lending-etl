@@ -11,8 +11,6 @@
 #   - 6380: Redis (internal, mapped from 6379)
 #   - 7777: NTFY push notifications
 
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
