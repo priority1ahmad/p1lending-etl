@@ -286,9 +286,3 @@ async def start_redis_subscriber():
     except Exception as e:
         etl_logger.error(f"Redis subscriber error: {e}")
         # Don't raise, just log - the app should still work without real-time updates
-
-
-@sio.event
-async def connect(sid, environ):
-    """Handle client connection"""
-    etl_logger.info(f"Client connected: {sid}")

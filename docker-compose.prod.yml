@@ -9,6 +9,7 @@
 #   - 8000: Backend API
 #   - 5433: PostgreSQL (internal, mapped from 5432)
 #   - 6380: Redis (internal, mapped from 6379)
+#   - 7777: NTFY push notifications
 
 version: '3.8'
 
@@ -70,6 +71,13 @@ services:
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
+      # NTFY Push Notifications
+      - NTFY_ENABLED=${NTFY_ENABLED:-true}
+      - NTFY_BASE_URL=http://ntfy:80
+      - NTFY_TOPIC_AUTH=${NTFY_TOPIC_AUTH:-p1-auth}
+      - NTFY_TOPIC_JOBS=${NTFY_TOPIC_JOBS:-p1-jobs}
+      - NTFY_TOPIC_ERRORS=${NTFY_TOPIC_ERRORS:-p1-errors}
+      - NTFY_TOPIC_SYSTEM=${NTFY_TOPIC_SYSTEM:-p1-system}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
@@ -82,6 +90,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ntfy:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -108,10 +118,18 @@ services:
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
+      # NTFY Push Notifications
+      - NTFY_ENABLED=${NTFY_ENABLED:-true}
+      - NTFY_BASE_URL=http://ntfy:80
+      - NTFY_TOPIC_AUTH=${NTFY_TOPIC_AUTH:-p1-auth}
+      - NTFY_TOPIC_JOBS=${NTFY_TOPIC_JOBS:-p1-jobs}
+      - NTFY_TOPIC_ERRORS=${NTFY_TOPIC_ERRORS:-p1-errors}
+      - NTFY_TOPIC_SYSTEM=${NTFY_TOPIC_SYSTEM:-p1-system}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
+      - ./backend/backups:/app/backups
       - dnc_data:/app/data
       # Mount DNC database from production location to /app/dnc_database.db
       # (mounted outside /app/data to avoid volume conflict)
@@ -121,6 +139,29 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ntfy:
+        condition: service_healthy
+    networks:
+      - p1lending-network
+
+  # NTFY Push Notification Server (self-hosted)
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: p1lending-ntfy
+    restart: unless-stopped
+    command: serve
+    ports:
+      - "7777:80"
+    volumes:
+      - ntfy_cache:/var/cache/ntfy
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - p1lending-network
 
@@ -147,6 +188,8 @@ volumes:
     name: p1lending-new-redis-data
   dnc_data:
     name: p1lending-new-dnc-data
+  ntfy_cache:
+    name: p1lending-ntfy-cache
 
 networks:
   p1lending-network:

@@ -7,6 +7,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
+from app.core.logger import etl_logger
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -49,6 +50,16 @@ def decode_token(token: str) -> Optional[dict]:
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload
-    except JWTError:
+    except JWTError as e:
+        # Log specific error types for debugging
+        error_type = type(e).__name__
+        error_msg = str(e)
+        if "expired" in error_msg.lower() or "ExpiredSignature" in error_type:
+            etl_logger.debug(f"Token decode failed: Token has expired ({error_type})")
+        else:
+            etl_logger.debug(f"Token decode failed: {error_type}: {error_msg}")
+        return None
+    except Exception as e:
+        etl_logger.warning(f"Unexpected error during token decode: {type(e).__name__}: {str(e)}")
         return None
 

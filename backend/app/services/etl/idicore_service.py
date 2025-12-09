@@ -31,7 +31,8 @@ class IdiCOREAPIService:
         self.session = requests.Session()
         self.auth_token = None
         self.token_expiry = None
-        
+        self._token_lock = threading.RLock()  # Thread-safe token management
+
         # Initialize caches - Snowflake as primary, CSV as backup
         self.snowflake_cache = None  # Lazy initialization
         self.person_cache = PersonCache()  # Keep CSV cache as backup
@@ -57,61 +58,67 @@ class IdiCOREAPIService:
             return digits
     
     def _get_auth_token(self) -> Optional[str]:
-        """Get authentication token from idiCORE API"""
-        try:
-            # Check if we have a valid token
-            if self.auth_token and self.token_expiry and time.time() < self.token_expiry:
-                return self.auth_token
-            
-            self.logger.info("Getting new authentication token from idiCORE API")
-            
-            # Validate credentials are present
-            if not self.clientid or not self.clientsecret:
-                self.logger.error("❌ Missing IDI credentials: client_id or client_secret is empty")
-                return None
-            
-            # Debug log (without exposing full secret)
-            self.logger.debug(f"Using client_id: {self.clientid}, secret length: {len(self.clientsecret)}")
-            
-            payload = "{\"glba\":\"otheruse\",\"dppa\":\"none\"}"
-            
-            # Create Basic Auth header
-            credentials = f"{self.clientid}:{self.clientsecret}"
-            encoded_credentials = base64.b64encode(credentials.encode()).decode().replace("\n", "")
-            
-            headers = {
-                'authorization': f"Basic {encoded_credentials}",
-                'content-type': "application/json"
-            }
-            
-            self.logger.debug(f"Auth URL: {self.auth_url}")
-            self.logger.debug(f"Payload: {payload}")
-            
-            response = self.session.post(self.auth_url, data=payload, headers=headers, timeout=30)
-            
-            # Log response details for debugging
-            self.logger.debug(f"Response status: {response.status_code}")
-            if response.status_code != 200:
-                self.logger.error(f"❌ Auth failed with status {response.status_code}: {response.text[:200]}")
-            
-            response.raise_for_status()
-            
-            self.auth_token = response.text
-            # Token expires in 15 minutes, set expiry to 14 minutes to be safe
-            self.token_expiry = time.time() + (14 * 60)
-            
-            self.logger.info("✅ Successfully obtained authentication token")
+        """Get authentication token from idiCORE API (thread-safe)"""
+        # Fast path: check without lock first (double-check locking pattern)
+        if self.auth_token and self.token_expiry and time.time() < self.token_expiry:
             return self.auth_token
-            
-        except requests.exceptions.HTTPError as e:
-            error_msg = str(e)
-            if hasattr(e.response, 'text'):
-                error_msg += f" - Response: {e.response.text[:200]}"
-            self.logger.error(f"❌ Failed to get authentication token (HTTP {e.response.status_code if hasattr(e, 'response') else 'unknown'}): {error_msg}")
-            return None
-        except Exception as e:
-            self.logger.error(f"❌ Failed to get authentication token: {e}", exc_info=True)
-            return None
+
+        # Slow path: acquire lock and refresh token
+        with self._token_lock:
+            try:
+                # Re-check after acquiring lock (another thread may have refreshed)
+                if self.auth_token and self.token_expiry and time.time() < self.token_expiry:
+                    return self.auth_token
+
+                self.logger.info("Getting new authentication token from idiCORE API")
+
+                # Validate credentials are present
+                if not self.clientid or not self.clientsecret:
+                    self.logger.error("❌ Missing IDI credentials: client_id or client_secret is empty")
+                    return None
+
+                # Debug log (without exposing full secret)
+                self.logger.debug(f"Using client_id: {self.clientid}, secret length: {len(self.clientsecret)}")
+
+                payload = "{\"glba\":\"otheruse\",\"dppa\":\"none\"}"
+
+                # Create Basic Auth header
+                credentials = f"{self.clientid}:{self.clientsecret}"
+                encoded_credentials = base64.b64encode(credentials.encode()).decode().replace("\n", "")
+
+                headers = {
+                    'authorization': f"Basic {encoded_credentials}",
+                    'content-type': "application/json"
+                }
+
+                self.logger.debug(f"Auth URL: {self.auth_url}")
+                self.logger.debug(f"Payload: {payload}")
+
+                response = self.session.post(self.auth_url, data=payload, headers=headers, timeout=30)
+
+                # Log response details for debugging
+                self.logger.debug(f"Response status: {response.status_code}")
+                if response.status_code != 200:
+                    self.logger.error(f"❌ Auth failed with status {response.status_code}: {response.text[:200]}")
+
+                response.raise_for_status()
+
+                self.auth_token = response.text
+                # Token expires in 15 minutes, set expiry to 14 minutes to be safe
+                self.token_expiry = time.time() + (14 * 60)
+
+                self.logger.info("✅ Successfully obtained authentication token")
+                return self.auth_token
+
+            except requests.exceptions.HTTPError as e:
+                error_msg = str(e)
+                if hasattr(e.response, 'text'):
+                    error_msg += f" - Response: {e.response.text[:200]}"
+                self.logger.error(f"❌ Failed to get authentication token (HTTP {e.response.status_code if hasattr(e, 'response') else 'unknown'}): {error_msg}")
+                return None
+            except Exception as e:
+                self.logger.error(f"❌ Failed to get authentication token: {e}", exc_info=True)
+                return None
     
     def _lookup_person_phones_and_emails_with_session(self, first_name: str, last_name: str, address: str, 
                                                      city: str, state: str, zip_code: str, 
@@ -307,79 +314,72 @@ class IdiCOREAPIService:
     
     def lookup_multiple_people_phones_and_emails_batch(self, people_data: List[Dict[str, str]], batch_size: int = 150) -> List[Dict[str, Any]]:
         """
-        Look up phone numbers for a batch of people (up to 150) with caching and parallel processing
-        
+        Look up phone numbers for a batch of people (up to 150) with caching and parallel processing.
+        Uses batch cache lookups for performance optimization.
+
         Args:
             people_data: List of dictionaries with person information (max 150 per batch)
             batch_size: Maximum number of people to process in parallel (default 150)
-            
+
         Returns:
             List of dictionaries with phones, emails, and display_phone for each person
         """
         if not people_data:
             return []
-        
+
         self.logger.info(f"Processing batch of {len(people_data)} people for idiCORE lookup")
-        
-        # Do cache lookups first
+
+        # Batch cache lookup (single Snowflake query instead of N queries)
+        cached_results = self.person_cache.get_cached_results_batch(people_data)
+
+        # Separate cached vs uncached people
         results = []
         uncached_people = []
-        csv_to_snowflake_updates = []
-        
-        for person in people_data:
-            # Check local CSV cache first
-            csv_result = self.person_cache.get_cached_result(
-                person['first_name'],
-                person['last_name'],
-                person['address'],
-                person['city'],
-                person['state'],
-                person['zip_code']
-            )
-            
-            if csv_result:
-                # Found in local CSV cache
+        uncached_indices = []
+
+        for i, person in enumerate(people_data):
+            # Generate person key to check cache
+            import hashlib
+            key_parts = [
+                str(person.get('first_name', '')).lower().strip(),
+                str(person.get('last_name', '')).lower().strip(),
+                str(person.get('address', '')).lower().strip(),
+                str(person.get('city', '')).lower().strip(),
+                str(person.get('state', '')).lower().strip(),
+                str(person.get('zip_code', '')).strip()
+            ]
+            key_string = "|".join(key_parts)
+            person_key = hashlib.md5(key_string.encode()).hexdigest()
+
+            if person_key in cached_results:
+                # Found in cache
+                cached = cached_results[person_key]
                 result = {
-                    'phones': csv_result['phones'],
-                    'emails': csv_result['emails'],
+                    'phones': cached.get('phones', []),
+                    'emails': cached.get('emails', []),
                     'status': 'success',
-                    'source': 'csv_cache'
+                    'source': 'cache'
                 }
                 results.append(result)
-                csv_to_snowflake_updates.append({
-                    'first_name': person['first_name'],
-                    'last_name': person['last_name'],
-                    'address': person['address'],
-                    'city': person['city'],
-                    'state': person['state'],
-                    'zip_code': person['zip_code'],
-                    'result': result
-                })
             else:
-                # Not in local CSV cache, need API call
+                # Not in cache, need API call
                 uncached_people.append(person)
+                uncached_indices.append(i)
                 results.append(None)  # Placeholder for API result
-        
-        # Bulk upload CSV cache hits to Snowflake
-        if csv_to_snowflake_updates:
-            self._ensure_snowflake_cache()
-            if self.snowflake_cache:
-                self.logger.info(f"Bulk uploading {len(csv_to_snowflake_updates)} CSV cache hits to Snowflake")
-                self.snowflake_cache.bulk_add_people_to_cache(csv_to_snowflake_updates)
-        
+
+        cache_hits = len(people_data) - len(uncached_people)
+        self.logger.info(f"Cache lookup complete: {cache_hits} hits, {len(uncached_people)} misses")
+
         # Only do API calls for uncached people
         if uncached_people:
             self.logger.info(f"Making API calls for {len(uncached_people)} uncached people")
             api_results = self._lookup_uncached_people_threaded(uncached_people, max_workers=batch_size)
-            
+
             # Replace None placeholders with API results
-            api_index = 0
-            for i, result in enumerate(results):
-                if result is None:
-                    results[i] = api_results[api_index]
-                    api_index += 1
+            for idx, api_result in zip(uncached_indices, api_results):
+                results[idx] = api_result
         else:
             self.logger.info("All people found in cache, no API calls needed")
-        
+
         return results
 

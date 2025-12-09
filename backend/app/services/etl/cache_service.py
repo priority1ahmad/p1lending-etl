@@ -119,10 +119,65 @@ class PersonCache:
                 return snowflake_result
         except Exception as e:
             self.logger.warning(f"Error checking Snowflake cache: {e}")
-        
+
         self.logger.debug(f"Cache miss for {first_name} {last_name}")
         return None
-    
+
+    def get_cached_results_batch(self, people_data: List[Dict]) -> Dict[str, Dict]:
+        """
+        Batch get cached results for multiple people - check CSV first, then Snowflake in batch.
+
+        Args:
+            people_data: List of dicts with keys: first_name, last_name, address, city, state, zip_code
+
+        Returns:
+            Dict mapping person_key -> cached result (only includes hits, not misses)
+        """
+        if not people_data:
+            return {}
+
+        results = {}
+        uncached_for_snowflake = []
+
+        # Step 1: Check CSV cache for all people
+        for person in people_data:
+            person_key = self._generate_person_key(
+                person.get('first_name', ''),
+                person.get('last_name', ''),
+                person.get('address', ''),
+                person.get('city', ''),
+                person.get('state', ''),
+                person.get('zip_code', '')
+            )
+            cached_result = self.cache_data.get(person_key)
+            if cached_result:
+                results[person_key] = cached_result
+            else:
+                uncached_for_snowflake.append(person)
+
+        csv_hits = len(results)
+
+        # Step 2: Batch check Snowflake for uncached people
+        if uncached_for_snowflake:
+            try:
+                if self.snowflake_cache is None:
+                    self.snowflake_cache = SnowflakeCacheService()
+
+                snowflake_results = self.snowflake_cache.check_people_in_cache_batch(uncached_for_snowflake)
+
+                # Add Snowflake hits to results and CSV cache
+                for person_key, cached_result in snowflake_results.items():
+                    results[person_key] = cached_result
+                    self.cache_data[person_key] = cached_result  # Add to CSV cache
+
+            except Exception as e:
+                self.logger.warning(f"Error batch checking Snowflake cache: {e}")
+
+        snowflake_hits = len(results) - csv_hits
+        self.logger.info(f"Batch cache lookup: {len(people_data)} people, {csv_hits} CSV hits, {snowflake_hits} Snowflake hits")
+
+        return results
+
     def cache_result(self, first_name: str, last_name: str, address: str, city: str, 
                     state: str, zip_code: str, result: Dict):
         """Cache a person lookup result in both CSV and Snowflake"""
@@ -464,7 +519,100 @@ class SnowflakeCacheService:
         except Exception as e:
             self.logger.error(f"Error checking person in Snowflake cache: {e}")
             return None
-    
+
+    def check_people_in_cache_batch(self, people_data: List[Dict]) -> Dict[str, Dict]:
+        """
+        Batch check multiple people in Snowflake cache with a single query.
+
+        Args:
+            people_data: List of dicts with keys: first_name, last_name, address, city, state, zip_code
+
+        Returns:
+            Dict mapping person_key -> cached result dict
+        """
+        if not people_data:
+            return {}
+
+        try:
+            import hashlib
+
+            # Generate all person keys upfront
+            person_keys = []
+            key_to_person = {}
+
+            for person in people_data:
+                key_parts = [
+                    str(person.get('first_name', '')).lower().strip(),
+                    str(person.get('last_name', '')).lower().strip(),
+                    str(person.get('address', '')).lower().strip(),
+                    str(person.get('city', '')).lower().strip(),
+                    str(person.get('state', '')).lower().strip(),
+                    str(person.get('zip_code', '')).strip()
+                ]
+                key_string = "|".join(key_parts)
+                person_key = hashlib.md5(key_string.encode()).hexdigest()
+                person_keys.append(person_key)
+                key_to_person[person_key] = person
+
+            if not person_keys:
+                return {}
+
+            # Batch query with IN clause (chunk if too many keys to avoid query size limits)
+            results = {}
+            chunk_size = 500  # Snowflake handles large IN clauses well
+
+            for i in range(0, len(person_keys), chunk_size):
+                chunk_keys = person_keys[i:i + chunk_size]
+                keys_str = ", ".join([f"'{k}'" for k in chunk_keys])
+
+                query = f"""
+                SELECT "person_key", "first_name", "last_name", "address", "city", "state", "zip_code",
+                       "phones", "emails", "checked_at", "status"
+                FROM {self.database_name}.{self.schema_name}.PERSON_CACHE
+                WHERE "person_key" IN ({keys_str})
+                """
+
+                result_df = self.snowflake_conn.execute_query(query)
+
+                if result_df is not None and not result_df.empty:
+                    for _, row in result_df.iterrows():
+                        # Parse phones and emails from JSON strings
+                        phones = []
+                        emails = []
+
+                        try:
+                            if pd.notna(row['phones']) and row['phones']:
+                                phones = json.loads(row['phones'])
+                        except (json.JSONDecodeError, TypeError):
+                            phones = []
+
+                        try:
+                            if pd.notna(row['emails']) and row['emails']:
+                                emails = json.loads(row['emails'])
+                        except (json.JSONDecodeError, TypeError):
+                            emails = []
+
+                        results[row['person_key']] = {
+                            'person_key': row['person_key'],
+                            'first_name': row['first_name'],
+                            'last_name': row['last_name'],
+                            'address': row['address'],
+                            'city': row['city'],
+                            'state': row['state'],
+                            'zip_code': row['zip_code'],
+                            'phones': phones,
+                            'emails': emails,
+                            'checked_at': row['checked_at'],
+                            'status': row['status']
+                        }
+
+            self.logger.info(f"Batch cache lookup: {len(person_keys)} keys queried, {len(results)} hits")
+            return results
+
+        except Exception as e:
+            self.logger.error(f"Error in batch person cache lookup: {e}")
+            return {}
+
     def add_person_to_cache(self, first_name: str, last_name: str, address: str, 
                           city: str, state: str, zip_code: str, result: Dict):
         """Add person lookup result to Snowflake cache"""

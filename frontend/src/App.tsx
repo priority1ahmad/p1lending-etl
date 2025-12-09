@@ -3,13 +3,15 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import theme from './theme';
-import { AppBar } from './components/layout/AppBar';
+import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { SqlFiles } from './pages/SqlFiles';
 import { SqlEditor } from './pages/SqlEditor';
 import { Configuration } from './pages/Configuration';
+import { ETLResults } from './pages/ETLResults';
+import { Rescrub } from './pages/Rescrub';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,14 +28,15 @@ function App() {
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <AppBar />
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <Dashboard />
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -41,7 +44,9 @@ function App() {
               path="/sql-files"
               element={
                 <ProtectedRoute>
-                  <SqlFiles />
+                  <Layout>
+                    <SqlFiles />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -49,7 +54,29 @@ function App() {
               path="/sql-editor"
               element={
                 <ProtectedRoute>
-                  <SqlEditor />
+                  <Layout>
+                    <SqlEditor />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/results"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ETLResults />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rescrub"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Rescrub />
+                  </Layout>
                 </ProtectedRoute>
               }
             />
@@ -57,7 +84,9 @@ function App() {
               path="/config"
               element={
                 <ProtectedRoute>
-                  <Configuration />
+                  <Layout>
+                    <Configuration />
+                  </Layout>
                 </ProtectedRoute>
               }
             />

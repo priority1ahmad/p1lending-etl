@@ -1,0 +1,6 @@
+﻿# Encryption key for configuration values (DO NOT CHANGE - will break decryption of existing values)
+ENCRYPTION_KEY=qEjrp_rN5Vge7j54dEoGCm2nL0sjWItTGDNb-G3oCQs=
+
+# Snowflake Configuration
+# If your private key is unencrypted, set SNOWFLAKE_PRIVATE_KEY_PASSWORD to empty string
+SNOWFLAKE_PRIVATE_KEY_PASSWORD=

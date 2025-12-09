@@ -1,13 +1,14 @@
 """
-Authentication endpoints
+Authentication endpoints with audit logging
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
 from app.db.models.user import User
+from app.db.models.audit import LoginAuditLog
 from app.schemas.auth import (
     LoginRequest,
     LoginResponse,
@@ -22,45 +23,130 @@ from app.core.security import (
     decode_token
 )
 from app.api.v1.deps import get_current_user
+from app.core.logger import etl_logger
+from app.services.ntfy_service import get_ntfy_events
 
 router = APIRouter()
 security = HTTPBearer()
 
 
+async def log_login_attempt(
+    db: AsyncSession,
+    email: str,
+    status: str,
+    user_id=None,
+    ip_address: str = None,
+    user_agent: str = None,
+    failure_reason: str = None
+):
+    """Log a login attempt to the audit table"""
+    try:
+        audit_log = LoginAuditLog(
+            user_id=user_id,
+            email=email.lower(),
+            ip_address=ip_address,
+            user_agent=user_agent[:500] if user_agent and len(user_agent) > 500 else user_agent,
+            login_status=status,
+            failure_reason=failure_reason
+        )
+        db.add(audit_log)
+        await db.commit()
+        etl_logger.info(f"Login audit: {status} for {email} from {ip_address}")
+    except Exception as e:
+        etl_logger.error(f"Failed to log login attempt: {e}")
+        # Don't fail the login because of audit log failure
+        await db.rollback()
+
+
 @router.post("/login", response_model=LoginResponse)
 async def login(
     credentials: LoginRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Login endpoint - authenticate user and return JWT tokens
     """
+    # Extract client info for audit logging
+    ip_address = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent")
+
     # Find user by email
     result = await db.execute(select(User).where(User.email == credentials.email.lower()))
     user = result.scalar_one_or_none()
-    
+
     if not user:
+        # Log failed attempt - invalid email
+        await log_login_attempt(
+            db=db,
+            email=credentials.email,
+            status="invalid_email",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            failure_reason="Email not found in system"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    
+
     if not verify_password(credentials.password, user.hashed_password):
+        # Log failed attempt - invalid password
+        await log_login_attempt(
+            db=db,
+            email=credentials.email,
+            status="invalid_password",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            failure_reason="Incorrect password"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
         )
-    
+
     if not user.is_active:
+        # Log failed attempt - inactive user
+        await log_login_attempt(
+            db=db,
+            email=credentials.email,
+            status="inactive_user",
+            user_id=user.id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            failure_reason="User account is deactivated"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
-    
+
     # Create tokens
     access_token = create_access_token(data={"sub": str(user.id)})
     refresh_token = create_refresh_token(data={"sub": str(user.id)})
-    
+
+    # Log successful login
+    await log_login_attempt(
+        db=db,
+        email=credentials.email,
+        status="success",
+        user_id=user.id,
+        ip_address=ip_address,
+        user_agent=user_agent
+    )
+
+    # Send NTFY notification for successful login
+    try:
+        ntfy_events = get_ntfy_events()
+        await ntfy_events.notify_login(
+            email=credentials.email,
+            ip_address=ip_address,
+            status="success"
+        )
+    except Exception as ntfy_error:
+        etl_logger.warning(f"Failed to send NTFY login notification: {ntfy_error}")
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -77,23 +163,23 @@ async def refresh_token(
     Refresh access token using refresh token
     """
     payload = decode_token(request.refresh_token)
-    
+
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
-    
+
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token"
         )
-    
+
     # Create new access token
     access_token = create_access_token(data={"sub": user_id})
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=request.refresh_token,  # Refresh token remains the same
@@ -120,4 +206,3 @@ async def get_me(
     Get current user information
     """
     return UserResponse.model_validate(current_user)
-

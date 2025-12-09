@@ -11,21 +11,21 @@ import pandas as pd
 from app.core.config import settings
 from app.core.logger import etl_logger, JobLogger
 from app.services.etl.snowflake_service import SnowflakeConnection
-from app.services.etl.google_sheets_service import GoogleSheetsConnection
 from app.services.etl.idicore_service import IdiCOREAPIService
 from app.services.etl.ccc_service import CCCAPIService
 from app.services.etl.dnc_service import DNCCheckerDB
+from app.services.etl.results_service import get_results_service
 
 
 class ETLEngine:
-    """Main ETL engine for orchestrating SQL to Google Sheets operations"""
+    """Main ETL engine for orchestrating SQL data processing and storage to Snowflake"""
     
     def __init__(self, job_id: Optional[str] = None, log_callback: Optional[Callable] = None):
         self.snowflake_conn = SnowflakeConnection()
-        self.google_sheets_conn = GoogleSheetsConnection()
         self.ccc_api = CCCAPIService()
         self.dnc_checker = DNCCheckerDB()
         self.idicore_service = IdiCOREAPIService()
+        self.results_service = get_results_service()
         self.logger = JobLogger("ETLEngine", etl_logger, job_id=job_id, log_callback=log_callback)
         self.consolidated_data = []
     
@@ -533,12 +533,16 @@ class ETLEngine:
                 if hasattr(self.ccc_api, 'phone_cache'):
                     self.ccc_api.phone_cache.save_cache()
                 
-                # Upload this batch to Google Sheets immediately
+                # Upload this batch to Snowflake MASTER_PROCESSED_DB immediately
                 batch_df = df.iloc[batch_dataframe_indices].copy()
-                self.logger.log_step("Batch Upload", f"Uploading batch {batch_num + 1}/{total_batches} to Google Sheets ({len(batch_df)} records)")
-                cells_updated = self.google_sheets_conn.upload_dataframe(batch_df, "consolidated_data")
-                if cells_updated:
-                    self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} appended to sheet: {cells_updated} cells updated")
+                self.logger.log_step("Batch Upload", f"Uploading batch {batch_num + 1}/{total_batches} to MASTER_PROCESSED_DB ({len(batch_df)} records)")
+                records_stored = self.results_service.store_batch_results(
+                    job_id=self.logger.job_id or "unknown",
+                    job_name=script_name,
+                    records=batch_df
+                )
+                if records_stored:
+                    self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} stored in Snowflake: {records_stored} records")
             
             result['rows_processed'] = len(df)
             
@@ -693,10 +697,7 @@ class ETLEngine:
             self.logger.log_step("Database Connections", "Establishing connections")
             if not self.snowflake_conn.connect():
                 raise Exception("Failed to connect to Snowflake")
-            
-            if not self.google_sheets_conn.connect():
-                raise Exception("Failed to connect to Google Sheets")
-            
+
             # Execute script with progress callback
             script_result = self._execute_single_script(script_content, script_name, limit_rows, stop_flag, progress_callback)
             

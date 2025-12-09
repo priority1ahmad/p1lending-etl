@@ -30,7 +30,11 @@ if [ ! -f "backend/secrets/google_credentials.json" ]; then
     echo "WARNING: Google credentials not found at backend/secrets/google_credentials.json"
 fi
 
-# Stop existing containers
+# Backup SQL scripts before update
+echo "Creating backup of SQL scripts..."
+docker compose -f docker-compose.prod.yml exec -T backend python scripts/backup_sql_scripts.py || echo "⚠ Backup warning (may be OK if containers not running)"
+
+# Stop existing containers (preserves volumes - SQL scripts are safe)
 echo "Stopping existing containers..."
 docker compose -f docker-compose.prod.yml down || true
 

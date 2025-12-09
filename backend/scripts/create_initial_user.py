@@ -1,5 +1,5 @@
 """
-Script to create initial admin user
+Script to create initial admin users
 """
 
 import asyncio
@@ -16,37 +16,57 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 
 
-async def create_initial_user():
-    """Create initial admin user"""
+# Initial users to create on deployment
+INITIAL_USERS = [
+    {
+        "email": "admin@p1lending.com",
+        "password": "admin123",
+        "full_name": "Admin User",
+        "is_superuser": True,
+    },
+    {
+        "email": "aallouch@priority1lending.com",
+        "password": "TempPass2024!",
+        "full_name": "Ahmad Allouch",
+        "is_superuser": True,
+    },
+]
+
+
+async def create_initial_users():
+    """Create initial admin users"""
     engine = create_async_engine(settings.database_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     async with async_session() as session:
-        # Check if user already exists
-        result = await session.execute(select(User).where(User.email == "admin@p1lending.com"))
-        existing_user = result.scalar_one_or_none()
-        
-        if existing_user:
-            print("Admin user already exists!")
-            return
-        
-        # Create admin user
-        admin_user = User(
-            email="admin@p1lending.com",
-            hashed_password=get_password_hash("admin123"),  # Change this in production!
-            full_name="Admin User",
-            is_active=True,
-            is_superuser=True
-        )
-        
-        session.add(admin_user)
-        await session.commit()
-        print("Admin user created successfully!")
-        print("Email: admin@p1lending.com")
-        print("Password: admin123")
-        print("WARNING: Please change the password after first login!")
+        for user_data in INITIAL_USERS:
+            email = user_data["email"].lower()
+
+            # Check if user already exists
+            result = await session.execute(select(User).where(User.email == email))
+            existing_user = result.scalar_one_or_none()
+
+            if existing_user:
+                print(f"User {email} already exists - skipping")
+                continue
+
+            # Create user
+            new_user = User(
+                email=email,
+                hashed_password=get_password_hash(user_data["password"]),
+                full_name=user_data["full_name"],
+                is_active=True,
+                is_superuser=user_data["is_superuser"],
+            )
+
+            session.add(new_user)
+            await session.commit()
+            print(f"✅ User created: {email}")
+            print(f"   Password: {user_data['password']}")
+            print(f"   ⚠️  Please change password after first login!")
+            print()
 
 
 if __name__ == "__main__":
-    asyncio.run(create_initial_user())
+    asyncio.run(create_initial_users())
 

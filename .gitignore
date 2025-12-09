@@ -62,6 +62,9 @@ phone_cache.csv
 # OS
 Thumbs.db
 
+# Context/diagnostic files (large logs, PDFs)
+context/
+
 # Frontend
 frontend/dist/
 frontend/.vite/

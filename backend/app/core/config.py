@@ -51,7 +51,7 @@ class CCCAPIConfig(BaseSettings):
     """CCC API configuration"""
     api_key: str = Field(default="010E6C1BBA06A5D3C14E99927766CAEFA974FCCA716E", alias="CCC_API_KEY")
     base_url: str = Field(default="https://dataapi.dncscrub.com/v1.4/scrub/litigator", alias="CCC_API_URL")
-    batch_size: int = Field(default=20, alias="CCC_BATCH_SIZE")
+    batch_size: int = Field(default=50, alias="CCC_BATCH_SIZE")  # Max 50 phones per API request
     rate_limit_delay: float = Field(default=0.5)
 
     model_config = SettingsConfigDict(env_prefix="CCC_", case_sensitive=False, extra="ignore")
@@ -84,6 +84,22 @@ class ETLConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="ETL_", case_sensitive=False, extra="ignore")
 
 
+class NTFYConfig(BaseSettings):
+    """NTFY push notification configuration (self-hosted)"""
+    enabled: bool = Field(default=False, alias="NTFY_ENABLED")
+    base_url: str = Field(default="http://ntfy:80", alias="NTFY_BASE_URL")
+    token: Optional[str] = Field(default=None, alias="NTFY_TOKEN")
+    timeout: int = Field(default=10, alias="NTFY_TIMEOUT")
+
+    # Topic names
+    topic_auth: str = Field(default="p1-auth", alias="NTFY_TOPIC_AUTH")
+    topic_jobs: str = Field(default="p1-jobs", alias="NTFY_TOPIC_JOBS")
+    topic_errors: str = Field(default="p1-errors", alias="NTFY_TOPIC_ERRORS")
+    topic_system: str = Field(default="p1-system", alias="NTFY_TOPIC_SYSTEM")
+
+    model_config = SettingsConfigDict(env_prefix="NTFY_", case_sensitive=False, extra="ignore")
+
+
 class Settings(BaseSettings):
     """Main settings class that combines all configurations"""
     
@@ -114,6 +130,7 @@ class Settings(BaseSettings):
     ccc_api: CCCAPIConfig = Field(default_factory=CCCAPIConfig)
     idicore: IdiCOREConfig = Field(default_factory=IdiCOREConfig)
     etl: ETLConfig = Field(default_factory=ETLConfig)
+    ntfy: NTFYConfig = Field(default_factory=NTFYConfig)
 
     model_config = SettingsConfigDict(
         env_file=".env",

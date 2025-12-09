@@ -11,7 +11,7 @@ from datetime import datetime
 from uuid import UUID
 from app.core.config import settings
 from app.core.logger import etl_logger
-from app.db.models.job import ETLJob, JobStatus
+from app.db.models.job import ETLJob, JobLog, JobStatus
 
 # Global engine and session factory
 _engine = None
@@ -139,8 +139,47 @@ def update_job_status(
                 session.rollback()
                 etl_logger.error(f"Failed to update job {job_id} status: {e}")
                 return False
-                
+
     except Exception as e:
         etl_logger.error(f"Database error updating job {job_id} status: {e}")
+        return False
+
+
+def add_job_log(job_id: str, level: str, message: str) -> bool:
+    """
+    Add a log entry to the database for a job (synchronous, for use in Celery tasks)
+
+    Args:
+        job_id: Job UUID as string
+        level: Log level (INFO, WARNING, ERROR)
+        message: Log message
+
+    Returns:
+        bool: True if insert succeeded, False otherwise
+    """
+    try:
+        SessionLocal = get_sync_session()
+        with SessionLocal() as session:
+            try:
+                # Convert string UUID to UUID object
+                job_uuid = UUID(job_id)
+
+                # Create log entry
+                log_entry = JobLog(
+                    job_id=job_uuid,
+                    level=level.upper(),
+                    message=message
+                )
+
+                session.add(log_entry)
+                session.commit()
+                return True
+
+            except Exception as e:
+                session.rollback()
+                # Don't log every failure to avoid log spam
+                return False
+
+    except Exception as e:
         return False
 
