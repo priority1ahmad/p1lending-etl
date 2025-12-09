@@ -21,7 +21,6 @@ import {
   Logout as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  Storage as StorageIcon,
   Refresh as RefreshIcon,
   TableChart as TableChartIcon,
 } from '@mui/icons-material';

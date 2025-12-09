@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box } from '@mui/material';
-import { Sidebar, DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED } from './Sidebar';
+import { Sidebar } from './Sidebar';
 import { brandColors } from '../../theme';
 
 interface LayoutProps {
@@ -13,8 +13,6 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const handleToggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
-
-  const marginLeft = sidebarCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>

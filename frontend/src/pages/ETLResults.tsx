@@ -32,17 +32,17 @@ import {
   InputLabel,
   Tooltip,
 } from '@mui/material';
-import Grid2 from '@mui/material/Grid2';
+import Grid from '@mui/material/Unstable_Grid';
 import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
   Assessment as AssessmentIcon,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { resultsApi, ETLJob, ETLResultRecord } from '../services/api/results';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { resultsApi } from '../services/api/results';
+import type { ETLJob, ETLResultRecord } from '../services/api/results';
 
 export const ETLResults: React.FC = () => {
-  const queryClient = useQueryClient();
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [selectedJobName, setSelectedJobName] = useState<string>('');
   const [excludeLitigators, setExcludeLitigators] = useState<boolean>(false);
@@ -60,7 +60,7 @@ export const ETLResults: React.FC = () => {
   });
 
   // Fetch overall statistics
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['etl-results-stats'],
     queryFn: () => resultsApi.getStats(),
   });
@@ -69,7 +69,6 @@ export const ETLResults: React.FC = () => {
   const {
     data: resultsData,
     isLoading: isLoadingResults,
-    refetch: refetchResults,
   } = useQuery({
     queryKey: ['etl-results', selectedJobId, currentPage, recordsPerPage, excludeLitigators],
     queryFn: () =>
@@ -129,8 +128,8 @@ export const ETLResults: React.FC = () => {
 
       {/* Statistics Cards */}
       {stats && (
-        <Grid2 container spacing={3} sx={{ mb: 4 }}>
-          <Grid2 xs={12} sm={6} md={3}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -144,8 +143,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Grid>
+          <Grid xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -159,8 +158,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Grid>
+          <Grid xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -174,8 +173,8 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-          <Grid2 xs={12} sm={6} md={3}>
+          </Grid>
+          <Grid xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
@@ -192,13 +191,13 @@ export const ETLResults: React.FC = () => {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       )}
 
-      <Grid2 container spacing={3}>
+      <Grid container spacing={3}>
         {/* Jobs List */}
-        <Grid2 xs={12} md={4}>
+        <Grid xs={12} md={4}>
           <Card>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -244,10 +243,10 @@ export const ETLResults: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid2>
+        </Grid>
 
         {/* Results Table */}
-        <Grid2 xs={12} md={8}>
+        <Grid xs={12} md={8}>
           <Card>
             <CardContent>
               {!selectedJobId ? (
@@ -395,8 +394,8 @@ export const ETLResults: React.FC = () => {
               )}
             </CardContent>
           </Card>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Container>
   );
 };
