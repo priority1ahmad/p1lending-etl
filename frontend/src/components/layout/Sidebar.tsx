@@ -15,6 +15,7 @@ import {
   Tooltip,
   Popover,
   Paper,
+  Slide,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -25,8 +26,6 @@ import {
   ChevronRight as ChevronRightIcon,
   Refresh as RefreshIcon,
   TableChart as TableChartIcon,
-  ExpandLess as ExpandLessIcon,
-  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
@@ -310,7 +309,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             </Box>
             {!collapsed && (
               <Box sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                {Boolean(settingsAnchor) ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                <ChevronRightIcon
+                  fontSize="small"
+                  sx={{
+                    transform: Boolean(settingsAnchor) ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.25s ease',
+                  }}
+                />
               </Box>
             )}
           </ListItemButton>
@@ -322,12 +327,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           anchorEl={settingsAnchor}
           onClose={handlePopoverClose}
           anchorOrigin={{
-            vertical: 'top',
+            vertical: 'center',
             horizontal: 'right',
           }}
           transformOrigin={{
-            vertical: 'bottom',
+            vertical: 'center',
             horizontal: 'left',
+          }}
+          slots={{
+            transition: Slide,
+          }}
+          slotProps={{
+            transition: {
+              direction: 'right',
+            } as any,
+            paper: {
+              onMouseEnter: () => setIsSettingsHovered(true),
+              onMouseLeave: handlePopoverClose,
+            },
           }}
           sx={{
             ml: 1,
@@ -340,12 +357,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             },
           }}
           disableRestoreFocus
-          slotProps={{
-            paper: {
-              onMouseEnter: () => setIsSettingsHovered(true),
-              onMouseLeave: handlePopoverClose,
-            },
-          }}
         >
           <Paper
             elevation={0}
