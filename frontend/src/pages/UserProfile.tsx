@@ -15,7 +15,8 @@ import {
 import { Save, CheckCircle, Error as ErrorIcon, Lock, Person } from '@mui/icons-material';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '../stores/authStore';
-import { authApi, UserUpdateRequest, PasswordChangeRequest } from '../services/api/auth';
+import { authApi } from '../services/api/auth';
+import type { UserUpdateRequest, PasswordChangeRequest } from '../services/api/auth';
 import { brandColors } from '../theme';
 
 export const UserProfile: React.FC = () => {
