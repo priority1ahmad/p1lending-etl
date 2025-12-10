@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -13,9 +13,8 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  Popover,
-  Paper,
-  Slide,
+  Collapse,
+  CircularProgress,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -26,10 +25,18 @@ import {
   ChevronRight as ChevronRightIcon,
   Refresh as RefreshIcon,
   TableChart as TableChartIcon,
+  ExpandLess as ExpandLessIcon,
+  ExpandMore as ExpandMoreIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Warning as WarningIcon,
+  MonitorHeart as MonitorHeartIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
 import { brandColors } from '../../theme';
+import api from '../../utils/api';
 
 const DRAWER_WIDTH = 260;
 const DRAWER_WIDTH_COLLAPSED = 72;
@@ -46,7 +53,24 @@ const navItems: NavItem[] = [
   { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
   { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
   { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
+  { label: 'Configuration', path: '/config', icon: <SettingsIcon /> },
 ];
+
+// Service health status types
+interface ServiceHealth {
+  status: 'connected' | 'disconnected' | 'error' | 'unknown' | 'checking';
+  error?: string;
+  last_checked?: string;
+}
+
+interface HealthData {
+  snowflake: ServiceHealth;
+  google_sheets: ServiceHealth;
+  redis: ServiceHealth;
+  postgresql: ServiceHealth;
+  celery: ServiceHealth;
+  ntfy: ServiceHealth;
+}
 
 interface SidebarProps {
   collapsed: boolean;
@@ -57,8 +81,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clearAuth } = useAuthStore();
-  const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
-  const [isSettingsHovered, setIsSettingsHovered] = useState(false);
+
+  // System Health state
+  const [healthExpanded, setHealthExpanded] = useState(false);
+  const [healthData, setHealthData] = useState<HealthData | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
+
+  // Fetch health data
+  const fetchHealthData = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const response = await api.get('/health/services');
+      setHealthData(response.data);
+      setLastHealthCheck(new Date());
+    } catch (error) {
+      console.error('Failed to fetch health data:', error);
+      // Set error state for all services
+      setHealthData({
+        snowflake: { status: 'error', error: 'Failed to check' },
+        google_sheets: { status: 'error', error: 'Failed to check' },
+        redis: { status: 'error', error: 'Failed to check' },
+        postgresql: { status: 'error', error: 'Failed to check' },
+        celery: { status: 'error', error: 'Failed to check' },
+        ntfy: { status: 'error', error: 'Failed to check' },
+      });
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
+  // Fetch health data on mount and when expanded
+  useEffect(() => {
+    if (healthExpanded && !healthData) {
+      fetchHealthData();
+    }
+  }, [healthExpanded, healthData, fetchHealthData]);
+
+  // Auto-refresh health data every 60 seconds when expanded
+  useEffect(() => {
+    if (!healthExpanded) return;
+
+    const interval = setInterval(fetchHealthData, 60000);
+    return () => clearInterval(interval);
+  }, [healthExpanded, fetchHealthData]);
 
   const handleLogout = async () => {
     try {
@@ -71,33 +137,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     }
   };
 
-  const handleSettingsClick = (event: React.MouseEvent<HTMLElement>) => {
-    setSettingsAnchor(event.currentTarget);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected':
+        return <CheckCircleIcon sx={{ fontSize: 14, color: '#4CAF50' }} />;
+      case 'error':
+      case 'disconnected':
+        return <ErrorIcon sx={{ fontSize: 14, color: '#f44336' }} />;
+      case 'unknown':
+      case 'checking':
+        return <WarningIcon sx={{ fontSize: 14, color: '#ff9800' }} />;
+      default:
+        return <WarningIcon sx={{ fontSize: 14, color: '#ff9800' }} />;
+    }
   };
 
-  const handleSettingsMouseEnter = (event: React.MouseEvent<HTMLElement>) => {
-    setIsSettingsHovered(true);
-    setSettingsAnchor(event.currentTarget);
+  const getOverallHealthStatus = () => {
+    if (!healthData) return 'unknown';
+    const statuses = Object.values(healthData).map(s => s.status);
+    if (statuses.every(s => s === 'connected')) return 'healthy';
+    if (statuses.some(s => s === 'error' || s === 'disconnected')) return 'error';
+    return 'warning';
   };
 
-  const handleSettingsMouseLeave = () => {
-    setIsSettingsHovered(false);
-    // Delay closing to allow mouse to move to popover
-    setTimeout(() => {
-      if (!isSettingsHovered) {
-        setSettingsAnchor(null);
-      }
-    }, 100);
+  const getOverallHealthIcon = () => {
+    const status = getOverallHealthStatus();
+    switch (status) {
+      case 'healthy':
+        return <CheckCircleIcon sx={{ fontSize: 18, color: '#4CAF50' }} />;
+      case 'error':
+        return <ErrorIcon sx={{ fontSize: 18, color: '#f44336' }} />;
+      default:
+        return <WarningIcon sx={{ fontSize: 18, color: '#ff9800' }} />;
+    }
   };
 
-  const handlePopoverClose = () => {
-    setIsSettingsHovered(false);
-    setSettingsAnchor(null);
-  };
-
-  const handleSettingsNavigate = (path: string) => {
-    navigate(path);
-    handlePopoverClose();
+  const formatLastChecked = () => {
+    if (!lastHealthCheck) return 'Never';
+    const now = new Date();
+    const diff = Math.floor((now.getTime() - lastHealthCheck.getTime()) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return lastHealthCheck.toLocaleTimeString();
   };
 
   const isActive = (path: string) => {
@@ -255,29 +336,27 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
         ))}
       </List>
 
-      {/* Application Settings Menu */}
+      {/* System Health Section */}
       <Box sx={{ px: 1.5, pb: 1, mt: 'auto' }}>
         <Tooltip
-          title={collapsed ? 'Application Settings' : ''}
+          title={collapsed ? 'System Health' : ''}
           placement="right"
           arrow
         >
           <ListItemButton
-            onClick={handleSettingsClick}
-            onMouseEnter={handleSettingsMouseEnter}
-            onMouseLeave={handleSettingsMouseLeave}
+            onClick={() => {
+              if (!collapsed) {
+                setHealthExpanded(!healthExpanded);
+              }
+            }}
             sx={{
               borderRadius: 1.5,
               px: collapsed ? 1.5 : 2,
-              py: 1.25,
+              py: 1,
               justifyContent: collapsed ? 'center' : 'space-between',
-              backgroundColor: location.pathname === '/config'
-                ? 'rgba(80, 164, 217, 0.15)'
-                : 'transparent',
+              backgroundColor: 'transparent',
               '&:hover': {
-                backgroundColor: location.pathname === '/config'
-                  ? 'rgba(80, 164, 217, 0.2)'
-                  : 'rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
               },
               transition: 'background-color 0.15s ease',
             }}
@@ -286,128 +365,123 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               <ListItemIcon
                 sx={{
                   minWidth: collapsed ? 0 : 40,
-                  color: location.pathname === '/config'
-                    ? brandColors.skyBlue
-                    : 'rgba(255, 255, 255, 0.7)',
+                  color: 'rgba(255, 255, 255, 0.7)',
                   justifyContent: 'center',
                 }}
               >
-                <SettingsIcon />
+                <MonitorHeartIcon />
               </ListItemIcon>
               {!collapsed && (
-                <ListItemText
-                  primary="Application Settings"
-                  primaryTypographyProps={{
-                    fontSize: '0.875rem',
-                    fontWeight: location.pathname === '/config' ? 600 : 400,
-                    color: location.pathname === '/config'
-                      ? '#FFFFFF'
-                      : 'rgba(255, 255, 255, 0.8)',
-                  }}
-                />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <ListItemText
+                    primary="System Health"
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: 400,
+                      color: 'rgba(255, 255, 255, 0.8)',
+                    }}
+                  />
+                  {healthData && getOverallHealthIcon()}
+                </Box>
               )}
             </Box>
             {!collapsed && (
               <Box sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                <ChevronRightIcon
-                  fontSize="small"
-                  sx={{
-                    transform: Boolean(settingsAnchor) ? 'rotate(180deg)' : 'rotate(0deg)',
-                    transition: 'transform 0.25s ease',
-                  }}
-                />
+                {healthExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
               </Box>
             )}
           </ListItemButton>
         </Tooltip>
 
-        {/* Settings Mega Menu Popover */}
-        <Popover
-          open={Boolean(settingsAnchor)}
-          anchorEl={settingsAnchor}
-          onClose={handlePopoverClose}
-          anchorOrigin={{
-            vertical: 'center',
-            horizontal: 'right',
-          }}
-          transformOrigin={{
-            vertical: 'center',
-            horizontal: 'left',
-          }}
-          slots={{
-            transition: Slide,
-          }}
-          slotProps={{
-            transition: {
-              direction: 'right',
-            } as any,
-            paper: {
-              onMouseEnter: () => setIsSettingsHovered(true),
-              onMouseLeave: handlePopoverClose,
-            },
-          }}
-          sx={{
-            ml: 1,
-            '& .MuiPopover-paper': {
-              backgroundColor: brandColors.navy,
-              borderRadius: 2,
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              minWidth: 220,
-            },
-          }}
-          disableRestoreFocus
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              backgroundColor: 'transparent',
-              p: 1,
-            }}
-          >
-            <List sx={{ py: 0.5 }}>
-              <ListItem disablePadding>
-                <ListItemButton
-                  onClick={() => handleSettingsNavigate('/config')}
-                  sx={{
-                    borderRadius: 1.5,
-                    px: 2,
-                    py: 1.25,
-                    backgroundColor: location.pathname === '/config'
-                      ? 'rgba(80, 164, 217, 0.15)'
-                      : 'transparent',
-                    '&:hover': {
-                      backgroundColor: location.pathname === '/config'
-                        ? 'rgba(80, 164, 217, 0.2)'
-                        : 'rgba(255, 255, 255, 0.08)',
-                    },
-                  }}
-                >
-                  <ListItemIcon
+        {/* Collapsible Health Details */}
+        {!collapsed && (
+          <Collapse in={healthExpanded} timeout="auto" unmountOnExit>
+            <Box
+              sx={{
+                mt: 1,
+                p: 1.5,
+                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                borderRadius: 1.5,
+              }}
+            >
+              {healthLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                  <CircularProgress size={24} sx={{ color: brandColors.skyBlue }} />
+                </Box>
+              ) : (
+                <>
+                  {/* Service Status List */}
+                  {healthData && Object.entries(healthData).map(([service, data]) => (
+                    <Box
+                      key={service}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        py: 0.5,
+                        px: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.7)',
+                          textTransform: 'capitalize',
+                          fontSize: '0.7rem',
+                        }}
+                      >
+                        {service.replace('_', ' ')}
+                      </Typography>
+                      <Tooltip title={data.error || data.status} placement="left">
+                        <Box>{getStatusIcon(data.status)}</Box>
+                      </Tooltip>
+                    </Box>
+                  ))}
+
+                  {/* Last Checked + Refresh */}
+                  <Box
                     sx={{
-                      minWidth: 40,
-                      color: location.pathname === '/config'
-                        ? brandColors.skyBlue
-                        : 'rgba(255, 255, 255, 0.7)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      mt: 1,
+                      pt: 1,
+                      borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                     }}
                   >
-                    <SettingsIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Configuration"
-                    primaryTypographyProps={{
-                      fontSize: '0.875rem',
-                      fontWeight: location.pathname === '/config' ? 600 : 400,
-                      color: location.pathname === '/config'
-                        ? '#FFFFFF'
-                        : 'rgba(255, 255, 255, 0.8)',
-                    }}
-                  />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Paper>
-        </Popover>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        fontSize: '0.65rem',
+                      }}
+                    >
+                      Last: {formatLastChecked()}
+                    </Typography>
+                    <Tooltip title="Refresh" placement="left">
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          fetchHealthData();
+                        }}
+                        size="small"
+                        sx={{
+                          color: 'rgba(255, 255, 255, 0.5)',
+                          p: 0.5,
+                          '&:hover': {
+                            color: '#FFFFFF',
+                          },
+                        }}
+                      >
+                        <RefreshIcon sx={{ fontSize: 14 }} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </>
+              )}
+            </Box>
+          </Collapse>
+        )}
       </Box>
 
       {/* Collapse Toggle */}
@@ -442,19 +516,36 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
           justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
-        <Avatar
-          sx={{
-            width: 36,
-            height: 36,
-            bgcolor: brandColors.gold,
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-        >
-          {user?.email?.charAt(0).toUpperCase() || 'U'}
-        </Avatar>
+        <Tooltip title={collapsed ? 'Profile' : ''} placement="right">
+          <Avatar
+            onClick={() => navigate('/profile')}
+            sx={{
+              width: 36,
+              height: 36,
+              bgcolor: brandColors.gold,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
+          >
+            {user?.email?.charAt(0).toUpperCase() || 'U'}
+          </Avatar>
+        </Tooltip>
         {!collapsed && (
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box
+            onClick={() => navigate('/profile')}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
+          >
             <Typography
               variant="body2"
               sx={{
@@ -466,7 +557,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                 whiteSpace: 'nowrap',
               }}
             >
-              {user?.full_name || user?.email?.split('@')[0] || 'User'}
+              {user?.first_name && user?.last_name
+                ? `${user.first_name} ${user.last_name}`
+                : user?.full_name || user?.email?.split('@')[0] || 'User'}
             </Typography>
             <Typography
               variant="caption"
@@ -482,6 +575,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
               {user?.email}
             </Typography>
           </Box>
+        )}
+        {!collapsed && (
+          <Tooltip title="Profile" placement="top">
+            <IconButton
+              onClick={() => navigate('/profile')}
+              size="small"
+              sx={{
+                color: 'rgba(255, 255, 255, 0.6)',
+                '&:hover': {
+                  color: '#FFFFFF',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                },
+              }}
+            >
+              <PersonIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
         <Tooltip title="Logout" placement="right">
           <IconButton

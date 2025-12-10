@@ -21,6 +21,7 @@ from app.workers.etl_tasks import run_etl_job, cancel_job
 from app.services.etl.engine import ETLEngine
 from app.services.etl.snowflake_service import SnowflakeConnection
 from app.core.logger import etl_logger, get_logs_dir
+from app.services.ntfy_service import get_ntfy_events
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -239,7 +240,21 @@ async def preview_jobs(
     Always queries Snowflake for the most up-to-date data. Preview logs are saved for historical reference."""
     results = []
     preview_jobs_created = []
-    
+
+    # Send NTFY notification for preview initiation
+    try:
+        ntfy_events = get_ntfy_events()
+        scripts_result_for_ntfy = await db.execute(select(SQLScript).where(SQLScript.id.in_(script_ids)))
+        script_names = [s.name for s in scripts_result_for_ntfy.scalars().all()]
+        for script_name in script_names:
+            await ntfy_events.notify_preview_started(
+                script_name=script_name,
+                user_email=current_user.email,
+                row_limit=row_limit
+            )
+    except Exception as ntfy_error:
+        etl_logger.warning(f"Failed to send NTFY preview notification: {ntfy_error}")
+
     try:
         # Batch load all scripts in one query
         scripts_result = await db.execute(select(SQLScript).where(SQLScript.id.in_(script_ids)))

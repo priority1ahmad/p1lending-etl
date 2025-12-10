@@ -212,12 +212,63 @@ class NtfyEventService:
     # ETL Job Events
     # =====================
 
+    async def notify_preview_started(
+        self,
+        script_name: str,
+        user_email: str,
+        row_limit: Optional[int] = None,
+    ) -> bool:
+        """Notify when a preview is initiated (async)"""
+        message = (
+            f"**Preview Initiated**\n\n"
+            f"Script: {script_name}\n"
+            f"User: {user_email}"
+        )
+        if row_limit:
+            message += f"\nRow Limit: {row_limit}"
+
+        message += f"\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+
+        return await self.ntfy.send(
+            topic=self.topics.topic_jobs,
+            message=message,
+            title="Preview Started",
+            priority=NtfyPriority.LOW,
+            tags=["eyes", "preview"],
+        )
+
+    def notify_preview_started_sync(
+        self,
+        script_name: str,
+        user_email: str,
+        row_limit: Optional[int] = None,
+    ) -> bool:
+        """Notify when a preview is initiated (sync for non-async contexts)"""
+        message = (
+            f"**Preview Initiated**\n\n"
+            f"Script: {script_name}\n"
+            f"User: {user_email}"
+        )
+        if row_limit:
+            message += f"\nRow Limit: {row_limit}"
+
+        message += f"\nTime: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC"
+
+        return self.ntfy.send_sync(
+            topic=self.topics.topic_jobs,
+            message=message,
+            title="Preview Started",
+            priority=NtfyPriority.LOW,
+            tags=["eyes", "preview"],
+        )
+
     def notify_job_started_sync(
         self,
         job_id: str,
         script_name: str,
         user_email: str,
         row_limit: Optional[int] = None,
+        total_rows: Optional[int] = None,
     ) -> bool:
         """Notify when ETL job starts (sync for Celery)"""
         message = (
@@ -226,8 +277,10 @@ class NtfyEventService:
             f"Job ID: `{job_id}`\n"
             f"User: {user_email}"
         )
+        if total_rows:
+            message += f"\nTotal Rows: {total_rows:,}"
         if row_limit:
-            message += f"\nRow Limit: {row_limit}"
+            message += f"\nRow Limit: {row_limit:,}"
 
         return self.ntfy.send_sync(
             topic=self.topics.topic_jobs,
@@ -241,24 +294,46 @@ class NtfyEventService:
         self,
         job_id: str,
         progress: int,
-        message_text: str,
+        current_row: int,
+        total_rows: int,
+        script_name: str = "",
     ) -> bool:
-        """Notify job progress at 50% (sync for Celery)"""
-        if progress != 50:
-            return True  # Only notify at 50%
+        """Notify job progress at 20% increments (sync for Celery)
+
+        Notifies at: 20%, 40%, 60%, 80%
+        """
+        # Only notify at 20% increments (20, 40, 60, 80)
+        milestones = [20, 40, 60, 80]
+        if progress not in milestones:
+            return True  # Skip non-milestone progress
+
+        rows_remaining = total_rows - current_row
+
+        # Choose emoji based on progress
+        if progress <= 20:
+            emoji = "hourglass_flowing_sand"
+        elif progress <= 40:
+            emoji = "hourglass"
+        elif progress <= 60:
+            emoji = "chart_with_upwards_trend"
+        else:
+            emoji = "fire"
 
         message = (
-            f"**ETL Job 50% Complete**\n\n"
-            f"Job ID: `{job_id}`\n"
-            f"Status: {message_text}"
+            f"**ETL Job {progress}% Complete**\n\n"
+            f"Script: {script_name}\n"
+            f"Job ID: `{job_id}`\n\n"
+            f"**Progress:**\n"
+            f"- Processed: {current_row:,} / {total_rows:,}\n"
+            f"- Remaining: {rows_remaining:,}"
         )
 
         return self.ntfy.send_sync(
             topic=self.topics.topic_jobs,
             message=message,
-            title="Job Progress",
+            title=f"Job Progress: {progress}%",
             priority=NtfyPriority.DEFAULT,
-            tags=["hourglass", "progress"],
+            tags=[emoji, "progress"],
         )
 
     def notify_job_completed_sync(
@@ -270,6 +345,7 @@ class NtfyEventService:
         litigator_count: int,
         dnc_count: int,
         duration_seconds: float,
+        both_count: int = 0,
     ) -> bool:
         """Notify when ETL job completes (sync for Celery)"""
         minutes = int(duration_seconds // 60)
@@ -281,11 +357,13 @@ class NtfyEventService:
             f"Job ID: `{job_id}`\n"
             f"Duration: {minutes}m {seconds}s\n\n"
             f"**Results:**\n"
-            f"- Total Rows: {total_rows}\n"
-            f"- Clean: {clean_count}\n"
-            f"- Litigators: {litigator_count}\n"
-            f"- DNC: {dnc_count}"
+            f"- Total Rows: {total_rows:,}\n"
+            f"- Clean: {clean_count:,}\n"
+            f"- Litigators: {litigator_count:,}\n"
+            f"- DNC: {dnc_count:,}"
         )
+        if both_count:
+            message += f"\n- Both (Litigator+DNC): {both_count:,}"
 
         return self.ntfy.send_sync(
             topic=self.topics.topic_jobs,

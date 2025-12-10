@@ -14,13 +14,16 @@ from app.schemas.auth import (
     LoginResponse,
     TokenResponse,
     RefreshTokenRequest,
-    UserResponse
+    UserResponse,
+    UserUpdateRequest,
+    PasswordChangeRequest
 )
 from app.core.security import (
     verify_password,
     create_access_token,
     create_refresh_token,
-    decode_token
+    decode_token,
+    get_password_hash
 )
 from app.api.v1.deps import get_current_user
 from app.core.logger import etl_logger
@@ -206,3 +209,69 @@ async def get_me(
     Get current user information
     """
     return UserResponse.model_validate(current_user)
+
+
+@router.put("/me", response_model=UserResponse)
+async def update_profile(
+    update_data: UserUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update current user's profile (first name, last name)
+    """
+    # Update fields if provided
+    if update_data.first_name is not None:
+        current_user.first_name = update_data.first_name
+    if update_data.last_name is not None:
+        current_user.last_name = update_data.last_name
+
+    # Also update full_name for backward compatibility
+    if update_data.first_name is not None or update_data.last_name is not None:
+        first = current_user.first_name or ""
+        last = current_user.last_name or ""
+        current_user.full_name = f"{first} {last}".strip() or None
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    etl_logger.info(f"User {current_user.email} updated their profile")
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/change-password")
+async def change_password(
+    password_data: PasswordChangeRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Change current user's password
+    """
+    # Verify current password
+    if not verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+
+    # Verify new passwords match (additional server-side check)
+    if password_data.new_password != password_data.confirm_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New passwords do not match"
+        )
+
+    # Check that new password is different from current
+    if verify_password(password_data.new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from current password"
+        )
+
+    # Update password
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    await db.commit()
+
+    etl_logger.info(f"User {current_user.email} changed their password")
+    return {"message": "Password changed successfully"}

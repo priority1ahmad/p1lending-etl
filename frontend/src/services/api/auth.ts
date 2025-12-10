@@ -6,17 +6,32 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  is_active: boolean;
+  is_superuser: boolean;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
-  user: {
-    id: string;
-    email: string;
-    full_name?: string;
-    is_active: boolean;
-    is_superuser: boolean;
-  };
+  user: User;
+}
+
+export interface UserUpdateRequest {
+  first_name?: string;
+  last_name?: string;
+}
+
+export interface PasswordChangeRequest {
+  current_password: string;
+  new_password: string;
+  confirm_password: string;
 }
 
 export const authApi = {
@@ -45,6 +60,18 @@ export const authApi = {
       refresh_token: refreshToken,
     });
     localStorage.setItem('access_token', response.data.access_token);
+    return response.data;
+  },
+
+  updateProfile: async (data: UserUpdateRequest): Promise<User> => {
+    const response = await apiClient.put<User>('/auth/me', data);
+    const { updateUser } = useAuthStore.getState();
+    updateUser(response.data);
+    return response.data;
+  },
+
+  changePassword: async (data: PasswordChangeRequest): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>('/auth/change-password', data);
     return response.data;
   },
 };

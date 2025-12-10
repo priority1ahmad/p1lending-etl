@@ -14,8 +14,8 @@ from app.services.ntfy_service import get_ntfy_events
 # Global stop flags for jobs
 job_stop_flags: Dict[str, bool] = {}
 
-# Track 50% notification to avoid duplicate sends
-job_50_notified: Dict[str, bool] = {}
+# Track progress milestones to avoid duplicate NTFY notifications
+job_progress_milestones: Dict[str, set] = {}
 
 
 @celery_app.task(bind=True, name="app.workers.etl_tasks.run_etl_job")
@@ -31,9 +31,9 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
         script_name: SQL script name
         limit_rows: Row limit (optional)
     """
-    # Initialize stop flag and 50% notification tracker
+    # Initialize stop flag and progress milestone tracker
     job_stop_flags[job_id] = False
-    job_50_notified[job_id] = False
+    job_progress_milestones[job_id] = set()  # Track which milestones (20, 40, 60, 80) have been notified
     start_time = time.time()
 
     def stop_flag():
@@ -105,7 +105,7 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
                 "current_batch": current_batch,
                 "total_batches": total_batches
             })
-            
+
             # Also emit batch progress event
             if current_batch > 0:
                 emit_job_event(job_id, "batch_progress", {
@@ -115,7 +115,7 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
                     "batch_end_row": min(current_batch * 200, total_rows),
                     "message": f"Processing batch {current_batch}/{total_batches}"
                 })
-            
+
             # Emit row processed event if row_data provided
             if row_data and current_row > 0 and current_row % 10 == 0:
                 emit_job_event(job_id, "row_processed", {
@@ -124,6 +124,22 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
                     "total_rows": total_rows,
                     "batch": current_batch
                 })
+
+            # Send NTFY notification at 20% milestones (20, 40, 60, 80)
+            milestones = [20, 40, 60, 80]
+            for milestone in milestones:
+                if percentage >= milestone and milestone not in job_progress_milestones.get(job_id, set()):
+                    job_progress_milestones.setdefault(job_id, set()).add(milestone)
+                    try:
+                        ntfy_events.notify_job_progress_sync(
+                            job_id=job_id,
+                            progress=milestone,
+                            current_row=current_row,
+                            total_rows=total_rows,
+                            script_name=script_name
+                        )
+                    except Exception as ntfy_error:
+                        etl_logger.warning(f"Failed to send NTFY progress notification: {ntfy_error}")
         
         # Execute script with progress callback
         result = engine.execute_single_script(
@@ -173,7 +189,8 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
                     clean_count=result.get('clean_count', 0),
                     litigator_count=result.get('litigator_count', 0),
                     dnc_count=result.get('dnc_count', 0),
-                    duration_seconds=duration
+                    duration_seconds=duration,
+                    both_count=result.get('both_count', 0)
                 )
             except Exception as ntfy_error:
                 etl_logger.warning(f"Failed to send NTFY job complete notification: {ntfy_error}")
@@ -248,11 +265,11 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
         raise
 
     finally:
-        # Clean up stop flag and 50% notification tracker
+        # Clean up stop flag and progress milestone tracker
         if job_id in job_stop_flags:
             del job_stop_flags[job_id]
-        if job_id in job_50_notified:
-            del job_50_notified[job_id]
+        if job_id in job_progress_milestones:
+            del job_progress_milestones[job_id]
 
 
 def emit_job_event(job_id: str, event_type: str, data: Dict[str, Any]):
