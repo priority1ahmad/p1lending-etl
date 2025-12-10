@@ -26,27 +26,6 @@ class SnowflakeConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SNOWFLAKE_", case_sensitive=False, extra="ignore")
 
 
-class GoogleSheetsConfig(BaseSettings):
-    """
-    Google Sheets configuration
-    
-    If credentials_file is not set, the service will automatically search common locations
-    for "google_credentials.json" (backend/secrets/, /app/secrets/, etc.)
-    """
-    credentials_file: Optional[str] = Field(
-        default=None, 
-        alias="GOOGLE_CREDENTIALS_FILE"
-    )
-    credentials_json: Optional[str] = Field(
-        default=None, 
-        alias="GOOGLE_CREDENTIALS_JSON"
-    )
-    sheet_id: str = Field(default="19NHuPsTGVQQL95B-YO7hVSlb5jUgQBlP138JlTTuUFI", alias="GOOGLE_SHEET_ID")
-    scopes: List[str] = Field(default_factory=lambda: ['https://www.googleapis.com/auth/spreadsheets'])
-
-    model_config = SettingsConfigDict(env_prefix="GOOGLE_", case_sensitive=False, extra="ignore")
-
-
 class CCCAPIConfig(BaseSettings):
     """CCC API configuration"""
     api_key: str = Field(default="010E6C1BBA06A5D3C14E99927766CAEFA974FCCA716E", alias="CCC_API_KEY")
@@ -126,7 +105,6 @@ class Settings(BaseSettings):
     
     # Sub-configurations
     snowflake: SnowflakeConfig = Field(default_factory=SnowflakeConfig)
-    google_sheets: GoogleSheetsConfig = Field(default_factory=GoogleSheetsConfig)
     ccc_api: CCCAPIConfig = Field(default_factory=CCCAPIConfig)
     idicore: IdiCOREConfig = Field(default_factory=IdiCOREConfig)
     etl: ETLConfig = Field(default_factory=ETLConfig)

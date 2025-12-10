@@ -7,14 +7,20 @@ import {
   Button,
   Card,
   CardContent,
-  CardActions,
   IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogContentText,
   DialogActions,
-  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Tooltip,
 } from '@mui/material';
 import { Add, Edit, Delete, Description } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -73,8 +79,8 @@ export const SqlFiles: React.FC = () => {
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography 
-          variant="h4" 
+        <Typography
+          variant="h4"
           component="h1"
           sx={{
             fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
@@ -112,8 +118,8 @@ export const SqlFiles: React.FC = () => {
           <CardContent>
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Description sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-              <Typography 
-                variant="h6" 
+              <Typography
+                variant="h6"
                 gutterBottom
                 sx={{
                   fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
@@ -123,9 +129,9 @@ export const SqlFiles: React.FC = () => {
               >
                 No SQL scripts found
               </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   mb: 3,
                   color: '#718096',
                   fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
@@ -133,9 +139,9 @@ export const SqlFiles: React.FC = () => {
               >
                 Create your first SQL script to get started
               </Typography>
-              <Button 
-                variant="contained" 
-                startIcon={<Add />} 
+              <Button
+                variant="contained"
+                startIcon={<Add />}
                 onClick={() => navigate('/sql-editor')}
                 sx={{
                   background: 'linear-gradient(135deg, #E8632B 0%, #F07D4A 100%)',
@@ -158,74 +164,161 @@ export const SqlFiles: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <Grid container spacing={3}>
-          {scripts?.map((script) => (
-            /* @ts-expect-error - Material-UI v7 Grid item prop type issue */
-            <Grid item xs={12} md={6} lg={4} key={script.id}>
-              <Card>
-                <CardContent>
-                  <Typography 
-                    variant="h6" 
-                    gutterBottom
-                    sx={{
-                      fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-                      fontWeight: 600,
-                      color: '#1E3A5F',
-                    }}
-                  >
-                    {script.name}
-                  </Typography>
-                  {script.description && (
-                    <Typography 
-                      variant="body2" 
-                      sx={{ 
-                        mb: 2,
-                        color: '#4A5568',
-                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+        <TableContainer component={Paper} sx={{ borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Table>
+            <TableHead>
+              <TableRow sx={{ backgroundColor: '#F7F9FC' }}>
+                <TableCell
+                  sx={{
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                    fontWeight: 600,
+                    color: '#1E3A5F',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Name
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                    fontWeight: 600,
+                    color: '#1E3A5F',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Description
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                    fontWeight: 600,
+                    color: '#1E3A5F',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Created
+                </TableCell>
+                <TableCell
+                  sx={{
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                    fontWeight: 600,
+                    color: '#1E3A5F',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Last Modified
+                </TableCell>
+                <TableCell
+                  align="right"
+                  sx={{
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                    fontWeight: 600,
+                    color: '#1E3A5F',
+                    fontSize: '0.875rem',
+                  }}
+                >
+                  Actions
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {scripts?.map((script) => (
+                <TableRow
+                  key={script.id}
+                  hover
+                  sx={{
+                    '&:hover': { backgroundColor: '#FAFBFC' },
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => navigate(`/sql-editor?id=${script.id}`)}
+                >
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                        fontWeight: 600,
+                        color: '#1E3A5F',
+                        fontSize: '0.9rem',
                       }}
                     >
-                      {script.description}
+                      {script.name}
                     </Typography>
-                  )}
-                  <Typography 
-                    variant="caption" 
-                    sx={{
-                      color: '#718096',
-                      fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
-                    }}
-                  >
-                    Updated: {formatDate(script.updated_at)}
-                  </Typography>
-                </CardContent>
-                <CardActions>
-                  <Button
-                    size="small"
-                    startIcon={<Edit />}
-                    onClick={() => navigate(`/sql-editor?id=${script.id}`)}
-                    sx={{
-                      color: '#1E3A5F',
-                      fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-                      fontWeight: 500,
-                      textTransform: 'none',
-                      '&:hover': {
-                        backgroundColor: '#F7F9FC',
-                      },
-                    }}
-                  >
-                    Edit
-                  </Button>
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDeleteClick(script)}
-                  >
-                    <Delete />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                        color: '#4A5568',
+                        fontSize: '0.875rem',
+                        maxWidth: 300,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {script.description || '—'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                        color: '#718096',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {formatDate(script.created_at)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography
+                      sx={{
+                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                        color: '#718096',
+                        fontSize: '0.8125rem',
+                      }}
+                    >
+                      {formatDate(script.updated_at)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/sql-editor?id=${script.id}`);
+                          }}
+                          sx={{
+                            color: '#1E3A5F',
+                            '&:hover': {
+                              backgroundColor: 'rgba(30, 58, 95, 0.08)',
+                            },
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick(script);
+                          }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
       )}
 
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
@@ -236,7 +329,7 @@ export const SqlFiles: React.FC = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => setDeleteDialogOpen(false)}
             sx={{
               borderColor: '#1E3A5F',
@@ -279,4 +372,3 @@ export const SqlFiles: React.FC = () => {
     </Container>
   );
 };
-

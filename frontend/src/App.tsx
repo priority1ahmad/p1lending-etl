@@ -9,7 +9,6 @@ import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { SqlFiles } from './pages/SqlFiles';
 import { SqlEditor } from './pages/SqlEditor';
-import { Configuration } from './pages/Configuration';
 import { ETLResults } from './pages/ETLResults';
 import { Rescrub } from './pages/Rescrub';
 import { UserProfile } from './pages/UserProfile';
@@ -77,16 +76,6 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Rescrub />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/config"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Configuration />
                   </Layout>
                 </ProtectedRoute>
               }

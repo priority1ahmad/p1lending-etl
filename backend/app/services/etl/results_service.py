@@ -2,7 +2,6 @@
 ETL Results Service
 
 Manages storage and retrieval of processed ETL results in Snowflake MASTER_PROCESSED_DB.
-Replaces Google Sheets as the primary output destination.
 """
 
 import uuid

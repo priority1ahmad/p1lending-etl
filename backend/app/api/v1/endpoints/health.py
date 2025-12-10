@@ -27,7 +27,6 @@ async def services_health(
 
     services_status = {
         "snowflake": {"status": "unknown", "last_checked": now},
-        "google_sheets": {"status": "unknown", "last_checked": now},
         "redis": {"status": "unknown", "last_checked": now},
         "postgresql": {"status": "unknown", "last_checked": now},
         "celery": {"status": "unknown", "last_checked": now},
@@ -45,17 +44,6 @@ async def services_health(
             services_status["snowflake"] = {"status": "disconnected", "last_checked": now}
     except Exception as e:
         services_status["snowflake"] = {"status": "error", "error": str(e)[:100], "last_checked": now}
-
-    # Test Google Sheets
-    try:
-        from app.services.etl.google_sheets_service import GoogleSheetsConnection
-        conn = GoogleSheetsConnection()
-        if conn.connect():
-            services_status["google_sheets"] = {"status": "connected", "last_checked": now}
-        else:
-            services_status["google_sheets"] = {"status": "disconnected", "last_checked": now}
-    except Exception as e:
-        services_status["google_sheets"] = {"status": "error", "error": str(e)[:100], "last_checked": now}
 
     # Test Redis
     try:

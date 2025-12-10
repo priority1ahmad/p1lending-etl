@@ -19,7 +19,6 @@ import {
 import {
   Dashboard as DashboardIcon,
   Code as CodeIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
@@ -53,7 +52,6 @@ const navItems: NavItem[] = [
   { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
   { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
   { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
-  { label: 'Configuration', path: '/config', icon: <SettingsIcon /> },
 ];
 
 // Service health status types
@@ -65,7 +63,6 @@ interface ServiceHealth {
 
 interface HealthData {
   snowflake: ServiceHealth;
-  google_sheets: ServiceHealth;
   redis: ServiceHealth;
   postgresql: ServiceHealth;
   celery: ServiceHealth;
@@ -100,7 +97,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       // Set error state for all services
       setHealthData({
         snowflake: { status: 'error', error: 'Failed to check' },
-        google_sheets: { status: 'error', error: 'Failed to check' },
         redis: { status: 'error', error: 'Failed to check' },
         postgresql: { status: 'error', error: 'Failed to check' },
         celery: { status: 'error', error: 'Failed to check' },

@@ -125,73 +125,171 @@ export const ETLResults: React.FC = () => {
         </Tooltip>
       </Box>
 
-      {/* Statistics Cards */}
+      {/* Statistics Card - Single horizontal card with all stats */}
       {stats && (
-        <Box sx={{ display: 'flex', gap: 3, mb: 4, flexWrap: 'wrap' }}>
-          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <AssessmentIcon color="primary" />
-                  <Typography variant="h6" color="text.secondary">
+        <Card sx={{ mb: 4, borderRadius: 2, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <CardContent sx={{ py: 2.5 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: { xs: 3, md: 0 },
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              {/* Total Jobs */}
+              <Box
+                sx={{
+                  flex: '1 1 auto',
+                  minWidth: 150,
+                  textAlign: 'center',
+                  px: 2,
+                  borderRight: { xs: 'none', md: '1px solid #E2E8F0' },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
+                  <AssessmentIcon sx={{ color: '#104265', fontSize: 20 }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#718096',
+                      fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      fontWeight: 500,
+                    }}
+                  >
                     Total Jobs
                   </Typography>
                 </Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#104265' }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: '#104265',
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  }}
+                >
                   {stats.total_jobs.toLocaleString()}
                 </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <AssessmentIcon color="success" />
-                  <Typography variant="h6" color="text.secondary">
+              </Box>
+
+              {/* Total Records */}
+              <Box
+                sx={{
+                  flex: '1 1 auto',
+                  minWidth: 150,
+                  textAlign: 'center',
+                  px: 2,
+                  borderRight: { xs: 'none', md: '1px solid #E2E8F0' },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
+                  <AssessmentIcon sx={{ color: '#3182CE', fontSize: 20 }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#718096',
+                      fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      fontWeight: 500,
+                    }}
+                  >
                     Total Records
                   </Typography>
                 </Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#104265' }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: '#3182CE',
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  }}
+                >
                   {stats.total_records.toLocaleString()}
                 </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <AssessmentIcon sx={{ color: '#2e7d32' }} />
-                  <Typography variant="h6" color="text.secondary">
+              </Box>
+
+              {/* Clean Records */}
+              <Box
+                sx={{
+                  flex: '1 1 auto',
+                  minWidth: 150,
+                  textAlign: 'center',
+                  px: 2,
+                  borderRight: { xs: 'none', md: '1px solid #E2E8F0' },
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
+                  <AssessmentIcon sx={{ color: '#2e7d32', fontSize: 20 }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#718096',
+                      fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      fontWeight: 500,
+                    }}
+                  >
                     Clean Records
                   </Typography>
                 </Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#2e7d32' }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: '#2e7d32',
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  }}
+                >
                   {stats.clean_records.toLocaleString()}
                 </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-          <Box sx={{ flex: '1 1 200px', minWidth: 0 }}>
-            <Card>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                  <AssessmentIcon color="warning" />
-                  <Typography variant="h6" color="text.secondary">
+              </Box>
+
+              {/* Litigators */}
+              <Box
+                sx={{
+                  flex: '1 1 auto',
+                  minWidth: 150,
+                  textAlign: 'center',
+                  px: 2,
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 0.5 }}>
+                  <AssessmentIcon sx={{ color: '#ed6c02', fontSize: 20 }} />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#718096',
+                      fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      fontWeight: 500,
+                    }}
+                  >
                     Litigators
                   </Typography>
                 </Box>
-                <Typography variant="h4" sx={{ fontWeight: 700, color: '#ed6c02' }}>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    fontWeight: 700,
+                    color: '#ed6c02',
+                    fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                  }}
+                >
                   {stats.total_litigators.toLocaleString()}
+                  <Typography
+                    component="span"
+                    sx={{
+                      ml: 1,
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      color: '#718096',
+                    }}
+                  >
+                    ({stats.litigator_percentage}%)
+                  </Typography>
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {stats.litigator_percentage}%
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
       <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
