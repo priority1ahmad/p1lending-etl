@@ -261,31 +261,8 @@ class ETLEngine:
             record_idx = dataframe_indices[i]
             current_row_num = batch_start_row + i
             
-            # Emit row processed event every 10 rows
-            if i % 10 == 0:
-                # Get row data for display
-                row_data = {
-                    'row_number': current_row_num,
-                    'first_name': str(df.at[record_idx, 'First Name']) if 'First Name' in df.columns else '',
-                    'last_name': str(df.at[record_idx, 'Last Name']) if 'Last Name' in df.columns else '',
-                    'address': str(df.at[record_idx, 'Address']) if 'Address' in df.columns else '',
-                    'status': 'Processing',
-                    'batch': current_batch
-                }
-                
-                # Emit row event if callback provided
-                if row_event_callback:
-                    row_event_callback(row_data)
-                
-                # Calculate percentage and emit progress
-                if progress_callback:
-                    percentage = int((current_row_num / total_rows * 100)) if total_rows > 0 else 0
-                    try:
-                        # Try calling with row_data if callback supports it
-                        progress_callback(current_row_num, total_rows, current_batch, total_batches, percentage, f"Processing row {current_row_num}/{total_rows}", row_data)
-                    except TypeError:
-                        # Fallback if callback doesn't accept row_data
-                        progress_callback(current_row_num, total_rows, current_batch, total_batches, percentage, f"Processing row {current_row_num}/{total_rows}")
+            # NOTE: Row emission moved to after enrichment completes (after line 420)
+            # This ensures enriched data (phones, emails, DNC flags) is included in the event
             
             # Add phone numbers to DataFrame
             phones = person_result.get('phones', [])
@@ -417,7 +394,56 @@ class ETLEngine:
                 except Exception as e:
                     self.logger.logger.error(f"Error during DNC checking: {e}")
                     # Continue processing even if DNC check fails
-    
+
+        # Emit enriched row data events now that all processing is complete
+        if row_event_callback:
+            for i, person_result in enumerate(idicore_results):
+                # Emit every 10 rows to avoid overwhelming WebSocket
+                if i % 10 == 0:
+                    record_idx = dataframe_indices[i]
+                    current_row_num = batch_start_row + i
+
+                    # Helper function to safely get DataFrame value
+                    def get_df_value(col_name: str, default: str = '') -> str:
+                        try:
+                            if col_name in df.columns:
+                                val = df.at[record_idx, col_name]
+                                # Check for pandas NA values
+                                import pandas as pd
+                                return str(val) if pd.notna(val) and val != '' else default
+                            return default
+                        except Exception:
+                            return default
+
+                    # Build enriched row data with all fields
+                    row_data = {
+                        'row_number': current_row_num,
+                        # Basic person info
+                        'first_name': get_df_value('First Name'),
+                        'last_name': get_df_value('Last Name'),
+                        'address': get_df_value('Address'),
+                        'city': get_df_value('City'),
+                        'state': get_df_value('State'),
+                        'zip_code': get_df_value('Zip Code'),
+                        # Enriched phone numbers from idiCORE
+                        'phone_1': get_df_value('Phone 1'),
+                        'phone_2': get_df_value('Phone 2'),
+                        'phone_3': get_df_value('Phone 3'),
+                        # Enriched emails from idiCORE
+                        'email_1': get_df_value('Email 1'),
+                        'email_2': get_df_value('Email 2'),
+                        'email_3': get_df_value('Email 3'),
+                        # Compliance status flags
+                        'in_litigator_list': get_df_value('In Litigator List', 'No'),
+                        'phone_1_in_dnc': get_df_value('Phone 1 In DNC List', 'No'),
+                        'phone_2_in_dnc': get_df_value('Phone 2 In DNC List', 'No'),
+                        'phone_3_in_dnc': get_df_value('Phone 3 In DNC List', 'No'),
+                        'status': 'Completed',
+                        'batch': current_batch
+                    }
+
+                    row_event_callback(row_data)
+
     def _execute_single_script(self, script_content: str, script_name: str, limit_rows: Optional[int] = None, 
                               stop_flag: Optional[Callable] = None, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
         """Execute a single SQL script and upload results with batch processing"""

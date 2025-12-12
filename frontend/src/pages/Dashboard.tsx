@@ -29,7 +29,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import { Grid } from '@mui/material';
-import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear } from '@mui/icons-material';
+import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear, ExpandMore, ExpandLess } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
@@ -45,7 +45,29 @@ export const Dashboard: React.FC = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<Array<JobPreview>>([]);
   const [previewLoadingMessage, setPreviewLoadingMessage] = useState<string>('Initializing preview...');
-  const [processedRows, setProcessedRows] = useState<Array<{ row_number: number; first_name: string; last_name: string; address: string; status: string; batch?: number }>>([]);
+  interface ProcessedRow {
+    row_number: number;
+    first_name: string;
+    last_name: string;
+    address: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    phone_1?: string;
+    phone_2?: string;
+    phone_3?: string;
+    email_1?: string;
+    email_2?: string;
+    email_3?: string;
+    in_litigator_list?: string;
+    phone_1_in_dnc?: string;
+    phone_2_in_dnc?: string;
+    phone_3_in_dnc?: string;
+    status: string;
+    batch?: number;
+  }
+  const [processedRows, setProcessedRows] = useState<ProcessedRow[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const rowsEndRef = useRef<HTMLDivElement>(null);
@@ -151,11 +173,24 @@ export const Dashboard: React.FC = () => {
       socket.on('row_processed', (data: any) => {
         if (data.row_data) {
           setProcessedRows((prev) => {
-            const newRows = [...prev, {
+            const newRows: ProcessedRow[] = [...prev, {
               row_number: data.row_data.row_number || prev.length + 1,
               first_name: data.row_data.first_name || '',
               last_name: data.row_data.last_name || '',
               address: data.row_data.address || '',
+              city: data.row_data.city || '',
+              state: data.row_data.state || '',
+              zip_code: data.row_data.zip_code || '',
+              phone_1: data.row_data.phone_1 || '',
+              phone_2: data.row_data.phone_2 || '',
+              phone_3: data.row_data.phone_3 || '',
+              email_1: data.row_data.email_1 || '',
+              email_2: data.row_data.email_2 || '',
+              email_3: data.row_data.email_3 || '',
+              in_litigator_list: data.row_data.in_litigator_list || 'No',
+              phone_1_in_dnc: data.row_data.phone_1_in_dnc || 'No',
+              phone_2_in_dnc: data.row_data.phone_2_in_dnc || 'No',
+              phone_3_in_dnc: data.row_data.phone_3_in_dnc || 'No',
               status: data.row_data.status || 'Processing',
               batch: data.batch
             }];
@@ -204,6 +239,31 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     rowsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [processedRows]);
+
+  // Helper function to toggle row expansion
+  const toggleRowExpansion = (rowNumber: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rowNumber)) {
+        newSet.delete(rowNumber);
+      } else {
+        newSet.add(rowNumber);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to get compliance status for a row
+  const getComplianceStatus = (row: ProcessedRow) => {
+    const isLitigator = row.in_litigator_list === 'Yes';
+    const inDNC = [row.phone_1_in_dnc, row.phone_2_in_dnc, row.phone_3_in_dnc]
+      .some(status => status === 'Yes');
+
+    if (isLitigator && inDNC) return { label: 'Both Lists', color: 'error' as const };
+    if (isLitigator) return { label: 'Litigator', color: 'warning' as const };
+    if (inDNC) return { label: 'DNC Only', color: 'warning' as const };
+    return { label: 'Clean', color: 'success' as const };
+  };
 
   const createJobMutation = useMutation({
     mutationFn: (data: JobCreate) => jobsApi.create(data),
@@ -1051,30 +1111,133 @@ export const Dashboard: React.FC = () => {
                     <TableHead>
                       <TableRow>
                         <TableCell>Row #</TableCell>
-                        <TableCell>First Name</TableCell>
-                        <TableCell>Last Name</TableCell>
-                        <TableCell>Address</TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Location</TableCell>
+                        <TableCell>Phones</TableCell>
+                        <TableCell>Compliance</TableCell>
                         <TableCell>Batch</TableCell>
-                        <TableCell>Status</TableCell>
+                        <TableCell align="center">Details</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {processedRows.map((row, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{row.row_number}</TableCell>
-                          <TableCell>{row.first_name}</TableCell>
-                          <TableCell>{row.last_name}</TableCell>
-                          <TableCell>{row.address}</TableCell>
-                          <TableCell>{row.batch || '-'}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={row.status} 
-                              size="small" 
-                              color={row.status === 'Completed' ? 'success' : 'info'} 
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {processedRows.map((row, index) => {
+                        const isExpanded = expandedRows.has(row.row_number);
+                        const complianceStatus = getComplianceStatus(row);
+                        const phoneCount = [row.phone_1, row.phone_2, row.phone_3]
+                          .filter(p => p && p.trim()).length;
+
+                        return (
+                          <React.Fragment key={index}>
+                            {/* Summary Row */}
+                            <TableRow
+                              hover
+                              sx={{
+                                backgroundColor: index % 2 === 0 ? '#fafafa' : '#ffffff',
+                                '&:hover': { backgroundColor: '#e3f2fd' }
+                              }}
+                            >
+                              <TableCell>{row.row_number}</TableCell>
+                              <TableCell>{`${row.first_name} ${row.last_name}`}</TableCell>
+                              <TableCell>{`${row.city || ''}, ${row.state || ''}`}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={`${phoneCount} phone${phoneCount !== 1 ? 's' : ''}`}
+                                  size="small"
+                                  color={phoneCount > 0 ? 'primary' : 'default'}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={complianceStatus.label}
+                                  size="small"
+                                  color={complianceStatus.color}
+                                />
+                              </TableCell>
+                              <TableCell>{row.batch || '-'}</TableCell>
+                              <TableCell align="center">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => toggleRowExpansion(row.row_number)}
+                                >
+                                  {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+
+                            {/* Expanded Row Details */}
+                            {isExpanded && (
+                              <TableRow>
+                                <TableCell colSpan={7} sx={{ backgroundColor: '#f5f5f5', p: 2 }}>
+                                  <Box>
+                                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                                      Contact Details
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                      <Box sx={{ flex: 1, minWidth: '200px' }}>
+                                        <Typography variant="body2" sx={{ mb: 1 }}>
+                                          <strong>Phones:</strong>
+                                        </Typography>
+                                        {[
+                                          { num: row.phone_1, dnc: row.phone_1_in_dnc },
+                                          { num: row.phone_2, dnc: row.phone_2_in_dnc },
+                                          { num: row.phone_3, dnc: row.phone_3_in_dnc }
+                                        ].map((phone, i) => phone.num && phone.num.trim() && (
+                                          <Box key={i} sx={{ ml: 2, mb: 0.5 }}>
+                                            {phone.num}
+                                            {phone.dnc === 'Yes' && (
+                                              <Chip
+                                                label="DNC"
+                                                size="small"
+                                                color="warning"
+                                                sx={{ ml: 1, height: '20px' }}
+                                              />
+                                            )}
+                                          </Box>
+                                        ))}
+                                        {phoneCount === 0 && (
+                                          <Typography variant="body2" sx={{ ml: 2, color: '#757575' }}>
+                                            No phones found
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                      <Box sx={{ flex: 1, minWidth: '200px' }}>
+                                        <Typography variant="body2" sx={{ mb: 1 }}>
+                                          <strong>Emails:</strong>
+                                        </Typography>
+                                        {[row.email_1, row.email_2, row.email_3]
+                                          .filter(e => e && e.trim())
+                                          .map((email, i) => (
+                                            <Box key={i} sx={{ ml: 2, mb: 0.5 }}>
+                                              {email}
+                                            </Box>
+                                          ))
+                                        }
+                                        {[row.email_1, row.email_2, row.email_3].filter(e => e && e.trim()).length === 0 && (
+                                          <Typography variant="body2" sx={{ ml: 2, color: '#757575' }}>
+                                            No emails found
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
+                                    <Typography variant="body2" sx={{ mt: 2 }}>
+                                      <strong>Full Address:</strong> {row.address}, {row.city}, {row.state} {row.zip_code}
+                                    </Typography>
+                                    {row.in_litigator_list === 'Yes' && (
+                                      <Box sx={{ mt: 2 }}>
+                                        <Chip
+                                          label="⚠️ Person is on Litigator List"
+                                          color="warning"
+                                          size="small"
+                                        />
+                                      </Box>
+                                    )}
+                                  </Box>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
