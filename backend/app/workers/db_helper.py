@@ -145,6 +145,55 @@ def update_job_status(
         return False
 
 
+def update_job_table_id(
+    job_id: str,
+    table_id: str,
+    table_title: str = None
+) -> bool:
+    """
+    Update job with table_id and optional table_title (synchronous, for use in Celery tasks)
+
+    Args:
+        job_id: Job UUID as string
+        table_id: Generated table ID (format: ScriptName_RowCount_DDMMYYYY)
+        table_title: Optional custom title for the results
+
+    Returns:
+        bool: True if update succeeded, False otherwise
+    """
+    try:
+        SessionLocal = get_sync_session()
+        with SessionLocal() as session:
+            try:
+                job_uuid = UUID(job_id)
+
+                result = session.execute(
+                    select(ETLJob).where(ETLJob.id == job_uuid)
+                )
+                job = result.scalar_one_or_none()
+
+                if not job:
+                    etl_logger.warning(f"Job {job_id} not found for table_id update")
+                    return False
+
+                job.table_id = table_id
+                if table_title:
+                    job.table_title = table_title
+
+                session.commit()
+                etl_logger.info(f"Updated job {job_id} with table_id: {table_id}")
+                return True
+
+            except Exception as e:
+                session.rollback()
+                etl_logger.error(f"Failed to update job {job_id} with table_id: {e}")
+                return False
+
+    except Exception as e:
+        etl_logger.error(f"Database error updating job {job_id} table_id: {e}")
+        return False
+
+
 def add_job_log(job_id: str, level: str, message: str) -> bool:
     """
     Add a log entry to the database for a job (synchronous, for use in Celery tasks)

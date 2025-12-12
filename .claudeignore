@@ -1,0 +1,41 @@
+# Large generated files
+node_modules/
+__pycache__/
+*.pyc
+.git/
+dist/
+build/
+*.egg-info/
+
+# Large data files
+*.db
+*.sqlite
+*.sqlite3
+dnc_database.db
+
+# Logs (read specific logs as needed)
+logs/*.log
+backend/logs/*.log
+
+# Secrets (blocked in settings but double-protection)
+.env
+.env.*
+backend/.env
+backend/secrets/
+*.pem
+*.key
+*.p8
+credentials.json
+
+# Build artifacts
+frontend/dist/
+backend/htmlcov/
+.coverage
+.pytest_cache/
+.ruff_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -48,6 +48,8 @@ class ETLResultsService:
             "record_id" VARCHAR NOT NULL,
             "job_id" VARCHAR NOT NULL,
             "job_name" VARCHAR NOT NULL,
+            "table_id" VARCHAR,
+            "table_title" VARCHAR,
             "processed_at" TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
 
             -- Person Data
@@ -82,9 +84,28 @@ class ETLResultsService:
         """
         try:
             self.snowflake_conn.execute_query(create_sql)
+            # Add table_id column if it doesn't exist (for existing tables)
+            self._add_table_id_column_if_missing()
             self.logger.info(f"Ensured table {self.table} exists")
         except Exception as e:
             self.logger.error(f"Error creating table: {e}")
+
+    def _add_table_id_column_if_missing(self):
+        """Add table_id and table_title columns to existing table if missing"""
+        try:
+            alter_sql = f"""
+            ALTER TABLE {self.database}.{self.schema}.{self.table}
+            ADD COLUMN IF NOT EXISTS "table_id" VARCHAR
+            """
+            self.snowflake_conn.execute_query(alter_sql)
+
+            alter_sql2 = f"""
+            ALTER TABLE {self.database}.{self.schema}.{self.table}
+            ADD COLUMN IF NOT EXISTS "table_title" VARCHAR
+            """
+            self.snowflake_conn.execute_query(alter_sql2)
+        except Exception as e:
+            self.logger.debug(f"table_id columns may already exist: {e}")
 
     def _escape_string(self, value: Any) -> str:
         """Escape string value for SQL insertion"""
@@ -98,7 +119,9 @@ class ETLResultsService:
         job_id: str,
         job_name: str,
         records: pd.DataFrame,
-        batch_size: int = 500
+        batch_size: int = 500,
+        table_id: Optional[str] = None,
+        table_title: Optional[str] = None
     ) -> int:
         """
         Store batch of processed records to Snowflake.
@@ -108,6 +131,8 @@ class ETLResultsService:
             job_name: Script/job name for filtering
             records: DataFrame with processed records
             batch_size: Number of records per insert statement
+            table_id: Human-readable table ID (format: ScriptName_RowCount_DDMMYYYY)
+            table_title: Custom display title for the results
 
         Returns:
             Number of records stored
@@ -169,8 +194,13 @@ class ETLResultsService:
 
                 additional_json = json.dumps(additional_data).replace("'", "''")
 
+                # Escape table_id and table_title
+                escaped_table_id = self._escape_string(table_id) if table_id else "NULL"
+                escaped_table_title = self._escape_string(table_title) if table_title else "NULL"
+
                 values_parts.append(
-                    f"('{record_id}', '{job_id}', {self._escape_string(job_name)}, CURRENT_TIMESTAMP(), "
+                    f"('{record_id}', '{job_id}', {self._escape_string(job_name)}, "
+                    f"{escaped_table_id}, {escaped_table_title}, CURRENT_TIMESTAMP(), "
                     f"{first_name}, {last_name}, {address}, {city}, {state}, {zip_code}, "
                     f"{phone_1}, {phone_2}, {phone_3}, "
                     f"{email_1}, {email_2}, {email_3}, "
@@ -182,7 +212,7 @@ class ETLResultsService:
             values_clause = ",\n".join(values_parts)
             insert_sql = f"""
             INSERT INTO {self.database}.{self.schema}.{self.table}
-            ("record_id", "job_id", "job_name", "processed_at",
+            ("record_id", "job_id", "job_name", "table_id", "table_title", "processed_at",
              "first_name", "last_name", "address", "city", "state", "zip_code",
              "phone_1", "phone_2", "phone_3",
              "email_1", "email_2", "email_3",

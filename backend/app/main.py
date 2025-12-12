@@ -2,13 +2,23 @@
 FastAPI application entry point
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.logger import etl_logger
 from app.websockets.job_events import socketio_app, start_redis_subscriber
 import asyncio
+from typing import List
+
+# Allowed hosts for domain restriction
+ALLOWED_HOSTS: List[str] = [
+    "staging.etl.p1lending.io",
+    "etl.p1lending.io",
+    "localhost",
+    "127.0.0.1",
+]
 
 # Background task for Redis subscriber
 _redis_task = None
@@ -23,9 +33,9 @@ async def lifespan(app: FastAPI):
         etl_logger.info("Redis subscriber task started")
     except Exception as e:
         etl_logger.error(f"Failed to start Redis subscriber: {e}")
-    
+
     yield
-    
+
     # Shutdown
     if _redis_task:
         _redis_task.cancel()
@@ -42,6 +52,43 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+
+@app.middleware("http")
+async def validate_host(request: Request, call_next):
+    """
+    Middleware to restrict access by hostname.
+    Blocks direct IP access and only allows configured domains.
+    """
+    host = request.headers.get("host", "").split(":")[0].lower()
+
+    # Allow health checks regardless of host
+    if request.url.path in ["/health", "/"]:
+        return await call_next(request)
+
+    # Check if host is in allowed list
+    is_allowed = False
+    for allowed_host in ALLOWED_HOSTS:
+        if host == allowed_host or host.endswith(f".{allowed_host}"):
+            is_allowed = True
+            break
+
+    # Also allow requests from within Docker network (internal)
+    if host in ["backend", "api", "app"]:
+        is_allowed = True
+
+    if not is_allowed:
+        etl_logger.warning(f"Blocked request from unauthorized host: {host}")
+        return JSONResponse(
+            status_code=403,
+            content={
+                "detail": "Direct IP access not allowed. Please use the domain name.",
+                "host": host
+            }
+        )
+
+    return await call_next(request)
+
 
 # Configure CORS
 app.add_middleware(

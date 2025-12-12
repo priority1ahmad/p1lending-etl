@@ -7,9 +7,10 @@ from typing import Optional, Dict, Any
 from app.workers.celery_app import celery_app
 from app.services.etl.engine import ETLEngine
 from app.core.logger import etl_logger
-from app.workers.db_helper import update_job_status
+from app.workers.db_helper import update_job_status, update_job_table_id
 from app.db.models.job import JobStatus
 from app.services.ntfy_service import get_ntfy_events
+from app.services.table_id_service import get_table_id_service
 
 # Global stop flags for jobs
 job_stop_flags: Dict[str, bool] = {}
@@ -19,22 +20,48 @@ job_progress_milestones: Dict[str, set] = {}
 
 
 @celery_app.task(bind=True, name="app.workers.etl_tasks.run_etl_job")
-def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str, 
-                script_name: str, limit_rows: Optional[int] = None):
+def run_etl_job(
+    self,
+    job_id: str,
+    script_id: Optional[str],
+    script_content: str,
+    script_name: str,
+    limit_rows: Optional[int] = None,
+    table_id: Optional[str] = None,
+    table_title: Optional[str] = None
+):
     """
     Execute ETL job as Celery task
-    
+
     Args:
         job_id: Unique job identifier
         script_id: SQL script ID (optional)
         script_content: SQL script content
         script_name: SQL script name
         limit_rows: Row limit (optional)
+        table_id: Optional table ID (generated if not provided)
+        table_title: Optional custom title for results
     """
     # Initialize stop flag and progress milestone tracker
     job_stop_flags[job_id] = False
     job_progress_milestones[job_id] = set()  # Track which milestones (20, 40, 60, 80) have been notified
     start_time = time.time()
+
+    # Generate table_id if not provided
+    if not table_id:
+        table_id_service = get_table_id_service()
+        table_id = table_id_service.generate_table_id_sync(
+            script_name=script_name,
+            row_count=limit_rows or 0,
+            existing_count=0  # Will be calculated properly in async context
+        )
+        etl_logger.info(f"Generated table_id for job {job_id}: {table_id}")
+
+    # Update job record with table_id
+    try:
+        update_job_table_id(job_id, table_id, table_title)
+    except Exception as e:
+        etl_logger.warning(f"Failed to update job {job_id} with table_id: {e}")
 
     def stop_flag():
         return job_stop_flags.get(job_id, False)
@@ -85,8 +112,13 @@ def run_etl_job(self, job_id: str, script_id: Optional[str], script_content: str
                 "message": message
             })
         
-        # Initialize ETL engine with job_id and log callback
-        engine = ETLEngine(job_id=job_id, log_callback=log_callback)
+        # Initialize ETL engine with job_id, log callback, and table_id
+        engine = ETLEngine(
+            job_id=job_id,
+            log_callback=log_callback,
+            table_id=table_id,
+            table_title=table_title
+        )
         
         # Store row data for row_processed events
         row_data_cache = {}

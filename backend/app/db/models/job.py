@@ -122,6 +122,10 @@ class ETLJob(Base):
     progress = Column(Integer, default=0, nullable=False)
     message = Column(Text, nullable=True)
     row_limit = Column(Integer, nullable=True)
+
+    # Table ID for results grouping (format: ScriptName_RowCount_DDMMYYYY)
+    table_id = Column(String(255), nullable=True, index=True)
+    table_title = Column(String(255), nullable=True)  # Custom display title
     total_rows_processed = Column(Integer, default=0, nullable=False)
     litigator_count = Column(Integer, default=0, nullable=False)
     dnc_count = Column(Integer, default=0, nullable=False)

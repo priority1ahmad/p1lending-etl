@@ -5,12 +5,22 @@ WebSocket handlers for real-time job updates
 import socketio
 import asyncio
 import json
-from typing import Dict, Any
+from typing import Dict, Any, List
 from app.core.logger import etl_logger
 from app.core.config import settings
 
-# Create Socket.io server
-sio = socketio.AsyncServer(cors_allowed_origins="*", async_mode="asgi")
+# Allowed origins for WebSocket CORS - restrict to known domains
+WEBSOCKET_ALLOWED_ORIGINS: List[str] = [
+    "https://staging.etl.p1lending.io",
+    "https://etl.p1lending.io",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
+
+# Create Socket.io server with restricted CORS
+sio = socketio.AsyncServer(cors_allowed_origins=WEBSOCKET_ALLOWED_ORIGINS, async_mode="asgi")
 
 # Socket.io app
 socketio_app = socketio.ASGIApp(sio)
@@ -27,7 +37,7 @@ def get_sio_instance():
     global _sio_instance
     if _sio_instance is None:
         # Create a synchronous socketio server for Celery tasks
-        _sio_instance = socketio.Server(cors_allowed_origins="*")
+        _sio_instance = socketio.Server(cors_allowed_origins=WEBSOCKET_ALLOWED_ORIGINS)
     return _sio_instance
 
 
@@ -166,6 +176,10 @@ async def start_redis_subscriber():
                                 'job_id': job_id,
                                 **data
                             }, room=f"job_{job_id}")
+                            # Trigger NTFY for milestone progress (20%, 40%, 60%, 80%)
+                            progress = data.get('progress', 0)
+                            if progress in [20, 40, 60, 80]:
+                                await _trigger_ntfy_progress(job_id, data)
                         elif event_type == 'job_log':
                             await sio.emit('job_log', {
                                 'job_id': job_id,
@@ -176,11 +190,15 @@ async def start_redis_subscriber():
                                 'job_id': job_id,
                                 **data
                             }, room=f"job_{job_id}")
+                            # Trigger NTFY for job completion
+                            await _trigger_ntfy_complete(job_id, data)
                         elif event_type == 'job_error':
                             await sio.emit('job_error', {
                                 'job_id': job_id,
                                 **data
                             }, room=f"job_{job_id}")
+                            # Trigger NTFY for job error (urgent)
+                            await _trigger_ntfy_error(job_id, data)
                         elif event_type == 'batch_progress':
                             await sio.emit('batch_progress', {
                                 'job_id': job_id,
@@ -286,3 +304,81 @@ async def start_redis_subscriber():
     except Exception as e:
         etl_logger.error(f"Redis subscriber error: {e}")
         # Don't raise, just log - the app should still work without real-time updates
+
+
+async def _trigger_ntfy_progress(job_id: str, data: Dict[str, Any]) -> None:
+    """Trigger NTFY notification for job progress milestones."""
+    try:
+        from app.services.ntfy_service import get_ntfy_events
+
+        ntfy_events = get_ntfy_events()
+        progress = data.get('progress', 0)
+        current_row = data.get('current_row', 0)
+        total_rows = data.get('total_rows', 0)
+        script_name = data.get('message', '').split(' - ')[0] if ' - ' in data.get('message', '') else ''
+
+        # Use async version
+        await ntfy_events.ntfy.send(
+            topic=ntfy_events.topics.topic_jobs,
+            message=(
+                f"**ETL Job {progress}% Complete**\n\n"
+                f"Job ID: `{job_id}`\n"
+                f"Progress: {current_row:,} / {total_rows:,} rows"
+            ),
+            title=f"Job Progress: {progress}%",
+            tags=["chart_with_upwards_trend", "progress"],
+        )
+    except Exception as e:
+        etl_logger.warning(f"Failed to send NTFY progress notification: {e}")
+
+
+async def _trigger_ntfy_complete(job_id: str, data: Dict[str, Any]) -> None:
+    """Trigger NTFY notification for job completion."""
+    try:
+        from app.services.ntfy_service import get_ntfy_events
+
+        ntfy_events = get_ntfy_events()
+        total_rows = data.get('total_rows_processed', data.get('total_rows', 0))
+        clean_count = data.get('clean_count', 0)
+        litigator_count = data.get('litigator_count', 0)
+        dnc_count = data.get('dnc_count', 0)
+
+        await ntfy_events.ntfy.send(
+            topic=ntfy_events.topics.topic_jobs,
+            message=(
+                f"**ETL Job Completed**\n\n"
+                f"Job ID: `{job_id}`\n\n"
+                f"**Results:**\n"
+                f"- Total: {total_rows:,}\n"
+                f"- Clean: {clean_count:,}\n"
+                f"- Litigators: {litigator_count:,}\n"
+                f"- DNC: {dnc_count:,}"
+            ),
+            title="Job Completed",
+            tags=["white_check_mark", "success"],
+        )
+    except Exception as e:
+        etl_logger.warning(f"Failed to send NTFY completion notification: {e}")
+
+
+async def _trigger_ntfy_error(job_id: str, data: Dict[str, Any]) -> None:
+    """Trigger NTFY notification for job error (urgent priority)."""
+    try:
+        from app.services.ntfy_service import get_ntfy_events, NtfyPriority
+
+        ntfy_events = get_ntfy_events()
+        error_message = data.get('error', 'Unknown error')
+
+        await ntfy_events.ntfy.send(
+            topic=ntfy_events.topics.topic_errors,
+            message=(
+                f"**ETL Job FAILED**\n\n"
+                f"Job ID: `{job_id}`\n"
+                f"Error: {error_message[:500]}"
+            ),
+            title="JOB FAILED",
+            priority=NtfyPriority.URGENT,
+            tags=["x", "error", "urgent"],
+        )
+    except Exception as e:
+        etl_logger.warning(f"Failed to send NTFY error notification: {e}")

@@ -6,20 +6,29 @@ Replaces Google Sheets as the primary output destination.
 """
 
 from typing import List, Optional
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
 import io
 import csv
 from datetime import datetime
 
 from app.db.session import get_db
 from app.db.models.user import User
+from app.db.models.job import ETLJob
 from app.api.v1.deps import get_current_user
 from app.services.etl.results_service import get_results_service
+from app.services.results_cache_service import get_results_cache_service
 from app.core.logger import etl_logger
 
 router = APIRouter(prefix="/results", tags=["results"])
+
+
+class UpdateTableTitleRequest(BaseModel):
+    """Request schema for updating table title"""
+    title: str = Field(..., min_length=1, max_length=255)
 
 
 @router.get("/jobs")
@@ -286,4 +295,272 @@ async def get_results_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get stats: {str(e)}"
+        )
+
+
+# =====================
+# Table ID Endpoints
+# =====================
+
+@router.get("/by-table-id/{table_id}")
+async def get_results_by_table_id(
+    table_id: str,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    exclude_litigators: bool = Query(False),
+    use_cache: bool = Query(True, description="Use PostgreSQL cache if available"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get paginated results by table_id with optional caching.
+
+    Args:
+        table_id: The table ID (format: ScriptName_RowCount_DDMMYYYY)
+        offset: Pagination offset
+        limit: Maximum records to return (max 1000)
+        exclude_litigators: If True, exclude records flagged as litigators
+        use_cache: If True, use PostgreSQL cache if available
+    """
+    try:
+        # Try cache first if enabled
+        if use_cache:
+            cache_service = get_results_cache_service()
+            cached_results = await cache_service.get_cached_results(
+                table_id=table_id,
+                offset=offset,
+                limit=limit,
+                db=db
+            )
+            if cached_results:
+                return cached_results
+
+        # Fall back to Snowflake
+        results_service = get_results_service()
+        # Query Snowflake by table_id (filtering by job_name that matches table_id pattern)
+        results = results_service.get_job_results(
+            job_id=None,
+            job_name=None,
+            offset=offset,
+            limit=limit,
+            exclude_litigators=exclude_litigators
+        )
+
+        # Filter results by table_id (since Snowflake has table_id column)
+        if results and results.get('records'):
+            filtered_records = [
+                r for r in results['records']
+                if r.get('table_id') == table_id or r.get('TABLE_ID') == table_id
+            ]
+            results['records'] = filtered_records
+            results['total'] = len(filtered_records)
+
+        return results
+    except Exception as e:
+        etl_logger.error(f"Error getting results by table_id: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get results: {str(e)}"
+        )
+
+
+@router.put("/table-title/{table_id}")
+async def update_table_title(
+    table_id: str,
+    request: UpdateTableTitleRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Update the display title for a table_id.
+
+    Args:
+        table_id: The table ID to update
+        request: New title for the table
+    """
+    try:
+        # Find the job(s) with this table_id and update the title
+        result = await db.execute(
+            select(ETLJob).where(ETLJob.table_id == table_id)
+        )
+        jobs = result.scalars().all()
+
+        if not jobs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No job found with table_id: {table_id}"
+            )
+
+        # Update all matching jobs
+        for job in jobs:
+            job.table_title = request.title
+
+        await db.commit()
+
+        return {
+            "success": True,
+            "message": f"Updated title for {len(jobs)} job(s)",
+            "table_id": table_id,
+            "new_title": request.title
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        etl_logger.error(f"Error updating table title: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update title: {str(e)}"
+        )
+
+
+@router.get("/export-utf8/{table_id}")
+async def export_results_utf8_csv(
+    table_id: str,
+    exclude_litigators: bool = Query(False),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Export results by table_id as UTF-8 CSV with BOM for Excel compatibility.
+
+    Args:
+        table_id: The table ID to export
+        exclude_litigators: If True, exclude records flagged as litigators
+    """
+    try:
+        results_service = get_results_service()
+
+        # Get all results (no pagination for export)
+        results = results_service.get_job_results(
+            job_id=None,
+            job_name=None,
+            offset=0,
+            limit=100000,  # Large limit for export
+            exclude_litigators=exclude_litigators
+        )
+
+        if not results or not results.get('records'):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No results found for table_id: {table_id}"
+            )
+
+        # Filter by table_id
+        filtered_records = [
+            r for r in results['records']
+            if r.get('table_id') == table_id or r.get('TABLE_ID') == table_id
+        ]
+
+        if not filtered_records:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No results found for table_id: {table_id}"
+            )
+
+        # Create CSV with UTF-8 BOM for Excel
+        output = io.BytesIO()
+        # Write UTF-8 BOM
+        output.write(b'\xef\xbb\xbf')
+
+        # Get columns from first record
+        columns = list(filtered_records[0].keys())
+        # Filter out internal columns
+        display_columns = [c for c in columns if not c.startswith('_') and c not in ['record_id', 'RECORD_ID']]
+
+        # Write header
+        header_line = ','.join(display_columns) + '\n'
+        output.write(header_line.encode('utf-8'))
+
+        # Write data rows
+        for record in filtered_records:
+            row_values = []
+            for col in display_columns:
+                val = record.get(col, '')
+                # Handle None and escape quotes
+                if val is None:
+                    val = ''
+                val_str = str(val).replace('"', '""')
+                if ',' in val_str or '"' in val_str or '\n' in val_str:
+                    val_str = f'"{val_str}"'
+                row_values.append(val_str)
+            row_line = ','.join(row_values) + '\n'
+            output.write(row_line.encode('utf-8'))
+
+        output.seek(0)
+
+        # Generate filename
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_table_id = table_id.replace(" ", "_").replace("/", "_")[:50]
+        filename = f"etl_results_{safe_table_id}_{timestamp}.csv"
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename}",
+                "Content-Type": "text/csv; charset=utf-8"
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        etl_logger.error(f"Error exporting UTF-8 results: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export results: {str(e)}"
+        )
+
+
+@router.get("/cached")
+async def list_cached_tables(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List all currently cached table_ids.
+    Returns metadata about each cached table including record counts.
+    """
+    try:
+        cache_service = get_results_cache_service()
+        cached_tables = await cache_service.get_cached_table_ids(db)
+        return {
+            "cached_tables": cached_tables,
+            "total": len(cached_tables),
+            "message": f"Found {len(cached_tables)} cached tables"
+        }
+    except Exception as e:
+        etl_logger.error(f"Error listing cached tables: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list cached tables: {str(e)}"
+        )
+
+
+@router.delete("/cache/{table_id}")
+async def invalidate_cache(
+    table_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Invalidate (clear) cache for a specific table_id.
+    """
+    try:
+        cache_service = get_results_cache_service()
+        success = await cache_service.invalidate_cache(table_id, db)
+
+        if success:
+            return {"message": f"Cache invalidated for table_id: {table_id}"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to invalidate cache"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        etl_logger.error(f"Error invalidating cache: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to invalidate cache: {str(e)}"
         )

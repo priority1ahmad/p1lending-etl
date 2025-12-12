@@ -36,6 +36,16 @@ export interface ETLJob {
   record_count: number;
   litigator_count: number;
   last_processed: string;
+  table_id?: string;
+  table_title?: string;
+}
+
+export interface CachedTable {
+  table_id: string;
+  job_id: string;
+  total_records: number;
+  litigator_count: number;
+  cached_at: string;
 }
 
 export interface ResultsResponse {
@@ -171,6 +181,113 @@ export const resultsApi = {
    */
   getStats: async (): Promise<ResultsStats> => {
     const response = await apiClient.get<ResultsStats>('/results/stats');
+    return response.data;
+  },
+
+  // =====================
+  // Table ID Methods
+  // =====================
+
+  /**
+   * Get results by table_id with optional caching
+   */
+  getResultsByTableId: async (
+    tableId: string,
+    offset: number = 0,
+    limit: number = 100,
+    excludeLitigators: boolean = false,
+    useCache: boolean = true
+  ): Promise<ResultsResponse & { cached?: boolean; cached_at?: string }> => {
+    const response = await apiClient.get<ResultsResponse & { cached?: boolean; cached_at?: string }>(
+      `/results/by-table-id/${encodeURIComponent(tableId)}?offset=${offset}&limit=${limit}&exclude_litigators=${excludeLitigators}&use_cache=${useCache}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Update table title
+   */
+  updateTableTitle: async (tableId: string, title: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.put<{ success: boolean; message: string }>(
+      `/results/table-title/${encodeURIComponent(tableId)}`,
+      { title }
+    );
+    return response.data;
+  },
+
+  /**
+   * Export results as UTF-8 CSV with BOM (for Excel)
+   */
+  exportUtf8Csv: async (tableId: string, excludeLitigators: boolean = false): Promise<void> => {
+    const response = await apiClient.get(
+      `/results/export-utf8/${encodeURIComponent(tableId)}?exclude_litigators=${excludeLitigators}`,
+      { responseType: 'blob' }
+    );
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = `etl_results_${tableId}_${new Date().toISOString().split('T')[0]}.csv`;
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, '');
+      }
+    }
+
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.parentNode?.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  /**
+   * List cached tables
+   */
+  listCachedTables: async (): Promise<{ cached_tables: CachedTable[]; total: number }> => {
+    const response = await apiClient.get<{ cached_tables: CachedTable[]; total: number }>('/results/cached');
+    return response.data;
+  },
+
+  /**
+   * Invalidate cache for a table_id
+   */
+  invalidateCache: async (tableId: string): Promise<{ message: string }> => {
+    const response = await apiClient.delete<{ message: string }>(
+      `/results/cache/${encodeURIComponent(tableId)}`
+    );
+    return response.data;
+  },
+
+  // =====================
+  // Blacklist Methods
+  // =====================
+
+  /**
+   * Add litigator phones from a job to the blacklist
+   */
+  addLitigatorsToBlacklist: async (tableId: string): Promise<{ success: boolean; message: string; count: number }> => {
+    const response = await apiClient.post<{ success: boolean; message: string; count: number }>(
+      '/blacklist/add-litigators',
+      { table_id: tableId }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get blacklist statistics
+   */
+  getBlacklistStats: async (): Promise<{
+    total: number;
+    by_reason: Record<string, number>;
+    litigator_count: number;
+    manual_count: number;
+    dnc_count: number;
+  }> => {
+    const response = await apiClient.get('/blacklist/stats');
     return response.data;
   },
 };

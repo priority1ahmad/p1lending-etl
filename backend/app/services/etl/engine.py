@@ -5,7 +5,7 @@ Main ETL engine that orchestrates the entire ETL process (ported from old_app)
 import os
 import uuid
 from datetime import datetime
-from typing import List, Optional, Dict, Any, Callable
+from typing import List, Optional, Dict, Any, Callable, Set
 import pandas as pd
 
 from app.core.config import settings
@@ -15,20 +15,88 @@ from app.services.etl.idicore_service import IdiCOREAPIService
 from app.services.etl.ccc_service import CCCAPIService
 from app.services.etl.dnc_service import DNCCheckerDB
 from app.services.etl.results_service import get_results_service
+from app.services.blacklist_service import get_blacklist_service_sync
 
 
 class ETLEngine:
     """Main ETL engine for orchestrating SQL data processing and storage to Snowflake"""
-    
-    def __init__(self, job_id: Optional[str] = None, log_callback: Optional[Callable] = None):
+
+    def __init__(
+        self,
+        job_id: Optional[str] = None,
+        log_callback: Optional[Callable] = None,
+        table_id: Optional[str] = None,
+        table_title: Optional[str] = None
+    ):
         self.snowflake_conn = SnowflakeConnection()
         self.ccc_api = CCCAPIService()
         self.dnc_checker = DNCCheckerDB()
         self.idicore_service = IdiCOREAPIService()
         self.results_service = get_results_service()
+        self.blacklist_service = get_blacklist_service_sync()
         self.logger = JobLogger("ETLEngine", etl_logger, job_id=job_id, log_callback=log_callback)
         self.consolidated_data = []
-    
+        self.table_id = table_id
+        self.table_title = table_title
+        self._blacklisted_phones: Set[str] = set()  # Cache for blacklisted phones
+        self._blacklist_loaded = False
+
+    def _load_blacklisted_phones(self) -> None:
+        """
+        Load blacklisted phones from PostgreSQL database.
+        This is called once before processing to avoid repeated DB queries.
+        """
+        if self._blacklist_loaded:
+            return
+
+        try:
+            from app.db.session import sync_session_factory
+            with sync_session_factory() as db_session:
+                self._blacklisted_phones = self.blacklist_service.load_all_blacklisted_phones_sync(
+                    db_session=db_session
+                )
+                self._blacklist_loaded = True
+                self.logger.log_step(
+                    "Blacklist Load",
+                    f"Loaded {len(self._blacklisted_phones)} blacklisted phones"
+                )
+        except Exception as e:
+            self.logger.logger.warning(f"Failed to load blacklist: {e}. Continuing without blacklist filtering.")
+            self._blacklisted_phones = set()
+            self._blacklist_loaded = True
+
+    def _filter_blacklisted_phones(self, phones: List[str]) -> List[str]:
+        """
+        Filter out phones that are in the blacklist.
+        Returns list of phones that are NOT blacklisted.
+        """
+        if not self._blacklisted_phones:
+            return phones
+
+        clean_phones = []
+        for phone in phones:
+            normalized = self._normalize_phone_to_string(phone)
+            if normalized:
+                # Normalize to 10-digit format for comparison
+                import re
+                digits = re.sub(r'\D', '', normalized)
+                if len(digits) == 11 and digits.startswith('1'):
+                    digits = digits[1:]
+                if len(digits) == 10 and digits not in self._blacklisted_phones:
+                    clean_phones.append(phone)
+                elif len(digits) != 10:
+                    # Keep phones that don't normalize properly
+                    clean_phones.append(phone)
+
+        filtered_count = len(phones) - len(clean_phones)
+        if filtered_count > 0:
+            self.logger.log_step(
+                "Blacklist Filter",
+                f"Filtered {filtered_count} blacklisted phones from {len(phones)} total"
+            )
+
+        return clean_phones
+
     def _normalize_phone_to_string(self, phone_value: Any) -> Optional[str]:
         """
         Safely convert any phone value to a string.
@@ -251,10 +319,21 @@ class ETLEngine:
                 if cleaned:
                     batch_phones.append(cleaned)
                     phone_to_record_map[cleaned] = record_idx  # SAFE: cleaned is guaranteed to be str or None
-        
-        # Batch litigator checking for all first phones (using 8 threads)
+
+        # Filter out blacklisted phones BEFORE litigator/DNC checks
+        original_phone_count = len(batch_phones)
+        if batch_phones and self._blacklisted_phones:
+            batch_phones = self._filter_blacklisted_phones(batch_phones)
+            # Mark blacklisted phones as litigators directly (skip API call)
+            for phone in list(phone_to_record_map.keys()):
+                if phone not in batch_phones:
+                    record_idx = phone_to_record_map[phone]
+                    df.at[record_idx, 'In Litigator List'] = 'Yes'
+                    del phone_to_record_map[phone]
+
+        # Batch litigator checking for remaining phones (using 8 threads)
         if batch_phones:
-            self.logger.log_step("Litigator Check", f"Checking {len(batch_phones)} phones against litigator list using 8 threads")
+            self.logger.log_step("Litigator Check", f"Checking {len(batch_phones)} phones against litigator list using 8 threads (skipped {original_phone_count - len(batch_phones)} blacklisted)")
             litigator_results = self.ccc_api.check_multiple_phones_threaded(batch_phones, max_workers=8)
             
             # Apply litigator results
@@ -539,7 +618,9 @@ class ETLEngine:
                 records_stored = self.results_service.store_batch_results(
                     job_id=self.logger.job_id or "unknown",
                     job_name=script_name,
-                    records=batch_df
+                    records=batch_df,
+                    table_id=self.table_id,
+                    table_title=self.table_title
                 )
                 if records_stored:
                     self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} stored in Snowflake: {records_stored} records")
@@ -697,6 +778,9 @@ class ETLEngine:
             self.logger.log_step("Database Connections", "Establishing connections")
             if not self.snowflake_conn.connect():
                 raise Exception("Failed to connect to Snowflake")
+
+            # Load blacklisted phones before processing
+            self._load_blacklisted_phones()
 
             # Execute script with progress callback
             script_result = self._execute_single_script(script_content, script_name, limit_rows, stop_flag, progress_callback)
