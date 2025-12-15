@@ -30,6 +30,15 @@ class ETLResultsService:
         self.logger = etl_logger.logger.getChild("ResultsService")
         self._connected = False
 
+    def _normalize_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Normalize Snowflake column names to lowercase.
+        Snowflake returns UPPERCASE by default, but frontend expects lowercase.
+        """
+        if df is not None and not df.empty:
+            df.columns = df.columns.str.lower()
+        return df
+
     def _ensure_connection(self) -> bool:
         """Ensure Snowflake connection is established"""
         if not self._connected:
@@ -295,6 +304,7 @@ class ETLResultsService:
 
         records = []
         if result_df is not None and not result_df.empty:
+            result_df = self._normalize_columns(result_df)
             records = result_df.to_dict('records')
 
         return {
@@ -349,6 +359,7 @@ class ETLResultsService:
         result_df = self.snowflake_conn.execute_query(query_sql)
 
         if result_df is not None and not result_df.empty:
+            result_df = self._normalize_columns(result_df)
             return result_df.to_dict('records')
         return []
 
