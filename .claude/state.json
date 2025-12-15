@@ -1,0 +1,41 @@
+{
+  "commands": {
+    "add-endpoint": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-migration": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-react-page": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "debug-etl": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "trace-job": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "security-review": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "pre-deploy": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "health-check": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "self-update": {"usage_count": 1, "last_used": "2024-12-14", "avg_rating": null},
+    "feedback": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "weekly-review": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "improve-setup": {"usage_count": 1, "last_used": "2024-12-14", "avg_rating": null},
+    "add-full-stack-feature": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "db-manage": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "quick-deploy": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-zustand-store": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-api-service": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-db-model": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "lint": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "add-etl-service": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "test-etl-service": {"usage_count": 0, "last_used": null, "avg_rating": null},
+    "generate-env-config": {"usage_count": 0, "last_used": null, "avg_rating": null}
+  },
+  "agents": {
+    "Explore": {"usage_count": 3, "last_used": "2024-12-14"},
+    "Plan": {"usage_count": 0, "last_used": null},
+    "code-reviewer": {"usage_count": 0, "last_used": null},
+    "etl-specialist": {"usage_count": 0, "last_used": null},
+    "api-architect": {"usage_count": 0, "last_used": null}
+  },
+  "metrics": {
+    "total_sessions": 2,
+    "total_commands": 2,
+    "total_agents": 3,
+    "created_at": "2024-12-14",
+    "last_updated": "2024-12-14",
+    "last_self_update": "2024-12-14"
+  }
+}

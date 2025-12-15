@@ -1,21 +1,43 @@
 ---
-allowed-tools: Read, Write, Edit
+allowed-tools: Bash
 description: Record feedback about Claude Code commands or setup
 argument-hint: <command-name> <rating 1-5> <notes>
 ---
 
-## Command Feedback
+## Record Command Feedback
 
-Record feedback for command `$1`:
-- Rating: $2/5
-- Notes: $3
+Log feedback for command **$1** with rating **$2/5**.
 
-### Process
-1. Log feedback to `.claude/feedback.log`
-2. If rating < 3, flag for review
-3. Aggregate feedback weekly for improvements
+### Action
+Append feedback entry to `.claude/feedback.log`:
 
-### Feedback Log Format
+```bash
+echo "$(date +%Y-%m-%d) | $1 | $2 | $3" >> .claude/feedback.log
 ```
-[TIMESTAMP] command=$1 rating=$2 notes="$3"
+
+### Validation
+- Rating must be 1-5
+- Command name should be a valid slash command
+- Notes should describe what worked well or what needs improvement
+
+### After Recording
+- If rating < 3, add flag for review: `[NEEDS REVIEW]`
+- Thank user for feedback
+- Suggest running `/weekly-review` to analyze patterns
+
+### Low Rating Response
+If rating is 1-2, ask user:
+- What specifically didn't work?
+- What was expected vs. what happened?
+- How could the command be improved?
+
+### Output
+```
+✅ Feedback recorded for /$1 (rating: $2/5)
+
+Logged to: .claude/feedback.log
+Entry: $(date +%Y-%m-%d) | $1 | $2 | $3
+
+Thank you for helping improve Claude Code setup!
+Run /weekly-review to see aggregated feedback patterns.
 ```

@@ -29,17 +29,17 @@
       "Edit(./backend/.env)",
       "Edit(./backend/secrets/**)",
       "Write(./.env)",
-      "Write(./backend/.env)",
-      "Bash(curl:*)",
-      "Bash(wget:*)",
-      "Bash(ssh:*)",
-      "Bash(scp:*)"
+      "Write(./backend/.env)"
     ],
     "ask": [
       "Bash(git push:*)",
       "Bash(docker-compose:* up)",
       "Bash(docker-compose:* down)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
     ]
   },
   "hooks": {

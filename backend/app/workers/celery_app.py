@@ -20,8 +20,20 @@ else:
     worker_pool = 'prefork'
 
 celery_app.conf.update(
+    # ============================================================
+    # SECURITY CRITICAL: JSON-ONLY SERIALIZATION
+    # ============================================================
+    # DO NOT change these serializers to 'pickle' or any binary format!
+    # Binary serialization allows Remote Code Execution (RCE) attacks.
+    #
+    # Reference vulnerabilities:
+    # - CVE-2025-61765: python-socketio deserialization RCE
+    # - Celery pickle deserialization attacks
+    #
+    # JSON is inherently safe as it only supports primitive types.
+    # ============================================================
     task_serializer="json",
-    accept_content=["json"],
+    accept_content=["json"],  # NEVER add "pickle" to this list!
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,

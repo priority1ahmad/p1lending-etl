@@ -137,15 +137,34 @@ export const Dashboard: React.FC = () => {
   // Socket.io connection for real-time updates
   useEffect(() => {
     if (currentJob && currentJob.status === 'running') {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No auth token available for WebSocket connection');
+        return;
+      }
+
       // In production, use relative URL (empty) so nginx can proxy socket.io
       // In development, use explicit localhost URL
       const socketUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : undefined);
       const socket = io(socketUrl, {
         path: '/socket.io',
+        auth: {
+          token: token,
+        },
       });
 
       socket.on('connect', () => {
+        console.log('WebSocket connected successfully');
         socket.emit('join_job', { job_id: currentJob.id });
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error.message);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('WebSocket disconnected:', reason);
       });
 
       socket.on('job_progress', (data: any) => {

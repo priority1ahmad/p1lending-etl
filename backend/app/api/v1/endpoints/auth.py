@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from datetime import datetime
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from app.db.session import get_db
 from app.db.models.user import User
 from app.db.models.audit import LoginAuditLog
@@ -28,9 +31,15 @@ from app.core.security import (
 from app.api.v1.deps import get_current_user
 from app.core.logger import etl_logger
 from app.services.ntfy_service import get_ntfy_events
+from app.core.token_blacklist import token_blacklist
+from app.core.account_lockout import account_lockout
 
 router = APIRouter()
 security = HTTPBearer()
+
+# Get limiter from app state (will be set in main.py)
+def get_limiter(request: Request) -> Limiter:
+    return request.app.state.limiter
 
 
 async def log_login_attempt(
@@ -65,14 +74,36 @@ async def log_login_attempt(
 async def login(
     credentials: LoginRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    limiter: Limiter = Depends(get_limiter)
 ):
     """
     Login endpoint - authenticate user and return JWT tokens
+    With rate limiting and account lockout protection
     """
+    # Apply rate limiting (5 attempts per minute per IP)
+    await limiter.limit("5/minute")(request)
+
     # Extract client info for audit logging
-    ip_address = request.client.host if request.client else None
+    ip_address = request.client.host if request.client else "unknown"
     user_agent = request.headers.get("user-agent")
+
+    # Check if account is locked BEFORE checking credentials
+    if await account_lockout.is_locked(credentials.email):
+        remaining = await account_lockout.get_remaining_lockout_time(credentials.email)
+        await log_login_attempt(
+            db=db,
+            email=credentials.email,
+            status="account_locked",
+            ip_address=ip_address,
+            user_agent=user_agent,
+            failure_reason=f"Account locked for {remaining} more seconds"
+        )
+        etl_logger.warning(f"Login attempt on locked account: {credentials.email} from {ip_address}")
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail=f"Account is locked due to too many failed login attempts. Try again in {remaining // 60} minutes."
+        )
 
     # Find user by email
     result = await db.execute(select(User).where(User.email == credentials.email.lower()))
@@ -88,6 +119,8 @@ async def login(
             user_agent=user_agent,
             failure_reason="Email not found in system"
         )
+        # Record failed attempt for account lockout
+        await account_lockout.record_failed_attempt(credentials.email, ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -104,6 +137,8 @@ async def login(
             user_agent=user_agent,
             failure_reason="Incorrect password"
         )
+        # Record failed attempt for account lockout
+        await account_lockout.record_failed_attempt(credentials.email, ip_address)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -124,6 +159,9 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive"
         )
+
+    # Successful authentication - clear any previous failures
+    await account_lockout.clear_failures(credentials.email)
 
     # Create tokens
     access_token = create_access_token(data={"sub": str(user.id)})
@@ -149,6 +187,8 @@ async def login(
         )
     except Exception as ntfy_error:
         etl_logger.warning(f"Failed to send NTFY login notification: {ntfy_error}")
+
+    etl_logger.info(f"Successful login: {credentials.email} from {ip_address}")
 
     return LoginResponse(
         access_token=access_token,
@@ -192,12 +232,35 @@ async def refresh_token(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     current_user: User = Depends(get_current_user)
 ):
     """
-    Logout endpoint - token invalidation would be handled client-side
-    In a production system, you might want to maintain a token blacklist
+    Logout endpoint - blacklist the current token to invalidate it
     """
+    # Extract token from Authorization header
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        try:
+            payload = decode_token(token)
+            if payload:
+                jti = payload.get("jti")
+                exp = payload.get("exp")
+                if jti and exp:
+                    # Calculate remaining time until token expiration
+                    remaining = int(exp - datetime.utcnow().timestamp())
+                    if remaining > 0:
+                        # Blacklist the token for the remaining time
+                        await token_blacklist.blacklist_token(jti, remaining)
+                        etl_logger.info(f"Token blacklisted for user {current_user.email} (JTI: {jti[:8]}...)")
+                    else:
+                        etl_logger.warning(f"Token already expired for user {current_user.email}")
+                else:
+                    etl_logger.warning(f"Token missing JTI or EXP for user {current_user.email}")
+        except Exception as e:
+            etl_logger.error(f"Error blacklisting token for user {current_user.email}: {e}")
+
     return {"message": "Successfully logged out"}
 
 

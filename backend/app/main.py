@@ -11,6 +11,10 @@ from app.core.logger import etl_logger
 from app.websockets.job_events import socketio_app, start_redis_subscriber
 import asyncio
 from typing import List
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Allowed hosts for domain restriction
 ALLOWED_HOSTS: List[str] = [
@@ -19,6 +23,27 @@ ALLOWED_HOSTS: List[str] = [
     "localhost",
     "127.0.0.1",
 ]
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses."""
+
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        # Add HSTS for production domains
+        host = request.headers.get("host", "")
+        if "p1lending.io" in host:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+
+# Rate limiter for brute-force protection
+limiter = Limiter(key_func=get_remote_address)
 
 # Background task for Redis subscriber
 _redis_task = None
@@ -52,6 +77,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Add rate limiter to app state and exception handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
 
 
 @app.middleware("http")

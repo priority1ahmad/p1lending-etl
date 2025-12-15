@@ -4,6 +4,7 @@ Security utilities for authentication
 
 from datetime import datetime, timedelta
 from typing import Optional
+import uuid
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -24,23 +25,31 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Create JWT access token"""
+    """Create JWT access token with unique JTI for blacklist support"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-    
-    to_encode.update({"exp": expire, "type": "access"})
+
+    to_encode.update({
+        "exp": expire,
+        "type": "access",
+        "jti": str(uuid.uuid4())  # Add unique token ID for blacklist
+    })
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
 
 def create_refresh_token(data: dict) -> str:
-    """Create JWT refresh token"""
+    """Create JWT refresh token with unique JTI for blacklist support"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({"exp": expire, "type": "refresh"})
+    to_encode.update({
+        "exp": expire,
+        "type": "refresh",
+        "jti": str(uuid.uuid4())  # Add unique token ID for blacklist
+    })
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 

@@ -1,46 +1,43 @@
-import React, { useState } from 'react';
+/**
+ * Layout Component
+ * Main app shell with sidebar and content area
+ * Modern SaaS-style with fixed sidebar
+ */
+
+import type { ReactNode } from 'react';
 import { Box } from '@mui/material';
-import { Sidebar } from './Sidebar';
-import { brandColors } from '../../theme';
+import { styled } from '@mui/material/styles';
+import { Sidebar, SIDEBAR_WIDTH } from './Sidebar';
+import { backgrounds } from '../../theme';
 
 interface LayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+const MainContent = styled(Box)({
+  flexGrow: 1,
+  backgroundColor: backgrounds.secondary,
+  minHeight: '100vh',
+  marginLeft: SIDEBAR_WIDTH,
+  display: 'flex',
+  flexDirection: 'column',
+});
 
-  const handleToggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
+const ContentWrapper = styled(Box)({
+  flex: 1,
+  padding: 24,
+  maxWidth: 1400,
+  width: '100%',
+  margin: '0 auto',
+});
 
+export const Layout = ({ children }: LayoutProps) => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <Sidebar collapsed={sidebarCollapsed} onToggle={handleToggleSidebar} />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          backgroundColor: brandColors.offWhite,
-          minHeight: '100vh',
-          transition: 'margin-left 0.2s ease',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-        {/* Page Content */}
-        <Box
-          sx={{
-            flex: 1,
-            p: 3,
-            maxWidth: '1600px',
-            width: '100%',
-            mx: 'auto',
-          }}
-        >
-          {children}
-        </Box>
-      </Box>
+      <Sidebar />
+      <MainContent>
+        <ContentWrapper>{children}</ContentWrapper>
+      </MainContent>
     </Box>
   );
 };

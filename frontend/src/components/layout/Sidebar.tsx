@@ -1,3 +1,9 @@
+/**
+ * Modern SaaS Sidebar Component
+ * Always expanded (260px fixed width)
+ * Linear/Notion/Vercel-inspired design
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -16,12 +22,11 @@ import {
   Collapse,
   CircularProgress,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import {
   Dashboard as DashboardIcon,
   Code as CodeIcon,
   Logout as LogoutIcon,
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
   Refresh as RefreshIcon,
   TableChart as TableChartIcon,
   ExpandLess as ExpandLessIcon,
@@ -30,35 +35,110 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   MonitorHeart as MonitorHeartIcon,
-  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
-import { brandColors } from '../../theme';
+import { palette, textColors } from '../../theme';
 import api from '../../utils/api';
 
-const DRAWER_WIDTH = 260;
-const DRAWER_WIDTH_COLLAPSED = 72;
+const SIDEBAR_WIDTH = 260;
+
+// ═══════════════════════════════════════════════════════════════
+// Styled Components
+// ═══════════════════════════════════════════════════════════════
+
+const StyledDrawer = styled(Drawer)({
+  width: SIDEBAR_WIDTH,
+  flexShrink: 0,
+  '& .MuiDrawer-paper': {
+    width: SIDEBAR_WIDTH,
+    boxSizing: 'border-box',
+    backgroundColor: palette.primary[800],
+    color: textColors.inverse,
+    borderRight: 'none',
+    overflowX: 'hidden',
+  },
+});
+
+const BrandSection = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  padding: '20px 20px',
+  minHeight: 64,
+});
+
+const BrandLogo = styled(Box)({
+  width: 40,
+  height: 40,
+  borderRadius: 8,
+  backgroundColor: palette.accent[500],
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontWeight: 700,
+  fontSize: '1rem',
+  color: textColors.inverse,
+  flexShrink: 0,
+});
+
+const SectionLabel = styled(Typography)({
+  fontSize: '0.6875rem',
+  fontWeight: 600,
+  color: 'rgba(255, 255, 255, 0.4)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  padding: '0 20px',
+  marginBottom: 8,
+  marginTop: 24,
+});
+
+const NavItemButton = styled(ListItemButton, {
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active?: boolean }>(({ active }) => ({
+  borderRadius: 8,
+  padding: '10px 12px',
+  marginBottom: 2,
+  backgroundColor: active ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+  borderLeft: active ? `3px solid ${palette.accent[500]}` : '3px solid transparent',
+  marginLeft: -3,
+  '&:hover': {
+    backgroundColor: active
+      ? 'rgba(59, 130, 246, 0.2)'
+      : 'rgba(255, 255, 255, 0.06)',
+  },
+  transition: 'all 0.15s ease',
+}));
+
+const HealthPanel = styled(Box)({
+  margin: '8px 16px 0',
+  padding: 12,
+  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+  borderRadius: 8,
+  border: '1px solid rgba(255, 255, 255, 0.06)',
+});
+
+const UserSection = styled(Box)({
+  padding: '16px 20px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 12,
+  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+});
+
+// ═══════════════════════════════════════════════════════════════
+// Interfaces
+// ═══════════════════════════════════════════════════════════════
 
 interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
-  badge?: number;
 }
 
-const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
-  { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
-  { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
-  { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
-];
-
-// Service health status types
 interface ServiceHealth {
   status: 'connected' | 'disconnected' | 'error' | 'unknown' | 'checking';
   error?: string;
-  last_checked?: string;
 }
 
 interface HealthData {
@@ -69,12 +149,22 @@ interface HealthData {
   ntfy: ServiceHealth;
 }
 
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-}
+// ═══════════════════════════════════════════════════════════════
+// Navigation Items
+// ═══════════════════════════════════════════════════════════════
 
-export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
+const navItems: NavItem[] = [
+  { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+  { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
+  { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
+  { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
+];
+
+// ═══════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════
+
+export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, clearAuth } = useAuthStore();
@@ -85,7 +175,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
   const [healthLoading, setHealthLoading] = useState(false);
   const [lastHealthCheck, setLastHealthCheck] = useState<Date | null>(null);
 
-  // Fetch health data
+  // ═══════════════════════════════════════════════════════════════
+  // Health Data Fetching
+  // ═══════════════════════════════════════════════════════════════
+
   const fetchHealthData = useCallback(async () => {
     setHealthLoading(true);
     try {
@@ -94,7 +187,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
       setLastHealthCheck(new Date());
     } catch (error) {
       console.error('Failed to fetch health data:', error);
-      // Set error state for all services
       setHealthData({
         snowflake: { status: 'error', error: 'Failed to check' },
         redis: { status: 'error', error: 'Failed to check' },
@@ -107,20 +199,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     }
   }, []);
 
-  // Fetch health data on mount and when expanded
   useEffect(() => {
     if (healthExpanded && !healthData) {
       fetchHealthData();
     }
   }, [healthExpanded, healthData, fetchHealthData]);
 
-  // Auto-refresh health data every 60 seconds when expanded
   useEffect(() => {
     if (!healthExpanded) return;
-
     const interval = setInterval(fetchHealthData, 60000);
     return () => clearInterval(interval);
   }, [healthExpanded, fetchHealthData]);
+
+  // ═══════════════════════════════════════════════════════════════
+  // Helper Functions
+  // ═══════════════════════════════════════════════════════════════
 
   const handleLogout = async () => {
     try {
@@ -133,39 +226,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     }
   };
 
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
-        return <CheckCircleIcon sx={{ fontSize: 14, color: '#4CAF50' }} />;
+        return <CheckCircleIcon sx={{ fontSize: 14, color: palette.success[400] }} />;
       case 'error':
       case 'disconnected':
-        return <ErrorIcon sx={{ fontSize: 14, color: '#f44336' }} />;
-      case 'unknown':
-      case 'checking':
-        return <WarningIcon sx={{ fontSize: 14, color: '#ff9800' }} />;
+        return <ErrorIcon sx={{ fontSize: 14, color: palette.error[400] }} />;
       default:
-        return <WarningIcon sx={{ fontSize: 14, color: '#ff9800' }} />;
+        return <WarningIcon sx={{ fontSize: 14, color: palette.warning[400] }} />;
     }
   };
 
-  const getOverallHealthStatus = () => {
-    if (!healthData) return 'unknown';
-    const statuses = Object.values(healthData).map(s => s.status);
-    if (statuses.every(s => s === 'connected')) return 'healthy';
-    if (statuses.some(s => s === 'error' || s === 'disconnected')) return 'error';
-    return 'warning';
-  };
+  const getOverallHealthDots = () => {
+    if (!healthData) return null;
+    const statuses = Object.values(healthData).map((s) => s.status);
+    const connected = statuses.filter((s) => s === 'connected').length;
+    const total = statuses.length;
 
-  const getOverallHealthIcon = () => {
-    const status = getOverallHealthStatus();
-    switch (status) {
-      case 'healthy':
-        return <CheckCircleIcon sx={{ fontSize: 18, color: '#4CAF50' }} />;
-      case 'error':
-        return <ErrorIcon sx={{ fontSize: 18, color: '#f44336' }} />;
-      default:
-        return <WarningIcon sx={{ fontSize: 18, color: '#ff9800' }} />;
-    }
+    return (
+      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+        {Array.from({ length: total }).map((_, i) => (
+          <Box
+            key={i}
+            sx={{
+              width: 5,
+              height: 5,
+              borderRadius: '50%',
+              backgroundColor:
+                i < connected ? palette.success[400] : palette.error[400],
+            }}
+          />
+        ))}
+      </Box>
+    );
   };
 
   const formatLastChecked = () => {
@@ -174,267 +273,167 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
     const diff = Math.floor((now.getTime() - lastHealthCheck.getTime()) / 1000);
     if (diff < 60) return 'Just now';
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    return lastHealthCheck.toLocaleTimeString();
+    return lastHealthCheck.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
-    }
-    return location.pathname.startsWith(path);
+  const formatServiceName = (service: string) => {
+    const names: Record<string, string> = {
+      snowflake: 'Snowflake',
+      redis: 'Redis',
+      postgresql: 'PostgreSQL',
+      celery: 'Celery',
+      ntfy: 'NTFY',
+    };
+    return names[service] || service;
   };
 
-  const drawerWidth = collapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH;
+  // ═══════════════════════════════════════════════════════════════
+  // Render
+  // ═══════════════════════════════════════════════════════════════
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          backgroundColor: brandColors.navy,
-          color: '#FFFFFF',
-          borderRight: 'none',
-          transition: 'width 0.2s ease',
-          overflowX: 'hidden',
-        },
-      }}
-    >
-      {/* Logo/Brand Section */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: collapsed ? 'center' : 'space-between',
-          px: collapsed ? 1 : 2,
-          py: 2,
-          minHeight: 64,
-        }}
-      >
-        {!collapsed && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 1,
-                backgroundColor: brandColors.skyBlue,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '1rem',
-              }}
-            >
-              P1
-            </Box>
-            <Box>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: '0.9375rem',
-                  lineHeight: 1.2,
-                  color: '#FFFFFF',
-                }}
-              >
-                Priority 1 Lending
-              </Typography>
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'rgba(255, 255, 255, 0.6)',
-                  fontSize: '0.6875rem',
-                }}
-              >
-                ETL System
-              </Typography>
-            </Box>
-          </Box>
-        )}
-        {collapsed && (
-          <Box
+    <StyledDrawer variant="permanent">
+      {/* Brand Section */}
+      <BrandSection>
+        <BrandLogo>P1</BrandLogo>
+        <Box>
+          <Typography
             sx={{
-              width: 36,
-              height: 36,
-              borderRadius: 1,
-              backgroundColor: brandColors.skyBlue,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700,
-              fontSize: '1rem',
+              fontWeight: 600,
+              fontSize: '0.9375rem',
+              lineHeight: 1.2,
+              color: textColors.inverse,
             }}
           >
-            P1
-          </Box>
-        )}
-      </Box>
+            P1 Lending
+          </Typography>
+          <Typography
+            sx={{
+              color: 'rgba(255, 255, 255, 0.5)',
+              fontSize: '0.6875rem',
+            }}
+          >
+            ETL System
+          </Typography>
+        </Box>
+      </BrandSection>
 
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', mx: 2 }} />
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)', mx: 2.5 }} />
 
       {/* Navigation Items */}
-      <List sx={{ px: 1.5, py: 2, flex: 1 }}>
+      <List sx={{ px: 2, py: 1.5, flex: 1 }}>
         {navItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-            <Tooltip
-              title={collapsed ? item.label : ''}
-              placement="right"
-              arrow
+          <ListItem key={item.path} disablePadding>
+            <NavItemButton
+              active={isActive(item.path)}
+              onClick={() => navigate(item.path)}
             >
-              <ListItemButton
-                onClick={() => navigate(item.path)}
-                sx={{
-                  borderRadius: 1.5,
-                  px: collapsed ? 1.5 : 2,
-                  py: 1.25,
-                  justifyContent: collapsed ? 'center' : 'flex-start',
-                  backgroundColor: isActive(item.path)
-                    ? 'rgba(80, 164, 217, 0.15)'
-                    : 'transparent',
-                  '&:hover': {
-                    backgroundColor: isActive(item.path)
-                      ? 'rgba(80, 164, 217, 0.2)'
-                      : 'rgba(255, 255, 255, 0.08)',
-                  },
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: collapsed ? 0 : 40,
-                    color: isActive(item.path)
-                      ? brandColors.skyBlue
-                      : 'rgba(255, 255, 255, 0.7)',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                {!collapsed && (
-                  <ListItemText
-                    primary={item.label}
-                    primaryTypographyProps={{
-                      fontSize: '0.875rem',
-                      fontWeight: isActive(item.path) ? 600 : 400,
-                      color: isActive(item.path)
-                        ? '#FFFFFF'
-                        : 'rgba(255, 255, 255, 0.8)',
-                    }}
-                  />
-                )}
-              </ListItemButton>
-            </Tooltip>
-          </ListItem>
-        ))}
-      </List>
-
-      {/* System Health Section */}
-      <Box sx={{ px: 1.5, pb: 1, mt: 'auto' }}>
-        <Tooltip
-          title={collapsed ? 'System Health' : ''}
-          placement="right"
-          arrow
-        >
-          <ListItemButton
-            onClick={() => {
-              if (!collapsed) {
-                setHealthExpanded(!healthExpanded);
-              }
-            }}
-            sx={{
-              borderRadius: 1.5,
-              px: collapsed ? 1.5 : 2,
-              py: 1,
-              justifyContent: collapsed ? 'center' : 'space-between',
-              backgroundColor: 'transparent',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              },
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: collapsed ? 0 : 1.5 }}>
               <ListItemIcon
                 sx={{
-                  minWidth: collapsed ? 0 : 40,
-                  color: 'rgba(255, 255, 255, 0.7)',
-                  justifyContent: 'center',
+                  minWidth: 36,
+                  color: isActive(item.path)
+                    ? palette.accent[400]
+                    : 'rgba(255, 255, 255, 0.6)',
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontSize: '0.875rem',
+                  fontWeight: isActive(item.path) ? 500 : 400,
+                  color: isActive(item.path)
+                    ? textColors.inverse
+                    : 'rgba(255, 255, 255, 0.75)',
+                }}
+              />
+            </NavItemButton>
+          </ListItem>
+        ))}
+
+        {/* System Health Section */}
+        <Box sx={{ mt: 'auto' }}>
+          <SectionLabel>System</SectionLabel>
+          <ListItem disablePadding>
+            <NavItemButton onClick={() => setHealthExpanded(!healthExpanded)}>
+              <ListItemIcon
+                sx={{
+                  minWidth: 36,
+                  color: 'rgba(255, 255, 255, 0.6)',
                 }}
               >
                 <MonitorHeartIcon />
               </ListItemIcon>
-              {!collapsed && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ListItemText
-                    primary="System Health"
-                    primaryTypographyProps={{
-                      fontSize: '0.875rem',
-                      fontWeight: 400,
-                      color: 'rgba(255, 255, 255, 0.8)',
-                    }}
+              <ListItemText
+                primary="Health"
+                primaryTypographyProps={{
+                  fontSize: '0.875rem',
+                  fontWeight: 400,
+                  color: 'rgba(255, 255, 255, 0.75)',
+                }}
+              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {healthData && getOverallHealthDots()}
+                {healthExpanded ? (
+                  <ExpandLessIcon
+                    sx={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.4)' }}
                   />
-                  {healthData && getOverallHealthIcon()}
-                </Box>
-              )}
-            </Box>
-            {!collapsed && (
-              <Box sx={{ color: 'rgba(255, 255, 255, 0.5)' }}>
-                {healthExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                ) : (
+                  <ExpandMoreIcon
+                    sx={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.4)' }}
+                  />
+                )}
               </Box>
-            )}
-          </ListItemButton>
-        </Tooltip>
+            </NavItemButton>
+          </ListItem>
 
-        {/* Collapsible Health Details */}
-        {!collapsed && (
+          {/* Health Panel */}
           <Collapse in={healthExpanded} timeout="auto" unmountOnExit>
-            <Box
-              sx={{
-                mt: 1,
-                p: 1.5,
-                backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                borderRadius: 1.5,
-              }}
-            >
+            <HealthPanel>
               {healthLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-                  <CircularProgress size={24} sx={{ color: brandColors.skyBlue }} />
+                  <CircularProgress
+                    size={20}
+                    sx={{ color: palette.accent[400] }}
+                  />
                 </Box>
               ) : (
                 <>
-                  {/* Service Status List */}
-                  {healthData && Object.entries(healthData).map(([service, data]) => (
-                    <Box
-                      key={service}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        py: 0.5,
-                        px: 0.5,
-                      }}
-                    >
-                      <Typography
-                        variant="caption"
+                  {healthData &&
+                    Object.entries(healthData).map(([service, data]) => (
+                      <Box
+                        key={service}
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.7)',
-                          textTransform: 'capitalize',
-                          fontSize: '0.7rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          py: 0.5,
                         }}
                       >
-                        {service.replace('_', ' ')}
-                      </Typography>
-                      <Tooltip title={data.error || data.status} placement="left">
-                        <Box>{getStatusIcon(data.status)}</Box>
-                      </Tooltip>
-                    </Box>
-                  ))}
+                        <Typography
+                          sx={{
+                            color: 'rgba(255, 255, 255, 0.6)',
+                            fontSize: '0.75rem',
+                          }}
+                        >
+                          {formatServiceName(service)}
+                        </Typography>
+                        <Tooltip
+                          title={data.error || data.status}
+                          placement="left"
+                        >
+                          <Box sx={{ display: 'flex' }}>
+                            {getStatusIcon(data.status)}
+                          </Box>
+                        </Tooltip>
+                      </Box>
+                    ))}
 
-                  {/* Last Checked + Refresh */}
+                  {/* Footer */}
                   <Box
                     sx={{
                       display: 'flex',
@@ -442,19 +441,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                       justifyContent: 'space-between',
                       mt: 1,
                       pt: 1,
-                      borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
                     }}
                   >
                     <Typography
-                      variant="caption"
                       sx={{
-                        color: 'rgba(255, 255, 255, 0.5)',
-                        fontSize: '0.65rem',
+                        color: 'rgba(255, 255, 255, 0.35)',
+                        fontSize: '0.6875rem',
                       }}
                     >
-                      Last: {formatLastChecked()}
+                      {formatLastChecked()}
                     </Typography>
-                    <Tooltip title="Refresh" placement="left">
+                    <Tooltip title="Refresh">
                       <IconButton
                         onClick={(e) => {
                           e.stopPropagation();
@@ -462,10 +460,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                         }}
                         size="small"
                         sx={{
-                          color: 'rgba(255, 255, 255, 0.5)',
+                          color: 'rgba(255, 255, 255, 0.35)',
                           p: 0.5,
                           '&:hover': {
-                            color: '#FFFFFF',
+                            color: 'rgba(255, 255, 255, 0.6)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.06)',
                           },
                         }}
                       >
@@ -475,128 +474,81 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
                   </Box>
                 </>
               )}
-            </Box>
+            </HealthPanel>
           </Collapse>
-        )}
-      </Box>
-
-      {/* Collapse Toggle */}
-      <Box sx={{ px: 1.5, pb: 1 }}>
-        <Tooltip title={collapsed ? 'Expand' : 'Collapse'} placement="right">
-          <IconButton
-            onClick={onToggle}
-            sx={{
-              width: '100%',
-              borderRadius: 1.5,
-              color: 'rgba(255, 255, 255, 0.6)',
-              '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                color: '#FFFFFF',
-              },
-            }}
-          >
-            {collapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
-          </IconButton>
-        </Tooltip>
-      </Box>
-
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.1)', mx: 2 }} />
+        </Box>
+      </List>
 
       {/* User Section */}
-      <Box
-        sx={{
-          p: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: collapsed ? 0 : 1.5,
-          justifyContent: collapsed ? 'center' : 'flex-start',
-        }}
-      >
-        <Tooltip title={collapsed ? 'Profile' : ''} placement="right">
+      <UserSection>
+        <Tooltip title="Profile">
           <Avatar
             onClick={() => navigate('/profile')}
             sx={{
               width: 36,
               height: 36,
-              bgcolor: brandColors.gold,
+              bgcolor: palette.accent[500],
               fontSize: '0.875rem',
               fontWeight: 600,
               cursor: 'pointer',
+              transition: 'opacity 0.15s ease',
               '&:hover': {
-                opacity: 0.8,
+                opacity: 0.85,
               },
             }}
           >
             {user?.email?.charAt(0).toUpperCase() || 'U'}
           </Avatar>
         </Tooltip>
-        {!collapsed && (
-          <Box
-            onClick={() => navigate('/profile')}
+
+        <Box
+          onClick={() => navigate('/profile')}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            cursor: 'pointer',
+            transition: 'opacity 0.15s ease',
+            '&:hover': {
+              opacity: 0.85,
+            },
+          }}
+        >
+          <Typography
             sx={{
-              flex: 1,
-              minWidth: 0,
-              cursor: 'pointer',
-              '&:hover': {
-                opacity: 0.8,
-              },
+              fontWeight: 500,
+              color: textColors.inverse,
+              fontSize: '0.8125rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 500,
-                color: '#FFFFFF',
-                fontSize: '0.8125rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {user?.first_name && user?.last_name
-                ? `${user.first_name} ${user.last_name}`
-                : user?.full_name || user?.email?.split('@')[0] || 'User'}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.5)',
-                fontSize: '0.6875rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                display: 'block',
-              }}
-            >
-              {user?.email}
-            </Typography>
-          </Box>
-        )}
-        {!collapsed && (
-          <Tooltip title="Profile" placement="top">
-            <IconButton
-              onClick={() => navigate('/profile')}
-              size="small"
-              sx={{
-                color: 'rgba(255, 255, 255, 0.6)',
-                '&:hover': {
-                  color: '#FFFFFF',
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                },
-              }}
-            >
-              <PersonIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
-        <Tooltip title="Logout" placement="right">
+            {user?.first_name && user?.last_name
+              ? `${user.first_name} ${user.last_name}`
+              : user?.full_name || user?.email?.split('@')[0] || 'User'}
+          </Typography>
+          <Typography
+            sx={{
+              color: 'rgba(255, 255, 255, 0.45)',
+              fontSize: '0.6875rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {user?.email}
+          </Typography>
+        </Box>
+
+        <Tooltip title="Logout">
           <IconButton
             onClick={handleLogout}
             size="small"
             sx={{
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: 'rgba(255, 255, 255, 0.45)',
+              transition: 'all 0.15s ease',
               '&:hover': {
-                color: '#FFFFFF',
+                color: textColors.inverse,
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
               },
             }}
@@ -604,9 +556,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggle }) => {
             <LogoutIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-      </Box>
-    </Drawer>
+      </UserSection>
+    </StyledDrawer>
   );
 };
 
-export { DRAWER_WIDTH, DRAWER_WIDTH_COLLAPSED };
+export { SIDEBAR_WIDTH };
+export const DRAWER_WIDTH = SIDEBAR_WIDTH;
+export const DRAWER_WIDTH_COLLAPSED = SIDEBAR_WIDTH; // No collapse, same width

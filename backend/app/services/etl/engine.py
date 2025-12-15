@@ -161,9 +161,97 @@ class ETLEngine:
         except Exception as e:
             self.logger.logger.warning(f"Failed to convert to string: {value}, error: {e}")
             return None
-    
+
+    def _detect_address_column(self, user_sql: str) -> str:
+        """
+        Execute LIMIT 1 query to detect address column name.
+
+        Args:
+            user_sql: User's original SQL script
+
+        Returns:
+            Exact column name (e.g., "Address", "address", "PROPERTY_ADDRESS")
+
+        Raises:
+            Exception: If no address column found
+        """
+        try:
+            # Execute with LIMIT 1 to get column metadata
+            test_query = f"SELECT * FROM ({user_sql}) AS sample_query LIMIT 1"
+            result = self.snowflake_conn.execute_query(test_query)
+
+            if result is None or result.empty:
+                raise Exception("Query returned no results - cannot detect columns")
+
+            # Search for address column (case-insensitive)
+            for col in result.columns:
+                if 'address' in col.lower():
+                    self.logger.log_step("Column Detection", f"Found address column: '{col}'")
+                    return col
+
+            # No address column found
+            available = ', '.join(result.columns)
+            raise Exception(f"No Address column found. Available: {available}")
+
+        except Exception as e:
+            self.logger.log_error(e, "detecting address column")
+            raise
+
+    def _build_filtered_query(self, user_sql: str, limit_rows: Optional[int] = None) -> str:
+        """
+        Build optimized query with database-side filtering against PERSON_CACHE.
+
+        Args:
+            user_sql: Original SQL script from user
+            limit_rows: Optional row limit (applied AFTER filtering)
+
+        Returns:
+            Optimized SQL query string with NOT EXISTS filtering
+        """
+        # Detect address column name
+        address_column = self._detect_address_column(user_sql)
+
+        # Build filtered query with NOT EXISTS
+        filtered_query = f"""
+    WITH UserQuery AS (
+        {user_sql}
+    ),
+    FilteredResults AS (
+        SELECT uq.*
+        FROM UserQuery uq
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE pc
+            WHERE UPPER(TRIM(pc."address")) = UPPER(TRIM(uq."{address_column}"))
+              AND pc."address" IS NOT NULL
+              AND pc."address" != ''
+        )
+    )
+    SELECT * FROM FilteredResults
+    """
+
+        # Apply limit if specified
+        if limit_rows:
+            filtered_query += f"\nLIMIT {limit_rows}"
+
+        self.logger.log_step("Query Optimization",
+            f"Built filtered query using column '{address_column}' with database-side filtering")
+
+        return filtered_query
+
     def _filter_unprocessed_records(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Filter out records that have already been processed based on address using PERSON_CACHE"""
+        """
+        DEPRECATED: Filter out processed records using Python-side filtering.
+
+        This method is no longer used in the main ETL flow.
+        Filtering is now done at database level via _build_filtered_query().
+
+        Kept for backward compatibility and testing purposes only.
+        """
+        self.logger.logger.warning(
+            "DEPRECATED: _filter_unprocessed_records() called. "
+            "Database-side filtering is now preferred via _build_filtered_query()."
+        )
         try:
             if df.empty:
                 return df
@@ -308,10 +396,11 @@ class ETLEngine:
                     df.at[record_idx, 'In Litigator List'] = 'Yes'
                     del phone_to_record_map[phone]
 
-        # Batch litigator checking for remaining phones (using 8 threads)
+        # Batch litigator checking for remaining phones
         if batch_phones:
-            self.logger.log_step("Litigator Check", f"Checking {len(batch_phones)} phones against litigator list using 8 threads (skipped {original_phone_count - len(batch_phones)} blacklisted)")
-            litigator_results = self.ccc_api.check_multiple_phones_threaded(batch_phones, max_workers=8)
+            self.logger.log_step("Litigator Check", f"Checking {len(batch_phones)} phones against litigator list (skipped {original_phone_count - len(batch_phones)} blacklisted)")
+            # Now uses dynamic worker calculation based on workload size
+            litigator_results = self.ccc_api.check_multiple_phones_threaded(batch_phones)
             
             # Apply litigator results
             for phone_result in litigator_results:
@@ -456,34 +545,37 @@ class ETLEngine:
         }
         
         try:
-            # Execute SQL query WITHOUT LIMIT first
-            sql_query = script_content
-            
-            self.logger.log_step("SQL Execution", f"Executing {script_name}")
-            
-            # Execute SQL query
-            df = self.snowflake_conn.execute_query(sql_query)
-            if df is None or df.empty:
-                result['error_message'] = "No data returned from query"
-                return result
-            
-            self.logger.log_step("Data Filtering", f"Retrieved {len(df)} total rows from query")
-            
-            # Filter out already processed records based on address FIRST
-            df = self._filter_unprocessed_records(df)
-            if df.empty:
-                result['error_message'] = "All records have already been processed"
-                self.logger.log_step("Data Processing", "All records already exist in PERSON_CACHE")
-                return result
-            
-            # NOW apply the limit to the filtered (unprocessed) records
-            total_rows_to_process = len(df)
-            if limit_rows:
-                original_count = len(df)
-                df = df.head(limit_rows)
+            self.logger.log_step("SQL Optimization", f"Building filtered query for {script_name}")
+
+            try:
+                import time
+                start_time = time.time()
+
+                # Build optimized query with NOT EXISTS filtering
+                optimized_query = self._build_filtered_query(script_content, limit_rows=limit_rows)
+
+                self.logger.log_step("SQL Execution", "Executing optimized query (filtering at database level)")
+
+                # Execute - returns only unprocessed records
+                df = self.snowflake_conn.execute_query(optimized_query)
+
+                query_time = time.time() - start_time
+
+                if df is None or df.empty:
+                    result['error_message'] = "No unprocessed records (all already in PERSON_CACHE)"
+                    self.logger.log_step("Data Filtering", "All records already processed")
+                    return result
+
+                # Log results
                 total_rows_to_process = len(df)
-                self.logger.log_step("Data Limiting", f"Applied LIMIT {limit_rows} to filtered data: {original_count} new records available, processing {len(df)} records")
-            
+                self.logger.log_step("Data Filtering",
+                    f"Retrieved {total_rows_to_process} unprocessed records in {query_time:.2f}s")
+
+            except Exception as e:
+                self.logger.log_error(e, "building/executing optimized query")
+                result['error_message'] = f"Query optimization failed: {str(e)}"
+                return result
+
             # Emit initial progress
             if progress_callback:
                 progress_callback(0, total_rows_to_process, 0, 0, 0, f"Starting to process {total_rows_to_process} rows")
@@ -600,9 +692,10 @@ class ETLEngine:
                     )
                 
                 self.logger.log_step("Batch Processing", f"Processing batch {batch_num + 1}/{total_batches} - Records {start_idx + 1} to {end_idx}")
-                
+
                 # Get phones and emails from idiCORE for this batch
-                idiCORE_results = self.idicore_service.lookup_multiple_people_phones_and_emails_batch(batch_people, batch_size=150)
+                # Now uses dynamic worker calculation based on workload size
+                idiCORE_results = self.idicore_service.lookup_multiple_people_phones_and_emails_batch(batch_people)
                 
                 # Create row event callback
                 def row_event_callback(row_data):

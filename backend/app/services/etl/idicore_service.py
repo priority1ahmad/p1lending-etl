@@ -13,6 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.core.config import settings
 from app.core.logger import etl_logger
 from app.services.etl.cache_service import PersonCache, SnowflakeCacheService
+from app.core.concurrency import calculate_optimal_workers, log_worker_decision
+from app.core.retry import exponential_backoff_retry, CircuitBreaker, CircuitBreakerOpen
 
 
 class IdiCOREAPIService:
@@ -23,7 +25,7 @@ class IdiCOREAPIService:
         # Production API endpoints
         self.auth_url = settings.idicore.auth_url
         self.search_url = settings.idicore.search_url
-        
+
         # Use provided credentials or fall back to settings
         self.clientid = client_id or settings.idicore.client_id
         self.clientsecret = client_secret or settings.idicore.client_secret
@@ -36,6 +38,14 @@ class IdiCOREAPIService:
         # Initialize caches - Snowflake as primary, CSV as backup
         self.snowflake_cache = None  # Lazy initialization
         self.person_cache = PersonCache()  # Keep CSV cache as backup
+
+        # Circuit breaker for rate limiting protection
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=10,  # Higher threshold for idiCORE
+            recovery_timeout=60.0,
+            success_threshold=3,
+            logger=self.logger
+        )
     
     def _ensure_snowflake_cache(self):
         """Lazy initialization of Snowflake cache - only create when needed"""
@@ -120,10 +130,10 @@ class IdiCOREAPIService:
                 self.logger.error(f"❌ Failed to get authentication token: {e}", exc_info=True)
                 return None
     
-    def _lookup_person_phones_and_emails_with_session(self, first_name: str, last_name: str, address: str, 
-                                                     city: str, state: str, zip_code: str, 
+    def _lookup_person_phones_and_emails_with_session(self, first_name: str, last_name: str, address: str,
+                                                     city: str, state: str, zip_code: str,
                                                      session: requests.Session) -> Dict[str, Any]:
-        """Look up top 3 phone numbers for a person using idiCORE API with custom session"""
+        """Look up top 3 phone numbers for a person using idiCORE API with custom session and retry logic"""
         try:
             # Convert all inputs to strings and handle None/NaN values
             first_name = str(first_name) if first_name is not None else ""
@@ -132,7 +142,7 @@ class IdiCOREAPIService:
             city = str(city) if city is not None else ""
             state = str(state) if state is not None else ""
             zip_code = str(zip_code) if zip_code is not None else ""
-            
+
             # Handle float values (e.g., "123.0" -> "123")
             if address.endswith('.0'):
                 address = address[:-2]
@@ -142,64 +152,81 @@ class IdiCOREAPIService:
                 state = state[:-2]
             if zip_code.endswith('.0'):
                 zip_code = zip_code[:-2]
-            
-            # Get authentication token
-            token = self._get_auth_token()
-            if not token:
-                return {'phones': [], 'emails': [], 'display_phone': '', 'status': 'error'}
-            
-            # Prepare search request
-            search_data = {
-                "lastName": last_name.upper(),
-                "firstName": first_name.upper(),
-                "referenceId": f"ETL-{int(time.time())}-{threading.current_thread().ident}",
-                "fields": ["phone", "email"]  # Request both phones and emails
-            }
-            
-            # Only include location fields if we have them
-            if address and address.strip():
-                search_data["address"] = address.upper()
-            if city and city.strip():
-                search_data["city"] = city.upper()
-            if state and state.strip():
-                search_data["state"] = state.upper()
-            if zip_code and zip_code.strip():
-                search_data["zip"] = zip_code
-            
-            headers = {
-                'authorization': token,
-                'content-type': "application/json",
-                'accept': "application/json"
-            }
-            
-            # Make search request
-            json_body = json.dumps(search_data)
-            response = session.post(self.search_url, data=json_body, headers=headers, timeout=settings.idicore.timeout)
-            response.raise_for_status()
-            
-            result = response.json()
-            
+
+            # Wrap API call with exponential backoff retry
+            @exponential_backoff_retry(
+                max_retries=settings.idicore.max_retries,
+                base_delay=settings.idicore.retry_base_delay,
+                max_delay=settings.idicore.retry_max_delay,
+                retry_on=(requests.exceptions.HTTPError, requests.exceptions.Timeout),
+                logger=self.logger
+            )
+            def _make_api_call():
+                # Get authentication token
+                token = self._get_auth_token()
+                if not token:
+                    raise Exception("Failed to obtain authentication token")
+
+                # Prepare search request
+                search_data = {
+                    "lastName": last_name.upper(),
+                    "firstName": first_name.upper(),
+                    "referenceId": f"ETL-{int(time.time())}-{threading.current_thread().ident}",
+                    "fields": ["phone", "email"]  # Request both phones and emails
+                }
+
+                # Only include location fields if we have them
+                if address and address.strip():
+                    search_data["address"] = address.upper()
+                if city and city.strip():
+                    search_data["city"] = city.upper()
+                if state and state.strip():
+                    search_data["state"] = state.upper()
+                if zip_code and zip_code.strip():
+                    search_data["zip"] = zip_code
+
+                headers = {
+                    'authorization': token,
+                    'content-type': "application/json",
+                    'accept': "application/json"
+                }
+
+                # Make search request with circuit breaker protection
+                json_body = json.dumps(search_data)
+                response = self.circuit_breaker.call(
+                    session.post,
+                    self.search_url,
+                    data=json_body,
+                    headers=headers,
+                    timeout=settings.idicore.timeout
+                )
+                response.raise_for_status()
+                return response.json()
+
+            # Execute API call with retry logic
+            result = _make_api_call()
+
             # Initialize results
             phone_pairs = []  # List of (formatted, cleaned) tuples
             emails = []  # List of email addresses
             display_phone = ""
-            
+
             if 'result' in result and len(result['result']) > 0:
                 person = result['result'][0]
-                
+
                 # Extract top 3 phone numbers
                 if 'phone' in person and len(person['phone']) > 0:
                     sorted_phones = sorted(person['phone'], key=lambda x: x.get('meta', {}).get('rank', 999))
-                    
+
                     for phone_data in sorted_phones[:3]:
                         formatted_phone = phone_data.get('number', '')
                         if formatted_phone:
                             cleaned_phone = self._clean_phone_number(formatted_phone)
                             phone_pairs.append((formatted_phone, cleaned_phone))
-                            
+
                             if not display_phone:
                                 display_phone = cleaned_phone
-                
+
                 # Extract top 3 email addresses
                 if 'email' in person and len(person['email']) > 0:
                     sorted_emails = sorted(person['email'], key=lambda x: x.get('meta', {}).get('rank', 999))
@@ -207,14 +234,17 @@ class IdiCOREAPIService:
                         email = email_data.get('address', '')
                         if email:
                             emails.append(email)
-            
+
             return {
                 'phones': phone_pairs,
                 'emails': emails,
                 'display_phone': display_phone,
                 'status': 'success'
             }
-            
+
+        except CircuitBreakerOpen as e:
+            self.logger.error(f"⚠️ Circuit breaker open for {first_name} {last_name}: {e}")
+            return {'phones': [], 'emails': [], 'display_phone': '', 'status': 'circuit_breaker_open'}
         except Exception as e:
             self.logger.error(f"❌ Error looking up phones for {first_name} {last_name}: {e}")
             return {'phones': [], 'emails': [], 'display_phone': '', 'status': 'error'}
@@ -312,14 +342,14 @@ class IdiCOREAPIService:
         
         return results
     
-    def lookup_multiple_people_phones_and_emails_batch(self, people_data: List[Dict[str, str]], batch_size: int = 150) -> List[Dict[str, Any]]:
+    def lookup_multiple_people_phones_and_emails_batch(self, people_data: List[Dict[str, str]], batch_size: int = None) -> List[Dict[str, Any]]:
         """
-        Look up phone numbers for a batch of people (up to 150) with caching and parallel processing.
+        Look up phone numbers for a batch of people with dynamic threading and caching.
         Uses batch cache lookups for performance optimization.
 
         Args:
-            people_data: List of dictionaries with person information (max 150 per batch)
-            batch_size: Maximum number of people to process in parallel (default 150)
+            people_data: List of dictionaries with person information
+            batch_size: Optional override for worker count (uses dynamic calculation if None)
 
         Returns:
             List of dictionaries with phones, emails, and display_phone for each person
@@ -327,7 +357,28 @@ class IdiCOREAPIService:
         if not people_data:
             return []
 
-        self.logger.info(f"Processing batch of {len(people_data)} people for idiCORE lookup")
+        # Calculate optimal worker count dynamically
+        if batch_size is None:
+            batch_size = calculate_optimal_workers(
+                workload_size=len(people_data),
+                batch_size=1,  # Individual API calls
+                min_workers=settings.idicore.min_workers,
+                max_workers=settings.idicore.max_workers,
+                workers_per_batch=settings.idicore.workers_scaling_factor
+            )
+
+            log_worker_decision(
+                logger=self.logger,
+                workload_size=len(people_data),
+                batch_size=1,
+                calculated_workers=batch_size,
+                reason="idiCORE phone lookup - individual API calls"
+            )
+
+        self.logger.info(
+            f"🔧 Processing batch of {len(people_data)} people for idiCORE lookup "
+            f"using {batch_size} threads (dynamic calculation)"
+        )
 
         # Batch cache lookup (single Snowflake query instead of N queries)
         cached_results = self.person_cache.get_cached_results_batch(people_data)

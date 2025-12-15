@@ -1,21 +1,26 @@
-import React, { useState } from 'react';
+/**
+ * Login Page
+ * Modern SaaS-style authentication form
+ */
+
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Container,
+  Box,
   Paper,
   TextField,
-  Button,
   Typography,
-  Box,
   Alert,
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
 import { useAuthStore } from '../stores/authStore';
 import { authApi } from '../services/api/auth';
-import { brandColors } from '../theme';
+import { Button } from '../components/ui/Button/Button';
+import { backgrounds, textColors, borderColors, palette } from '../theme';
 
-export const Login: React.FC = () => {
+export function Login() {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const [email, setEmail] = useState('');
@@ -24,7 +29,7 @@ export const Login: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
@@ -47,19 +52,18 @@ export const Login: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: brandColors.offWhite,
+        backgroundColor: backgrounds.secondary,
         py: 4,
       }}
     >
-      <Container maxWidth="sm">
+      <Box sx={{ width: '100%', maxWidth: 420, px: 3 }}>
         <Paper
           elevation={0}
           sx={{
             p: 5,
             borderRadius: 3,
-            boxShadow: '0 4px 6px -1px rgba(16, 66, 101, 0.1), 0 2px 4px -1px rgba(16, 66, 101, 0.06)',
-            border: '1px solid #E2E8F0',
-            backgroundColor: '#FFFFFF',
+            border: `1px solid ${borderColors.default}`,
+            backgroundColor: backgrounds.primary,
           }}
         >
           {/* Logo */}
@@ -77,7 +81,7 @@ export const Login: React.FC = () => {
                 width: 48,
                 height: 48,
                 borderRadius: 1.5,
-                backgroundColor: brandColors.navy,
+                backgroundColor: palette.primary[800],
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -93,7 +97,7 @@ export const Login: React.FC = () => {
                 variant="h5"
                 sx={{
                   fontWeight: 700,
-                  color: brandColors.navy,
+                  color: textColors.primary,
                   lineHeight: 1.2,
                 }}
               >
@@ -102,7 +106,7 @@ export const Login: React.FC = () => {
               <Typography
                 variant="caption"
                 sx={{
-                  color: brandColors.blueGray,
+                  color: textColors.secondary,
                   fontSize: '0.75rem',
                 }}
               >
@@ -117,7 +121,7 @@ export const Login: React.FC = () => {
             sx={{
               mb: 1,
               fontWeight: 600,
-              color: brandColors.navy,
+              color: textColors.primary,
             }}
           >
             Welcome back
@@ -127,7 +131,7 @@ export const Login: React.FC = () => {
             align="center"
             sx={{
               mb: 4,
-              color: brandColors.blueGray,
+              color: textColors.secondary,
             }}
           >
             Sign in to your account to continue
@@ -174,9 +178,9 @@ export const Login: React.FC = () => {
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
                   sx={{
-                    color: brandColors.blueGray,
+                    color: textColors.secondary,
                     '&.Mui-checked': {
-                      color: brandColors.skyBlue,
+                      color: palette.accent[500],
                     },
                   }}
                 />
@@ -185,7 +189,7 @@ export const Login: React.FC = () => {
               sx={{
                 mt: 1,
                 '& .MuiFormControlLabel-label': {
-                  color: brandColors.blueGray,
+                  color: textColors.secondary,
                   fontSize: '0.875rem',
                 },
               }}
@@ -193,22 +197,22 @@ export const Login: React.FC = () => {
             <Button
               type="submit"
               fullWidth
-              variant="contained"
-              color="primary"
+              variant="solid"
+              colorScheme="accent"
               size="large"
+              loading={loading}
+              loadingText="Signing in..."
               sx={{
                 mt: 3,
                 mb: 2,
                 py: 1.5,
-                fontWeight: 600,
               }}
-              disabled={loading}
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              Sign In
             </Button>
           </Box>
         </Paper>
-      </Container>
+      </Box>
     </Box>
   );
-};
+}

@@ -11,6 +11,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from app.core.config import settings
 from app.core.logger import etl_logger
 from app.services.etl.cache_service import PhoneCache, SnowflakeCacheService
+from app.core.concurrency import calculate_optimal_workers, log_worker_decision
+from app.core.retry import exponential_backoff_retry, CircuitBreaker, CircuitBreakerOpen
 
 
 class CCCAPIService:
@@ -28,10 +30,18 @@ class CCCAPIService:
             'loginId': self.api_key,
             'User-Agent': 'Lodasoft-ETL/1.0'
         })
-        
+
         # Initialize caches - Snowflake as primary, CSV as backup
         self.snowflake_cache = SnowflakeCacheService()
         self.phone_cache = PhoneCache()  # Keep CSV cache as backup
+
+        # Circuit breaker for rate limiting protection
+        self.circuit_breaker = CircuitBreaker(
+            failure_threshold=5,
+            recovery_timeout=60.0,
+            success_threshold=2,
+            logger=self.logger
+        )
     
     def _safe_string_key(self, value: Any) -> Optional[str]:
         """
@@ -172,43 +182,48 @@ class CCCAPIService:
             # Clean all phone numbers
             cleaned_phones = [self._clean_phone_number(phone) for phone in phones]
             phone_list = ",".join(cleaned_phones)
-            
+
             # Build query parameters for Litigator-Only API
             params = {
                 'phoneList': phone_list,
                 'loginId': self.api_key
             }
-            
+
             headers = {
                 'User-Agent': 'Lodasoft-ETL/1.0'
             }
-            
-            # Retry logic: try up to 2 times
-            max_retries = 2
-            api_results = None
-            
-            for attempt in range(max_retries):
-                try:
-                    response = requests.get(self.base_url, params=params, headers=headers, timeout=30)
-                    response.raise_for_status()
-                    api_results = response.json()
-                    break
-                except Exception as e:
-                    if attempt < max_retries - 1:
-                        self.logger.warning(f"API request failed (attempt {attempt + 1}/{max_retries}): {e}. Retrying in 10 seconds...")
-                        time.sleep(10)
-                        continue
-                    else:
-                        raise e
-            
+
+            # Wrap the API call with exponential backoff retry
+            @exponential_backoff_retry(
+                max_retries=settings.ccc_api.max_retries,
+                base_delay=settings.ccc_api.retry_base_delay,
+                max_delay=settings.ccc_api.retry_max_delay,
+                retry_on=(requests.exceptions.HTTPError, requests.exceptions.Timeout),
+                logger=self.logger
+            )
+            def _make_api_call():
+                # Wrap API call in circuit breaker
+                response = self.circuit_breaker.call(
+                    requests.get,
+                    self.base_url,
+                    params=params,
+                    headers=headers,
+                    timeout=30
+                )
+                response.raise_for_status()
+                return response.json()
+
+            # Make API call with retry and circuit breaker
+            api_results = _make_api_call()
+
             # Process API results
             if not isinstance(api_results, list):
                 raise ValueError(f"Expected list response, got {type(api_results)}")
-            
+
             results = []
             for i, original_phone in enumerate(phones):
                 cleaned_phone = cleaned_phones[i]
-                
+
                 # Find matching result in API response
                 api_result = None
                 for result in api_results:
@@ -216,15 +231,15 @@ class CCCAPIService:
                     if api_phone == cleaned_phone or str(api_phone) == cleaned_phone:
                         api_result = result
                         break
-                
+
                 if api_result:
                     in_litigator_list = api_result.get('IsLitigator', False)
                     confidence = 95 if in_litigator_list else 85
-                    
+
                     # Normalize phone to string - handle lists, tuples, etc.
                     phone_str = self._normalize_phone_to_string(original_phone) or str(original_phone)
                     cleaned_phone_str = str(cleaned_phone) if not isinstance(cleaned_phone, str) else cleaned_phone
-                    
+
                     result_dict = {
                         'phone': phone_str,
                         'cleaned_phone': cleaned_phone_str,
@@ -237,7 +252,7 @@ class CCCAPIService:
                     # Normalize phone to string - handle lists, tuples, etc.
                     phone_str = self._normalize_phone_to_string(original_phone) or str(original_phone)
                     cleaned_phone_str = str(cleaned_phone) if not isinstance(cleaned_phone, str) else cleaned_phone
-                    
+
                     result_dict = {
                         'phone': phone_str,
                         'cleaned_phone': cleaned_phone_str,
@@ -246,11 +261,25 @@ class CCCAPIService:
                         'status': 'not_found',
                         'error': 'Phone not found in API response'
                     }
-                
+
                 results.append(result_dict)
-            
+
             return results
-        
+
+        except CircuitBreakerOpen as e:
+            self.logger.error(f"⚠️ Circuit breaker open, skipping batch: {e}")
+            # Return all phones as not in list (safe default)
+            return [
+                {
+                    'phone': self._normalize_phone_to_string(phone) or str(phone),
+                    'cleaned_phone': self._clean_phone_number(phone),
+                    'in_litigator_list': False,
+                    'confidence': 0,
+                    'status': 'circuit_breaker_open',
+                    'error': str(e)
+                }
+                for phone in phones
+            ]
         except Exception as e:
             self.logger.error(f"Error in batch phone check: {e}")
             return [
@@ -265,21 +294,42 @@ class CCCAPIService:
                 for phone in phones
             ]
     
-    def check_multiple_phones_threaded(self, phones: List[Any], max_workers: int = 8) -> List[Dict[str, Any]]:
+    def check_multiple_phones_threaded(self, phones: List[Any], max_workers: int = None) -> List[Dict[str, Any]]:
         """
-        Check multiple phone numbers against litigator list with batch threading and caching
-        
+        Check multiple phone numbers against litigator list with dynamic threading and rate limiting
+
         Args:
             phones: List of phone numbers to check (can be strings, lists, tuples, etc.)
-            max_workers: Number of threads to use for parallel batch processing (default 8)
-            
+            max_workers: Optional override for worker count (uses dynamic calculation if None)
+
         Returns:
             List of dictionaries with check results
         """
         results = [None] * len(phones)
         total_phones = len(phones)
-        
-        self.logger.info(f"Starting threaded litigator check for {total_phones} phone numbers using {max_workers} threads")
+
+        # Calculate optimal worker count dynamically
+        if max_workers is None:
+            max_workers = calculate_optimal_workers(
+                workload_size=total_phones,
+                batch_size=self.batch_size,
+                min_workers=settings.ccc_api.min_workers,
+                max_workers=settings.ccc_api.max_workers,
+                workers_per_batch=settings.ccc_api.workers_per_batch
+            )
+
+            log_worker_decision(
+                logger=self.logger,
+                workload_size=total_phones,
+                batch_size=self.batch_size,
+                calculated_workers=max_workers,
+                reason="CCC litigator check - batch API calls"
+            )
+
+        self.logger.info(
+            f"🔧 Starting threaded litigator check for {total_phones} phone numbers "
+            f"using {max_workers} workers (dynamic calculation)"
+        )
         
         # Normalize all phones at entry point - USE SAFE CONVERSION
         normalized_phones = []

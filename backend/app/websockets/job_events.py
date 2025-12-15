@@ -8,6 +8,7 @@ import json
 from typing import Dict, Any, List
 from app.core.logger import etl_logger
 from app.core.config import settings
+from app.core.security import decode_token
 
 # Allowed origins for WebSocket CORS - restrict to known domains
 WEBSOCKET_ALLOWED_ORIGINS: List[str] = [
@@ -42,15 +43,53 @@ def get_sio_instance():
 
 
 @sio.event
-async def connect(sid, environ):
-    """Handle client connection"""
-    etl_logger.info(f"Client connected: {sid}")
+async def connect(sid, environ, auth=None):
+    """
+    Handle client connection with JWT authentication.
+
+    Clients must provide a valid JWT token either:
+    - In the 'auth' parameter: { token: 'jwt_token_here' }
+    - In the Authorization header: 'Bearer jwt_token_here'
+    """
+    token = None
+
+    # Try auth parameter first (Socket.IO auth option)
+    if auth and isinstance(auth, dict):
+        token = auth.get('token')
+
+    # Fallback to Authorization header
+    if not token:
+        # Get headers from WSGI environ
+        auth_header = environ.get('HTTP_AUTHORIZATION', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:]
+
+    # Validate token
+    if not token:
+        etl_logger.warning(f"WebSocket connection rejected: No token provided (sid: {sid})")
+        raise ConnectionRefusedError("Authentication required")
+
+    payload = decode_token(token)
+    if not payload:
+        etl_logger.warning(f"WebSocket connection rejected: Invalid token (sid: {sid})")
+        raise ConnectionRefusedError("Invalid or expired token")
+
+    user_id = payload.get('sub')
+    if not user_id:
+        etl_logger.warning(f"WebSocket connection rejected: Missing user ID in token (sid: {sid})")
+        raise ConnectionRefusedError("Invalid token format")
+
+    # Store user info in session for later use
+    await sio.save_session(sid, {'user_id': user_id})
+    etl_logger.info(f"Authenticated WebSocket client connected: {sid} (user: {user_id})")
 
 
 @sio.event
 async def disconnect(sid):
     """Handle client disconnection"""
-    etl_logger.info(f"Client disconnected: {sid}")
+    session = await sio.get_session(sid)
+    user_id = session.get('user_id', 'unknown') if session else 'unknown'
+    etl_logger.info(f"Client disconnected: {sid} (user: {user_id})")
 
 
 @sio.event
