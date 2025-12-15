@@ -47,6 +47,7 @@ class ETLEngine:
 
         Removes trailing semicolons which cause syntax errors when SQL
         is wrapped in parentheses (e.g., SELECT * FROM (user_sql) AS t).
+        Also handles Windows line endings (CRLF) and multiple semicolons.
 
         Args:
             sql: User's original SQL script
@@ -54,7 +55,20 @@ class ETLEngine:
         Returns:
             Sanitized SQL safe for subquery wrapping
         """
-        return sql.strip().rstrip(';').strip()
+        if not sql:
+            return sql
+
+        # Normalize line endings to Unix style (handles CRLF from Windows)
+        clean = sql.replace('\r\n', '\n').replace('\r', '\n')
+
+        # Remove leading/trailing whitespace
+        clean = clean.strip()
+
+        # Remove all trailing semicolons (handles multiple ';' patterns)
+        while clean.endswith(';'):
+            clean = clean[:-1].strip()
+
+        return clean
 
     def _load_blacklisted_phones(self) -> None:
         """
@@ -256,8 +270,8 @@ class ETLEngine:
         # Sanitize SQL - remove trailing semicolons that break CTEs
         clean_sql = self._sanitize_sql_for_subquery(user_sql)
 
-        # Detect address column name (uses sanitized SQL internally)
-        address_column = self._detect_address_column(user_sql)
+        # Detect address column name (pass sanitized SQL to avoid redundant cleaning)
+        address_column = self._detect_address_column(clean_sql)
 
         # Detect name columns (typically "First Name", "Last Name" or variations)
         first_name_col = self._detect_column(user_sql, ['First Name', 'FIRST_NAME', 'FirstName', 'first_name'])

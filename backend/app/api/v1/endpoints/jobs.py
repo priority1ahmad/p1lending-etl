@@ -103,10 +103,12 @@ async def create_job(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="SQL script not found"
             )
-        script_content = script.content
+        # Clean SQL - remove trailing semicolons that break CTEs/subqueries
+        script_content = script.content.rstrip().rstrip(';').strip()
         script_name = script.name
     elif job_data.script_content and job_data.script_name:
-        script_content = job_data.script_content
+        # Clean SQL - remove trailing semicolons that break CTEs/subqueries
+        script_content = job_data.script_content.rstrip().rstrip(';').strip()
         script_name = job_data.script_name
     else:
         raise HTTPException(

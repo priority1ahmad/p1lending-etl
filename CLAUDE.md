@@ -684,6 +684,23 @@ Restart backend service after changing environment variables.
 
 ## Claude Code Integration
 
+### CRITICAL: Deployment Workflow
+
+**Claude MUST follow this workflow for all code changes:**
+
+1. **Make code changes** - Edit files as needed
+2. **Commit and push to GitHub** - Always push changes to the repository
+3. **DO NOT deploy** - The user will handle deployment manually
+
+**Never:**
+- Run deployment scripts (`deploy.sh`, `deploy-staging.sh`, etc.)
+- Restart Docker containers on remote servers
+- SSH into servers to deploy changes
+
+The user controls when and how deployments happen.
+
+---
+
 ### MANDATORY: Agent & Command Usage
 
 **Claude MUST use these optimizations during implementation:**
