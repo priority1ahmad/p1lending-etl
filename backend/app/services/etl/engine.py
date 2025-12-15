@@ -41,6 +41,21 @@ class ETLEngine:
         self._blacklisted_phones: Set[str] = set()  # Cache for blacklisted phones
         self._blacklist_loaded = False
 
+    def _sanitize_sql_for_subquery(self, sql: str) -> str:
+        """
+        Sanitize SQL for use in subqueries or CTEs.
+
+        Removes trailing semicolons which cause syntax errors when SQL
+        is wrapped in parentheses (e.g., SELECT * FROM (user_sql) AS t).
+
+        Args:
+            sql: User's original SQL script
+
+        Returns:
+            Sanitized SQL safe for subquery wrapping
+        """
+        return sql.strip().rstrip(';').strip()
+
     def _load_blacklisted_phones(self) -> None:
         """
         Load blacklisted phones from PostgreSQL database.
@@ -176,8 +191,11 @@ class ETLEngine:
             Exception: If no address column found
         """
         try:
+            # Sanitize SQL - remove trailing semicolons that break subqueries
+            clean_sql = self._sanitize_sql_for_subquery(user_sql)
+
             # Execute with LIMIT 1 to get column metadata
-            test_query = f"SELECT * FROM ({user_sql}) AS sample_query LIMIT 1"
+            test_query = f"SELECT * FROM ({clean_sql}) AS sample_query LIMIT 1"
             result = self.snowflake_conn.execute_query(test_query)
 
             if result is None or result.empty:
@@ -235,7 +253,10 @@ class ETLEngine:
         Returns:
             Optimized SQL query string with NOT EXISTS filtering and name validation
         """
-        # Detect address column name
+        # Sanitize SQL - remove trailing semicolons that break CTEs
+        clean_sql = self._sanitize_sql_for_subquery(user_sql)
+
+        # Detect address column name (uses sanitized SQL internally)
         address_column = self._detect_address_column(user_sql)
 
         # Detect name columns (typically "First Name", "Last Name" or variations)
@@ -245,7 +266,7 @@ class ETLEngine:
         # Build filtered query with NOT EXISTS and name validation
         filtered_query = f"""
     WITH UserQuery AS (
-        {user_sql}
+        {clean_sql}
     ),
     FilteredResults AS (
         SELECT uq.*
