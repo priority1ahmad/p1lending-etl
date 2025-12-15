@@ -197,21 +197,52 @@ class ETLEngine:
             self.logger.log_error(e, "detecting address column")
             raise
 
+    def _detect_column(self, sql: str, possible_names: List[str]) -> Optional[str]:
+        """
+        Detect which column name variant is used in the SQL query.
+
+        Args:
+            sql: SQL query string
+            possible_names: List of possible column name variations
+
+        Returns:
+            The detected column name, or first option as fallback
+        """
+        sql_upper = sql.upper()
+        for name in possible_names:
+            # Check for column in SELECT, with quotes or without
+            if f'"{name.upper()}"' in sql_upper or f' {name.upper()}' in sql_upper or f',{name.upper()}' in sql_upper:
+                return name
+
+        # Fallback to first option (most common naming)
+        return possible_names[0] if possible_names else None
+
     def _build_filtered_query(self, user_sql: str, limit_rows: Optional[int] = None) -> str:
         """
         Build optimized query with database-side filtering against PERSON_CACHE.
 
+        Filters for:
+        1. Records NOT in PERSON_CACHE (unprocessed)
+        2. Records with valid first_name AND last_name (processable)
+
+        The row_limit applies to records that pass BOTH filters, ensuring
+        the user gets the requested number of actually processable records.
+
         Args:
             user_sql: Original SQL script from user
-            limit_rows: Optional row limit (applied AFTER filtering)
+            limit_rows: Number of NEW, VALID records to return (applied after all filtering)
 
         Returns:
-            Optimized SQL query string with NOT EXISTS filtering
+            Optimized SQL query string with NOT EXISTS filtering and name validation
         """
         # Detect address column name
         address_column = self._detect_address_column(user_sql)
 
-        # Build filtered query with NOT EXISTS
+        # Detect name columns (typically "First Name", "Last Name" or variations)
+        first_name_col = self._detect_column(user_sql, ['First Name', 'FIRST_NAME', 'FirstName', 'first_name'])
+        last_name_col = self._detect_column(user_sql, ['Last Name', 'LAST_NAME', 'LastName', 'last_name'])
+
+        # Build filtered query with NOT EXISTS and name validation
         filtered_query = f"""
     WITH UserQuery AS (
         {user_sql}
@@ -226,6 +257,9 @@ class ETLEngine:
               AND pc."address" IS NOT NULL
               AND pc."address" != ''
         )
+        -- Filter for valid names (records without names are not processable)
+        AND TRIM(COALESCE(uq."{first_name_col}", '')) != ''
+        AND TRIM(COALESCE(uq."{last_name_col}", '')) != ''
     )
     SELECT * FROM FilteredResults
     """
@@ -235,7 +269,8 @@ class ETLEngine:
             filtered_query += f"\nLIMIT {limit_rows}"
 
         self.logger.log_step("Query Optimization",
-            f"Built filtered query using column '{address_column}' with database-side filtering")
+            f"Built filtered query using address='{address_column}', "
+            f"first_name='{first_name_col}', last_name='{last_name_col}' with database-side filtering")
 
         return filtered_query
 
@@ -642,7 +677,15 @@ class ETLEngine:
                     }
                     people_data.append(person_data)
                     dataframe_indices.append(i)
-            
+
+            # Log if any records were filtered due to missing names
+            # (This should be rare now that SQL-side validation is in place)
+            if len(df) > len(people_data):
+                filtered_count = len(df) - len(people_data)
+                self.logger.log_step("Data Validation",
+                    f"Filtered {filtered_count} records with missing names "
+                    f"({len(people_data)} valid of {len(df)} returned)")
+
             if not people_data:
                 self.logger.log_step("Data Processing", "No valid person data found for idiCORE lookup")
                 result['error_message'] = "No valid person data found"
@@ -743,7 +786,10 @@ class ETLEngine:
                 if records_stored:
                     self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} stored in Snowflake: {records_stored} records")
             
-            result['rows_processed'] = len(df)
+            # Use len(people_data) to reflect actual records processed (not just returned from SQL)
+            result['rows_processed'] = len(people_data)
+            result['rows_returned'] = len(df)  # Original count from SQL for debugging
+            result['rows_filtered'] = len(df) - len(people_data)  # How many dropped in validation
             
             # Calculate statistics
             litigator_count = len(df[df['In Litigator List'] == 'Yes']) if 'In Litigator List' in df.columns else 0
