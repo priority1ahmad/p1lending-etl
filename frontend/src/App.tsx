@@ -13,6 +13,7 @@ import { SqlEditor } from './pages/SqlEditor';
 import { ETLResults } from './pages/ETLResults';
 import { Rescrub } from './pages/Rescrub';
 import { UserProfile } from './pages/UserProfile';
+import { UserManagement } from './pages/UserManagement';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -92,6 +93,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <UserProfile />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <UserManagement />
                     </Layout>
                   </ProtectedRoute>
                 }

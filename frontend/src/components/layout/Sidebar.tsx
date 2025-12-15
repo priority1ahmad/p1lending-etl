@@ -35,6 +35,7 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   MonitorHeart as MonitorHeartIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
@@ -158,6 +159,11 @@ const navItems: NavItem[] = [
   { label: 'SQL Scripts', path: '/sql-files', icon: <CodeIcon /> },
   { label: 'ETL Results', path: '/results', icon: <TableChartIcon /> },
   { label: 'Re-scrub', path: '/rescrub', icon: <RefreshIcon /> },
+];
+
+// Admin-only navigation items (visible only to superusers)
+const adminNavItems: NavItem[] = [
+  { label: 'User Management', path: '/admin/users', icon: <PeopleIcon /> },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -354,6 +360,42 @@ export const Sidebar: React.FC = () => {
             </NavItemButton>
           </ListItem>
         ))}
+
+        {/* Admin Section (superusers only) */}
+        {user?.is_superuser && (
+          <>
+            <SectionLabel>Admin</SectionLabel>
+            {adminNavItems.map((item) => (
+              <ListItem key={item.path} disablePadding>
+                <NavItemButton
+                  active={isActive(item.path)}
+                  onClick={() => navigate(item.path)}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 36,
+                      color: isActive(item.path)
+                        ? palette.accent[400]
+                        : 'rgba(255, 255, 255, 0.6)',
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: isActive(item.path) ? 500 : 400,
+                      color: isActive(item.path)
+                        ? textColors.inverse
+                        : 'rgba(255, 255, 255, 0.75)',
+                    }}
+                  />
+                </NavItemButton>
+              </ListItem>
+            ))}
+          </>
+        )}
 
         {/* System Health Section */}
         <Box sx={{ mt: 'auto' }}>
