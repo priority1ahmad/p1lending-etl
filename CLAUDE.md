@@ -832,4 +832,100 @@ GitHub Actions runs on push/PR to `main`, `staging`, `develop`:
 
 ---
 
+## MANDATORY: Claude's Decision Framework
+
+### CRITICAL - READ BEFORE EVERY TASK
+
+**This section is ENFORCED by hooks. Violations will BLOCK your operations.**
+
+Claude MUST follow this decision framework for EVERY implementation task:
+
+#### 1. Reference CLAUDE.md
+
+Before implementing ANYTHING:
+- Identify the relevant section in this file (Tech Stack, Security, Patterns, etc.)
+- Explicitly cite the section name in your response
+- Example: "Referencing CLAUDE.md section 'Patterns & Conventions' for backend service patterns"
+
+#### 2. Evaluate Available Tools
+
+Check for existing automation:
+
+| Tool Type | Location | When to Check |
+|-----------|----------|---------------|
+| **Slash Commands** | `.claude/commands/` | For well-defined tasks (add endpoint, create migration, deploy) |
+| **Specialized Agents** | `.claude/agents/` | For analysis/review tasks (API design, ETL performance) |
+| **Rules** | `.claude/rules/` | For implementation patterns (code style, security, etc.) |
+
+#### 3. Decision Matrix
+
+**Use this table to choose the right tool:**
+
+| Task Type | First Check | Second Check | Fallback |
+|-----------|-------------|--------------|----------|
+| **New API endpoint** | `/add-endpoint` | `.claude/rules/api-design.md` | Direct Edit |
+| **New database model** | `/add-db-model` | `.claude/rules/database.md` | Direct Edit |
+| **New React page** | `/add-react-page` | `.claude/rules/react.md` | Direct Edit |
+| **New full-stack feature** | `/add-full-stack-feature` | Both API + React agents | Direct Edit |
+| **Database migration** | `/add-migration` | Alembic patterns | Direct Edit |
+| **ETL service** | `/add-etl-service` | `.claude/rules/etl-patterns.md` | Direct Edit |
+| **API design review** | API Architect agent | `.claude/rules/api-design.md` | Manual review |
+| **ETL performance issue** | ETL Specialist agent | `/debug-etl` | Manual review |
+| **Security audit** | `/security-review` | `.claude/rules/security.md` | Manual review |
+| **Pre-deployment checks** | `/pre-deploy` | - | Manual checks |
+| **Quick deployment** | `/quick-deploy` | - | Manual deployment |
+| **Bug fix** | Check relevant rule file | - | Direct Edit |
+| **Refactoring** | Check relevant rule file | - | Direct Edit |
+
+#### 4. Implementation Checklist
+
+Before writing ANY code (Edit/Write/Task):
+
+- [ ] **Referenced** specific CLAUDE.md section (cite it explicitly)
+- [ ] **Checked** `.claude/commands/` for applicable slash command
+- [ ] **Checked** `.claude/agents/` for analysis/review needs
+- [ ] **Checked** `.claude/rules/` for file-specific patterns
+- [ ] **Justified** chosen approach (command vs agent vs direct edit)
+- [ ] **Ready** to implement
+
+**FAILURE TO COMPLETE THIS CHECKLIST WILL BLOCK YOUR OPERATIONS.**
+
+#### 5. Enforcement
+
+This decision framework is enforced by `.claude/hooks/mandate-claudemd-check.py`:
+
+- **Triggered by:** Edit, Write, Task, and certain Bash operations
+- **Validation:** Checks conversation history for CLAUDE.md reference, tool evaluation, and decision justification
+- **On Failure:** Blocks operation with exit code 2, logs violation to `feedback.log`
+- **Exempt Operations:** Read, Glob, Grep (exploration is always allowed)
+
+#### 6. Example Compliance
+
+**❌ NON-COMPLIANT (will be blocked):**
+```
+User: Add a new endpoint for user preferences
+Claude: I'll create backend/app/api/v1/endpoints/preferences.py
+[Attempts Edit operation]
+→ BLOCKED: No CLAUDE.md reference, no command evaluation
+```
+
+**✅ COMPLIANT (will succeed):**
+```
+User: Add a new endpoint for user preferences
+Claude:
+Referencing CLAUDE.md section "Patterns & Conventions" for backend service patterns.
+
+I've checked .claude/commands/ and found `/add-endpoint` command which handles:
+- Endpoint creation with auth patterns
+- Schema generation
+- Router registration
+
+I'll use `/add-endpoint preferences GET` instead of manual implementation.
+
+[Invokes SlashCommand tool]
+→ ALLOWED: CLAUDE.md referenced, command evaluated, decision justified
+```
+
+---
+
 *Last updated: December 2024*
