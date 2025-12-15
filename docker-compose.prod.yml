@@ -26,7 +26,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-p1lending}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-p1lending} -d ${POSTGRES_DB:-p1lending_etl}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -65,8 +65,27 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080","http://localhost:3000"]}
+      # Snowflake Configuration
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:?SNOWFLAKE_ACCOUNT is required}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:?SNOWFLAKE_USER is required}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-PUBLIC}
+      - SNOWFLAKE_INSECURE_MODE=${SNOWFLAKE_INSECURE_MODE:-false}
+      - SNOWFLAKE_OCSP_FAIL_OPEN=${SNOWFLAKE_OCSP_FAIL_OPEN:-false}
+      # CCC API Configuration
+      - CCC_API_KEY=${CCC_API_KEY:?CCC_API_KEY is required}
+      - CCC_BATCH_SIZE=${CCC_BATCH_SIZE:-50}
+      - CCC_MIN_WORKERS=${CCC_MIN_WORKERS:-2}
+      - CCC_MAX_WORKERS=${CCC_MAX_WORKERS:-16}
+      # idiCORE API Configuration
+      - IDICORE_CLIENT_ID=${IDICORE_CLIENT_ID:?IDICORE_CLIENT_ID is required}
+      - IDICORE_CLIENT_SECRET=${IDICORE_CLIENT_SECRET:?IDICORE_CLIENT_SECRET is required}
+      - IDICORE_MIN_WORKERS=${IDICORE_MIN_WORKERS:-10}
+      - IDICORE_MAX_WORKERS=${IDICORE_MAX_WORKERS:-200}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
       # NTFY Push Notifications
@@ -81,9 +100,9 @@ services:
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
-      # Mount DNC database from production location to /app/dnc_database.db
-      # (mounted outside /app/data to avoid volume conflict)
-      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
+      # Mount DNC database - configurable via DNC_DATABASE_PATH env var
+      # Default: ./dnc_database.db (relative to project root)
+      - ${DNC_DATABASE_PATH:-./dnc_database.db}:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -112,8 +131,27 @@ services:
       - CELERY_DATABASE_URL=postgresql://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      # Snowflake Configuration
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:?SNOWFLAKE_ACCOUNT is required}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:?SNOWFLAKE_USER is required}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-PUBLIC}
+      - SNOWFLAKE_INSECURE_MODE=${SNOWFLAKE_INSECURE_MODE:-false}
+      - SNOWFLAKE_OCSP_FAIL_OPEN=${SNOWFLAKE_OCSP_FAIL_OPEN:-false}
+      # CCC API Configuration
+      - CCC_API_KEY=${CCC_API_KEY:?CCC_API_KEY is required}
+      - CCC_BATCH_SIZE=${CCC_BATCH_SIZE:-50}
+      - CCC_MIN_WORKERS=${CCC_MIN_WORKERS:-2}
+      - CCC_MAX_WORKERS=${CCC_MAX_WORKERS:-16}
+      # idiCORE API Configuration
+      - IDICORE_CLIENT_ID=${IDICORE_CLIENT_ID:?IDICORE_CLIENT_ID is required}
+      - IDICORE_CLIENT_SECRET=${IDICORE_CLIENT_SECRET:?IDICORE_CLIENT_SECRET is required}
+      - IDICORE_MIN_WORKERS=${IDICORE_MIN_WORKERS:-10}
+      - IDICORE_MAX_WORKERS=${IDICORE_MAX_WORKERS:-200}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
       # NTFY Push Notifications
@@ -129,9 +167,9 @@ services:
       - ./backend/logs:/app/backend/logs
       - ./backend/backups:/app/backups
       - dnc_data:/app/data
-      # Mount DNC database from production location to /app/dnc_database.db
-      # (mounted outside /app/data to avoid volume conflict)
-      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
+      # Mount DNC database - configurable via DNC_DATABASE_PATH env var
+      # Default: ./dnc_database.db (relative to project root)
+      - ${DNC_DATABASE_PATH:-./dnc_database.db}:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy

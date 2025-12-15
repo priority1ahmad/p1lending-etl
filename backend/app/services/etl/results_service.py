@@ -189,7 +189,8 @@ class ETLResultsService:
                 for col in row.index:
                     if col not in core_columns:
                         val = row[col]
-                        if pd.notna(val):
+                        # Filter out NaN, empty strings, and whitespace-only values
+                        if pd.notna(val) and val != '' and str(val).strip() != '':
                             additional_data[col] = str(val) if not isinstance(val, (int, float, bool)) else val
 
                 additional_json = json.dumps(additional_data).replace("'", "''")

@@ -4,10 +4,11 @@
  * Redesigned with modern SaaS component architecture
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, IconButton, Tooltip } from '@mui/material';
 import { Refresh } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { io, Socket } from 'socket.io-client';
 import { resultsApi } from '../services/api/results';
 import type { ETLJob } from '../services/api/results';
 
@@ -42,6 +43,15 @@ export function ETLResults() {
   } = useQuery({
     queryKey: ['etl-results-jobs'],
     queryFn: () => resultsApi.listJobs(100),
+    staleTime: 30000,
+    refetchInterval: (query) => {
+      const jobs = query.state.data?.jobs || [];
+      const hasRunningJobs = jobs.some((job: ETLJob) =>
+        job.job_name?.toLowerCase().includes('running') ||
+        job.job_name?.toLowerCase().includes('processing')
+      );
+      return hasRunningJobs ? 5000 : false;
+    },
   });
 
   // Fetch overall statistics
@@ -51,7 +61,7 @@ export function ETLResults() {
   });
 
   // Fetch results for selected job
-  const { data: resultsData, isLoading: isLoadingResults } = useQuery({
+  const { data: resultsData, isLoading: isLoadingResults, refetch: refetchResults } = useQuery({
     queryKey: ['etl-results', selectedJobId, currentPage, recordsPerPage, excludeLitigators],
     queryFn: () =>
       resultsApi.getJobResults(
@@ -61,6 +71,14 @@ export function ETLResults() {
         excludeLitigators
       ),
     enabled: !!selectedJobId,
+    staleTime: 30000,
+    refetchInterval: () => {
+      if (!selectedJobId) return false;
+      const selectedJob = jobsData?.jobs?.find((job: ETLJob) => job.job_id === selectedJobId);
+      const isJobRunning = selectedJob?.job_name?.toLowerCase().includes('running') ||
+                          selectedJob?.job_name?.toLowerCase().includes('processing');
+      return isJobRunning ? 5000 : false;
+    },
   });
 
   // Export mutation
@@ -68,6 +86,45 @@ export function ETLResults() {
     mutationFn: ({ jobId, exclude }: { jobId: string; exclude: boolean }) =>
       resultsApi.exportJobResults(jobId, exclude),
   });
+
+  // WebSocket connection for real-time updates
+  useEffect(() => {
+    const socketUrl = import.meta.env.VITE_API_URL || window.location.origin;
+    const token = localStorage.getItem('access_token');
+
+    if (!token) return;
+
+    const socket: Socket = io(socketUrl, {
+      auth: {
+        token,
+      },
+      transports: ['websocket', 'polling'],
+    });
+
+    socket.on('connect', () => {
+      console.log('[ETLResults] WebSocket connected');
+    });
+
+    socket.on('job_complete', (data) => {
+      console.log('[ETLResults] Job completed:', data);
+      refetchJobs();
+      if (selectedJobId === data.job_id) {
+        refetchResults();
+      }
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[ETLResults] WebSocket disconnected');
+    });
+
+    socket.on('error', (error) => {
+      console.error('[ETLResults] WebSocket error:', error);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [selectedJobId, refetchJobs, refetchResults]);
 
   const handleJobSelect = (job: JobItem) => {
     setSelectedJobId(job.job_id);

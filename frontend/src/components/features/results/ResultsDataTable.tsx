@@ -1,9 +1,12 @@
 /**
  * ResultsDataTable Component
  * Paginated data table for ETL results with filtering and export
+ * Optimized with virtualization for large datasets
  */
 
+import { useRef, memo } from 'react';
 import type { ChangeEvent } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Box,
   Typography,
@@ -73,7 +76,7 @@ const bodyCellSx = {
   py: 1.5,
 };
 
-export function ResultsDataTable({
+export const ResultsDataTable = memo(function ResultsDataTable({
   jobName,
   records,
   total,
@@ -89,10 +92,19 @@ export function ResultsDataTable({
   onExport,
 }: ResultsDataTableProps) {
   const totalPages = Math.ceil(total / recordsPerPage);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const handlePageChange = (_event: ChangeEvent<unknown>, value: number) => {
     onPageChange(value);
   };
+
+  // Virtualization setup
+  const rowVirtualizer = useVirtualizer({
+    count: records.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 52, // Approximate row height in pixels
+    overscan: 5, // Render 5 extra rows above and below viewport
+  });
 
   return (
     <Card variant="default" padding="lg">
@@ -186,7 +198,7 @@ export function ResultsDataTable({
         />
       ) : (
         <>
-          <TableContainer sx={{ maxHeight: 500, overflow: 'auto' }}>
+          <TableContainer ref={parentRef} sx={{ maxHeight: 500, overflow: 'auto' }}>
             <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow>
@@ -201,29 +213,47 @@ export function ResultsDataTable({
                   <TableCell sx={tableCellSx}>Processed</TableCell>
                 </TableRow>
               </TableHead>
-              <TableBody>
-                {records.map((record) => (
-                  <TableRow key={record.record_id} hover>
-                    <TableCell sx={bodyCellSx}>
-                      {record.first_name} {record.last_name}
-                    </TableCell>
-                    <TableCell sx={bodyCellSx}>{record.address}</TableCell>
-                    <TableCell sx={bodyCellSx}>{record.city}</TableCell>
-                    <TableCell sx={bodyCellSx}>{record.state}</TableCell>
-                    <TableCell sx={bodyCellSx}>{record.zip_code}</TableCell>
-                    <TableCell sx={bodyCellSx}>{record.phone_1 || '-'}</TableCell>
-                    <TableCell sx={bodyCellSx}>{record.email_1 || '-'}</TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={record.in_litigator_list === 'Yes' ? 'litigator' : 'clean'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell sx={{ ...bodyCellSx, fontSize: '0.75rem' }}>
-                      {new Date(record.processed_at).toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+              <TableBody
+                sx={{
+                  position: 'relative',
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                }}
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const record = records[virtualRow.index];
+                  return (
+                    <TableRow
+                      key={record.record_id}
+                      hover
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    >
+                      <TableCell sx={bodyCellSx}>
+                        {record.first_name} {record.last_name}
+                      </TableCell>
+                      <TableCell sx={bodyCellSx}>{record.address}</TableCell>
+                      <TableCell sx={bodyCellSx}>{record.city}</TableCell>
+                      <TableCell sx={bodyCellSx}>{record.state}</TableCell>
+                      <TableCell sx={bodyCellSx}>{record.zip_code}</TableCell>
+                      <TableCell sx={bodyCellSx}>{record.phone_1 || '-'}</TableCell>
+                      <TableCell sx={bodyCellSx}>{record.email_1 || '-'}</TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={record.in_litigator_list === 'Yes' ? 'litigator' : 'clean'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ ...bodyCellSx, fontSize: '0.75rem' }}>
+                        {new Date(record.processed_at).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </TableContainer>
@@ -244,6 +274,6 @@ export function ResultsDataTable({
       )}
     </Card>
   );
-}
+});
 
 export default ResultsDataTable;

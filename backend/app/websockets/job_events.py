@@ -104,7 +104,7 @@ async def join_job(sid, data: Dict[str, Any]):
     job_id = data.get('job_id')
     if job_id:
         room = f"job_{job_id}"
-        sio.enter_room(sid, room)
+        await sio.enter_room(sid, room)
         etl_logger.info(f"Client {sid} joined job room: {room}")
         await sio.emit('joined_job', {'job_id': job_id}, room=sid)
 
@@ -121,7 +121,7 @@ async def leave_job(sid, data: Dict[str, Any]):
     job_id = data.get('job_id')
     if job_id:
         room = f"job_{job_id}"
-        sio.leave_room(sid, room)
+        await sio.leave_room(sid, room)
         etl_logger.info(f"Client {sid} left job room: {room}")
         await sio.emit('left_job', {'job_id': job_id}, room=sid)
 
