@@ -122,7 +122,10 @@ def run_etl_job(
         
         # Store row data for row_processed events
         row_data_cache = {}
-        
+
+        # Smart row emission: track if first row has been emitted
+        first_row_emitted = False
+
         # Create progress callback
         def progress_callback(current_row, total_rows, current_batch, total_batches, percentage, message, row_data=None):
             """Progress callback that emits events"""
@@ -148,14 +151,26 @@ def run_etl_job(
                     "message": f"Processing batch {current_batch}/{total_batches}"
                 })
 
-            # Emit row processed event if row_data provided
-            if row_data and current_row > 0 and current_row % 10 == 0:
-                emit_job_event(job_id, "row_processed", {
-                    "row_data": row_data,
-                    "row_number": current_row,
-                    "total_rows": total_rows,
-                    "batch": current_batch
-                })
+            # Smart row emission: first row immediately, then every 5 rows
+            if row_data:
+                nonlocal first_row_emitted
+                should_emit = False
+
+                # Always emit first row for immediate UI feedback
+                if not first_row_emitted:
+                    should_emit = True
+                    first_row_emitted = True
+                # After first row, emit every 5 rows
+                elif current_row > 0 and current_row % 5 == 0:
+                    should_emit = True
+
+                if should_emit:
+                    emit_job_event(job_id, "row_processed", {
+                        "row_data": row_data,
+                        "row_number": current_row,
+                        "total_rows": total_rows,
+                        "batch": current_batch
+                    })
 
             # Send NTFY notification at 20% milestones (20, 40, 60, 80)
             milestones = [20, 40, 60, 80]

@@ -109,10 +109,8 @@ class ETLResultsService:
 
     def _escape_string(self, value: Any) -> str:
         """Escape string value for SQL insertion"""
-        if value is None or (isinstance(value, float) and pd.isna(value)):
-            return "NULL"
-        str_val = str(value).replace("'", "''").replace("\\", "\\\\")
-        return f"'{str_val}'"
+        from app.core.sql_utils import escape_sql_string
+        return escape_sql_string(value, return_null=True)
 
     def store_batch_results(
         self,
@@ -194,7 +192,8 @@ class ETLResultsService:
                         if pd.notna(val) and val != '' and str(val).strip() != '':
                             additional_data[col] = str(val) if not isinstance(val, (int, float, bool)) else val
 
-                additional_json = json.dumps(additional_data).replace("'", "''")
+                from app.core.sql_utils import escape_json_for_sql
+                additional_json = escape_json_for_sql(additional_data)
 
                 # Escape table_id and table_title
                 escaped_table_id = self._escape_string(table_id) if table_id else "NULL"

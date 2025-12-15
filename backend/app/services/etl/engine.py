@@ -487,51 +487,50 @@ class ETLEngine:
         # Emit enriched row data events now that all processing is complete
         if row_event_callback:
             for i, person_result in enumerate(idicore_results):
-                # Emit every 10 rows to avoid overwhelming WebSocket
-                if i % 10 == 0:
-                    record_idx = dataframe_indices[i]
-                    current_row_num = batch_start_row + i
+                # Emit for EVERY row (removed throttle)
+                record_idx = dataframe_indices[i]
+                current_row_num = batch_start_row + i
 
-                    # Helper function to safely get DataFrame value
-                    def get_df_value(col_name: str, default: str = '') -> str:
-                        try:
-                            if col_name in df.columns:
-                                val = df.at[record_idx, col_name]
-                                # Check for pandas NA values
-                                import pandas as pd
-                                return str(val) if pd.notna(val) and val != '' else default
-                            return default
-                        except Exception:
-                            return default
+                # Helper function to safely get DataFrame value
+                def get_df_value(col_name: str, default: str = '') -> str:
+                    try:
+                        if col_name in df.columns:
+                            val = df.at[record_idx, col_name]
+                            # Check for pandas NA values
+                            import pandas as pd
+                            return str(val) if pd.notna(val) and val != '' else default
+                        return default
+                    except Exception:
+                        return default
 
-                    # Build enriched row data with all fields
-                    row_data = {
-                        'row_number': current_row_num,
-                        # Basic person info
-                        'first_name': get_df_value('First Name'),
-                        'last_name': get_df_value('Last Name'),
-                        'address': get_df_value('Address'),
-                        'city': get_df_value('City'),
-                        'state': get_df_value('State'),
-                        'zip_code': get_df_value('Zip Code'),
-                        # Enriched phone numbers from idiCORE
-                        'phone_1': get_df_value('Phone 1'),
-                        'phone_2': get_df_value('Phone 2'),
-                        'phone_3': get_df_value('Phone 3'),
-                        # Enriched emails from idiCORE
-                        'email_1': get_df_value('Email 1'),
-                        'email_2': get_df_value('Email 2'),
-                        'email_3': get_df_value('Email 3'),
-                        # Compliance status flags
-                        'in_litigator_list': get_df_value('In Litigator List', 'No'),
-                        'phone_1_in_dnc': get_df_value('Phone 1 In DNC List', 'No'),
-                        'phone_2_in_dnc': get_df_value('Phone 2 In DNC List', 'No'),
-                        'phone_3_in_dnc': get_df_value('Phone 3 In DNC List', 'No'),
-                        'status': 'Completed',
-                        'batch': current_batch
-                    }
+                # Build enriched row data with all fields
+                row_data = {
+                    'row_number': current_row_num,
+                    # Basic person info
+                    'first_name': get_df_value('First Name'),
+                    'last_name': get_df_value('Last Name'),
+                    'address': get_df_value('Address'),
+                    'city': get_df_value('City'),
+                    'state': get_df_value('State'),
+                    'zip_code': get_df_value('Zip Code'),
+                    # Enriched phone numbers from idiCORE
+                    'phone_1': get_df_value('Phone 1'),
+                    'phone_2': get_df_value('Phone 2'),
+                    'phone_3': get_df_value('Phone 3'),
+                    # Enriched emails from idiCORE
+                    'email_1': get_df_value('Email 1'),
+                    'email_2': get_df_value('Email 2'),
+                    'email_3': get_df_value('Email 3'),
+                    # Compliance status flags
+                    'in_litigator_list': get_df_value('In Litigator List', 'No'),
+                    'phone_1_in_dnc': get_df_value('Phone 1 In DNC List', 'No'),
+                    'phone_2_in_dnc': get_df_value('Phone 2 In DNC List', 'No'),
+                    'phone_3_in_dnc': get_df_value('Phone 3 In DNC List', 'No'),
+                    'status': 'Completed',
+                    'batch': current_batch
+                }
 
-                    row_event_callback(row_data)
+                row_event_callback(row_data)
 
     def _execute_single_script(self, script_content: str, script_name: str, limit_rows: Optional[int] = None, 
                               stop_flag: Optional[Callable] = None, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
@@ -768,10 +767,10 @@ class ETLEngine:
             result['dnc_count'] = dnc_count
             result['both_count'] = both_count
             result['clean_count'] = clean_count
-            
-            # Store for Snowflake consolidation
-            self.consolidated_data.append(df)
-            
+
+            # Removed: Using only MASTER_PROCESSED_DB, not UNIQUE_CONSOLIDATED_DATA
+            # self.consolidated_data.append(df)
+
             result['success'] = True
             self.logger.log_step("Statistics", f"Total: {len(df)}, Litigator: {litigator_count}, DNC: {dnc_count}, Both: {both_count}, Clean: {clean_count}")
             
@@ -903,12 +902,12 @@ class ETLEngine:
 
             # Execute script with progress callback
             script_result = self._execute_single_script(script_content, script_name, limit_rows, stop_flag, progress_callback)
-            
-            # Upload consolidated data to Snowflake
-            if self.consolidated_data:
-                consolidated_df = pd.concat(self.consolidated_data, ignore_index=True)
-                self._upload_consolidated_data_to_snowflake(consolidated_df)
-            
+
+            # Removed: Using only MASTER_PROCESSED_DB
+            # if self.consolidated_data:
+            #     consolidated_df = pd.concat(self.consolidated_data, ignore_index=True)
+            #     self._upload_consolidated_data_to_snowflake(consolidated_df)
+
             self.logger.end_job(script_result.get('success', False))
             
             return script_result
