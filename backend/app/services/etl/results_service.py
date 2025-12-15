@@ -150,7 +150,8 @@ class ETLResultsService:
         for i in range(0, len(records), batch_size):
             batch_df = records.iloc[i:i + batch_size]
 
-            values_parts = []
+            # Build SELECT statements for each row (Snowflake doesn't allow PARSE_JSON in VALUES)
+            select_parts = []
             for _, row in batch_df.iterrows():
                 record_id = str(uuid.uuid4())
 
@@ -199,18 +200,20 @@ class ETLResultsService:
                 escaped_table_id = self._escape_string(table_id) if table_id else "NULL"
                 escaped_table_title = self._escape_string(table_title) if table_title else "NULL"
 
-                values_parts.append(
-                    f"('{record_id}', '{job_id}', {self._escape_string(job_name)}, "
+                # Use SELECT instead of VALUES to allow PARSE_JSON function
+                select_parts.append(
+                    f"SELECT '{record_id}', '{job_id}', {self._escape_string(job_name)}, "
                     f"{escaped_table_id}, {escaped_table_title}, CURRENT_TIMESTAMP(), "
                     f"{first_name}, {last_name}, {address}, {city}, {state}, {zip_code}, "
                     f"{phone_1}, {phone_2}, {phone_3}, "
                     f"{email_1}, {email_2}, {email_3}, "
                     f"{in_litigator}, {phone_1_dnc}, {phone_2_dnc}, {phone_3_dnc}, "
-                    f"PARSE_JSON('{additional_json}'))"
+                    f"PARSE_JSON('{additional_json}')"
                 )
 
-            # Build and execute INSERT statement
-            values_clause = ",\n".join(values_parts)
+            # Build INSERT with UNION ALL of SELECT statements
+            # This syntax is required for Snowflake when using functions like PARSE_JSON
+            union_sql = " UNION ALL\n".join(select_parts)
             insert_sql = f"""
             INSERT INTO {self.database}.{self.schema}.{self.table}
             ("record_id", "job_id", "job_name", "table_id", "table_title", "processed_at",
@@ -219,11 +222,15 @@ class ETLResultsService:
              "email_1", "email_2", "email_3",
              "in_litigator_list", "phone_1_in_dnc", "phone_2_in_dnc", "phone_3_in_dnc",
              "additional_data")
-            VALUES {values_clause}
+            {union_sql}
             """
 
             try:
-                self.snowflake_conn.execute_query(insert_sql)
+                result = self.snowflake_conn.execute_query(insert_sql)
+                # Check if query execution failed (returns None on error)
+                if result is None:
+                    self.logger.error(f"Failed to store batch - SQL execution returned None (check Snowflake logs)")
+                    continue  # Skip this batch, don't increment total_stored
                 total_stored += len(batch_df)
                 self.logger.info(f"Stored batch of {len(batch_df)} records to MASTER_PROCESSED_DB")
             except Exception as e:
