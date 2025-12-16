@@ -37,11 +37,6 @@ from app.core.account_lockout import account_lockout
 router = APIRouter()
 security = HTTPBearer()
 
-# Get limiter from app state (will be set in main.py)
-def get_limiter(request: Request) -> Limiter:
-    return request.app.state.limiter
-
-
 async def log_login_attempt(
     db: AsyncSession,
     email: str,
@@ -74,15 +69,13 @@ async def log_login_attempt(
 async def login(
     credentials: LoginRequest,
     request: Request,
-    db: AsyncSession = Depends(get_db),
-    limiter: Limiter = Depends(get_limiter)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Login endpoint - authenticate user and return JWT tokens
     With rate limiting and account lockout protection
     """
-    # Apply rate limiting (5 attempts per minute per IP)
-    await limiter.limit("5/minute")(request)
+    # Rate limiting is handled by slowapi middleware in main.py
 
     # Extract client info for audit logging
     ip_address = request.client.host if request.client else "unknown"
