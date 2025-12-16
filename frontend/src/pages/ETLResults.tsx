@@ -1,23 +1,30 @@
 /**
  * ETL Results Page
- * View, filter, and export ETL job results from Snowflake MASTER_PROCESSED_DB
- * Redesigned with modern SaaS component architecture
+ * Modern dashboard-style results viewer with metrics, charts, and enhanced filtering
  */
 
-import { useState, useEffect } from 'react';
-import { Box, IconButton, Tooltip } from '@mui/material';
-import { Refresh } from '@mui/icons-material';
+import { useState, useEffect, useMemo } from 'react';
+import { Box, Grid, IconButton, Tooltip, Collapse } from '@mui/material';
+import { Refresh, Folder, Dataset, CheckCircle, Warning } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { resultsApi } from '../services/api/results';
 import type { ETLJob } from '../services/api/results';
+import { palette } from '../theme';
 
 // Layout components
 import { PageHeader } from '../components/layout/PageHeader';
 
-// Feature components
+// New feature components
+import { ResultsMetricCard } from '../components/features/results/ResultsMetricCard';
+import ResultsOverviewCharts from '../components/features/results/ResultsOverviewCharts';
+import type { JobStats } from '../components/features/results/ResultsOverviewCharts';
+import { JobsFilterPanel } from '../components/features/results/JobsFilterPanel';
+import type { JobFilters } from '../components/features/results/JobsFilterPanel';
+import { QuickStatsWidget } from '../components/features/results/QuickStatsWidget';
+
+// Existing feature components
 import {
-  ResultsStatsBar,
   JobsListCard,
   ResultsDataTable,
   type JobItem,
@@ -34,6 +41,11 @@ export function ETLResults() {
   const [excludeLitigators, setExcludeLitigators] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [recordsPerPage, setRecordsPerPage] = useState(100);
+  const [jobsListExpanded, setJobsListExpanded] = useState(true);
+  const [jobFilters, setJobFilters] = useState<JobFilters>({
+    search: '',
+    sortBy: 'newest_first',
+  });
 
   // Fetch jobs list
   const {
@@ -130,6 +142,10 @@ export function ETLResults() {
     setSelectedJobId(job.job_id);
     setSelectedJobName(job.job_name);
     setCurrentPage(1);
+    // Auto-collapse jobs list on mobile when job selected
+    if (window.innerWidth < 900) {
+      setJobsListExpanded(false);
+    }
   };
 
   const handleExport = () => {
@@ -148,15 +164,53 @@ export function ETLResults() {
     setCurrentPage(1);
   };
 
-  // Transform API data to component types
-  const jobs: JobItem[] = (jobsData?.jobs || []).map((job: ETLJob) => ({
-    job_id: job.job_id,
-    job_name: job.job_name,
-    record_count: job.record_count,
-    litigator_count: job.litigator_count,
-    last_processed: job.last_processed,
-  }));
+  // Transform and filter jobs
+  const jobs: JobItem[] = useMemo(() => {
+    const allJobs = (jobsData?.jobs || []).map((job: ETLJob) => ({
+      job_id: job.job_id,
+      job_name: job.job_name,
+      record_count: job.record_count,
+      litigator_count: job.litigator_count,
+      last_processed: job.last_processed,
+    }));
 
+    let filtered = allJobs;
+
+    // Apply search filter
+    if (jobFilters.search) {
+      filtered = filtered.filter((job) =>
+        job.job_name.toLowerCase().includes(jobFilters.search.toLowerCase())
+      );
+    }
+
+    // Apply sort
+    filtered = filtered.sort((a, b) => {
+      switch (jobFilters.sortBy) {
+        case 'newest_first':
+          return new Date(b.last_processed).getTime() - new Date(a.last_processed).getTime();
+        case 'oldest_first':
+          return new Date(a.last_processed).getTime() - new Date(b.last_processed).getTime();
+        case 'most_records':
+          return b.record_count - a.record_count;
+        case 'most_litigators':
+          return b.litigator_count - a.litigator_count;
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [jobsData?.jobs, jobFilters]);
+
+  // Prepare top jobs for bar chart
+  const topJobs: JobStats[] = useMemo(() => {
+    return jobs.map((job) => ({
+      job_name: job.job_name,
+      record_count: job.record_count,
+    }));
+  }, [jobs]);
+
+  // Transform records
   const records: ResultRecord[] = (resultsData?.records || []).map((record: any) => ({
     record_id: record.record_id,
     first_name: record.first_name,
@@ -171,11 +225,14 @@ export function ETLResults() {
     processed_at: record.processed_at,
   }));
 
+  // Get selected job for QuickStatsWidget
+  const selectedJob = jobs.find((job) => job.job_id === selectedJobId);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <PageHeader
         title="ETL Results"
-        subtitle="View and export processed data from Snowflake"
+        subtitle="Dashboard analytics and data export"
         actions={
           <Tooltip title="Refresh data">
             <IconButton onClick={() => refetchJobs()} size="small">
@@ -185,49 +242,104 @@ export function ETLResults() {
         }
       />
 
-      {/* Statistics Bar */}
-      {stats && <ResultsStatsBar stats={stats} />}
+      {/* Metrics Grid */}
+      {stats && (
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={6} md={3}>
+            <ResultsMetricCard
+              title="Total Jobs"
+              value={stats.total_jobs}
+              icon={<Folder />}
+              color={palette.primary[800]}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <ResultsMetricCard
+              title="Total Records"
+              value={stats.total_records}
+              icon={<Dataset />}
+              color={palette.accent[500]}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <ResultsMetricCard
+              title="Clean Records"
+              value={stats.clean_records}
+              icon={<CheckCircle />}
+              color={palette.success[500]}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <ResultsMetricCard
+              title="Litigators"
+              value={stats.total_litigators}
+              icon={<Warning />}
+              color={palette.warning[500]}
+              suffix={`(${stats.litigator_percentage}%)`}
+            />
+          </Grid>
+        </Grid>
+      )}
 
-      {/* Main Content - Jobs List + Results Table */}
-      <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-        {/* Jobs List */}
-        <Box sx={{ flex: '0 0 auto', width: { xs: '100%', md: 380 } }}>
-          <JobsListCard
-            jobs={jobs}
-            selectedJobId={selectedJobId}
-            totalJobs={jobsData?.total || 0}
-            isLoading={isLoadingJobs}
-            onSelectJob={handleJobSelect}
+      {/* Charts */}
+      {stats && topJobs.length > 0 && (
+        <ResultsOverviewCharts stats={stats} topJobs={topJobs} />
+      )}
+
+      {/* Jobs List with Filters (Collapsible) */}
+      <Box>
+        <JobsFilterPanel
+          currentFilters={jobFilters}
+          onFilterChange={setJobFilters}
+        />
+        <Collapse in={jobsListExpanded}>
+          <Box sx={{ mt: 2 }}>
+            <JobsListCard
+              jobs={jobs}
+              selectedJobId={selectedJobId}
+              totalJobs={jobs.length}
+              isLoading={isLoadingJobs}
+              onSelectJob={handleJobSelect}
+            />
+          </Box>
+        </Collapse>
+      </Box>
+
+      {/* Quick Stats for Selected Job */}
+      {selectedJob && (
+        <QuickStatsWidget
+          recordCount={selectedJob.record_count}
+          cleanCount={selectedJob.record_count - selectedJob.litigator_count}
+          litigatorCount={selectedJob.litigator_count}
+        />
+      )}
+
+      {/* Results Table */}
+      <Box>
+        {!selectedJobId ? (
+          <EmptyState
+            icon={<TableChart sx={{ fontSize: 64 }} />}
+            title="Select a Job"
+            description="Choose a job from the filtered list to view its results"
+            size="lg"
           />
-        </Box>
-
-        {/* Results Table */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          {!selectedJobId ? (
-            <EmptyState
-              icon={<TableChart sx={{ fontSize: 64 }} />}
-              title="Select a Job"
-              description="Choose a job from the list to view its results"
-              size="lg"
-            />
-          ) : (
-            <ResultsDataTable
-              jobName={selectedJobName}
-              records={records}
-              total={resultsData?.total || 0}
-              litigatorCount={resultsData?.litigator_count}
-              excludeLitigators={excludeLitigators}
-              currentPage={currentPage}
-              recordsPerPage={recordsPerPage}
-              isLoading={isLoadingResults}
-              isExporting={exportMutation.isPending}
-              onToggleExclude={handleToggleExclude}
-              onPageChange={setCurrentPage}
-              onRecordsPerPageChange={handleRecordsPerPageChange}
-              onExport={handleExport}
-            />
-          )}
-        </Box>
+        ) : (
+          <ResultsDataTable
+            jobName={selectedJobName}
+            records={records}
+            total={resultsData?.total || 0}
+            litigatorCount={resultsData?.litigator_count}
+            excludeLitigators={excludeLitigators}
+            currentPage={currentPage}
+            recordsPerPage={recordsPerPage}
+            isLoading={isLoadingResults}
+            isExporting={exportMutation.isPending}
+            onToggleExclude={handleToggleExclude}
+            onPageChange={setCurrentPage}
+            onRecordsPerPageChange={handleRecordsPerPageChange}
+            onExport={handleExport}
+          />
+        )}
       </Box>
     </Box>
   );
