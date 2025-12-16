@@ -10,7 +10,6 @@ from sqlalchemy import select, func, desc
 from uuid import UUID
 from datetime import datetime
 import pandas as pd
-import asyncio
 from app.db.session import get_db
 from app.db.models.job import ETLJob, JobLog, JobStatus, JobType
 from app.db.models.user import User
