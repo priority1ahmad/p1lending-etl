@@ -3,12 +3,9 @@ Authentication endpoints with audit logging
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from app.db.session import get_db
 from app.db.models.user import User
 from app.db.models.audit import LoginAuditLog
@@ -35,7 +32,6 @@ from app.core.token_blacklist import token_blacklist
 from app.core.account_lockout import account_lockout
 
 router = APIRouter()
-security = HTTPBearer()
 
 async def log_login_attempt(
     db: AsyncSession,

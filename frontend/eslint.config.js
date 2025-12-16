@@ -19,5 +19,11 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Allow explicit any for socket.io events and error handlers
+      '@typescript-eslint/no-explicit-any': 'warn',
+      // Allow unused vars that start with underscore
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    },
   },
 ])
