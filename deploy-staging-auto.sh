@@ -133,28 +133,8 @@ fi
 
 print_success "Configuration backed up"
 
-# Step 3: Run database migrations
-print_header "Step 3: Running Database Migrations"
-print_step "Applying Alembic migrations..."
-
-# Check if backend container is running
-if docker ps | grep -q "backend"; then
-    echo "Running migrations in backend container..."
-    $DOCKER_COMPOSE -f docker-compose.prod.yml exec -T backend alembic upgrade head
-
-    if [ $? -eq 0 ]; then
-        echo "✓ Migrations applied successfully"
-    else
-        echo "⚠ Migration failed or no new migrations"
-    fi
-else
-    echo "⚠ Backend container not running, will migrate on startup"
-fi
-
-print_success "Database migrations completed"
-
-# Step 4: Rebuild and restart containers
-print_header "Step 4: Rebuilding & Restarting Services"
+# Step 3: Rebuild and restart containers
+print_header "Step 3: Rebuilding & Restarting Services"
 print_step "Building Docker images..."
 
 echo "Stopping existing containers..."
@@ -179,6 +159,21 @@ if [ $? -eq 0 ]; then
 else
     print_error "Failed to restart services"
     exit 1
+fi
+
+# Step 4: Run database migrations (after rebuild with new code)
+print_header "Step 4: Running Database Migrations"
+print_step "Applying Alembic migrations with updated code..."
+
+echo "Running migrations in backend container..."
+$DOCKER_COMPOSE -f docker-compose.prod.yml exec -T backend alembic upgrade head
+
+if [ $? -eq 0 ]; then
+    print_success "Migrations applied successfully"
+else
+    print_warning "Migration failed - check logs for details"
+    echo "Showing recent backend logs:"
+    $DOCKER_COMPOSE -f docker-compose.prod.yml logs --tail=30 backend
 fi
 
 # Step 5: Verify deployment
