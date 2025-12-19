@@ -20,21 +20,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create filesourcestatus enum type if it doesn't exist
-    filesourcestatus_enum = postgresql.ENUM(
-        'uploaded', 'processing', 'completed', 'failed',
-        name='filesourcestatus',
-        create_type=False
-    )
-
-    # Check if enum exists, create if not
-    connection = op.get_bind()
-    if connection.dialect.name == 'postgresql':
-        result = connection.execute(
-            sa.text("SELECT 1 FROM pg_type WHERE typname = 'filesourcestatus'")
-        ).fetchone()
-        if not result:
-            filesourcestatus_enum.create(connection, checkfirst=True)
+    # Create filesourcestatus enum type if it doesn't exist (idempotent)
+    op.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'filesourcestatus') THEN
+                CREATE TYPE filesourcestatus AS ENUM ('uploaded', 'processing', 'completed', 'failed');
+            END IF;
+        END $$;
+    """)
 
     # Create file_sources table
     op.create_table(
@@ -46,7 +40,7 @@ def upgrade() -> None:
         sa.Column('file_path', sa.String(500), nullable=False),
         sa.Column('file_size', sa.Integer, nullable=False),
         sa.Column('file_type', sa.String(20), nullable=False),
-        sa.Column('status', filesourcestatus_enum, nullable=False, server_default='uploaded'),
+        sa.Column('status', postgresql.ENUM('uploaded', 'processing', 'completed', 'failed', name='filesourcestatus', create_type=False), nullable=False, server_default='uploaded'),
         sa.Column('column_mapping', JSONB, nullable=True),
         sa.Column('total_rows', sa.Integer, nullable=True),
         sa.Column('valid_rows', sa.Integer, nullable=True),
