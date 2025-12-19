@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Typography,
   Box,
+  Container,
   Card,
   CardContent,
   Button,
@@ -211,26 +212,27 @@ export const Dashboard: React.FC = () => {
 
       socket.on('row_processed', (data: RowProcessedData) => {
         if (data.row_data) {
+          const rowData = data.row_data; // Capture for type narrowing
           setProcessedRows((prev) => {
             const newRows: ProcessedRow[] = [...prev, {
-              row_number: data.row_data.row_number || prev.length + 1,
-              first_name: data.row_data.first_name || '',
-              last_name: data.row_data.last_name || '',
-              address: data.row_data.address || '',
-              city: data.row_data.city || '',
-              state: data.row_data.state || '',
-              zip_code: data.row_data.zip_code || '',
-              phone_1: data.row_data.phone_1 || '',
-              phone_2: data.row_data.phone_2 || '',
-              phone_3: data.row_data.phone_3 || '',
-              email_1: data.row_data.email_1 || '',
-              email_2: data.row_data.email_2 || '',
-              email_3: data.row_data.email_3 || '',
-              in_litigator_list: data.row_data.in_litigator_list || 'No',
-              phone_1_in_dnc: data.row_data.phone_1_in_dnc || 'No',
-              phone_2_in_dnc: data.row_data.phone_2_in_dnc || 'No',
-              phone_3_in_dnc: data.row_data.phone_3_in_dnc || 'No',
-              status: data.row_data.status || 'Processing',
+              row_number: rowData.row_number || prev.length + 1,
+              first_name: rowData.first_name || '',
+              last_name: rowData.last_name || '',
+              address: rowData.address || '',
+              city: rowData.city || '',
+              state: rowData.state || '',
+              zip_code: rowData.zip_code || '',
+              phone_1: rowData.phone_1 || '',
+              phone_2: rowData.phone_2 || '',
+              phone_3: rowData.phone_3 || '',
+              email_1: rowData.email_1 || '',
+              email_2: rowData.email_2 || '',
+              email_3: rowData.email_3 || '',
+              in_litigator_list: rowData.in_litigator_list || 'No',
+              phone_1_in_dnc: rowData.phone_1_in_dnc || 'No',
+              phone_2_in_dnc: rowData.phone_2_in_dnc || 'No',
+              phone_3_in_dnc: rowData.phone_3_in_dnc || 'No',
+              status: rowData.status || 'Processing',
               batch: data.batch
             }];
             // Keep only last 50 rows
@@ -251,12 +253,12 @@ export const Dashboard: React.FC = () => {
       });
 
       socket.on('job_complete', (data: JobCompleteData) => {
-        setCurrentJob((prev) => (prev ? { ...prev, status: 'completed', progress: 100, ...data } : null));
+        setCurrentJob((prev) => (prev ? { ...prev, ...data, status: 'completed' as const, progress: 100 } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
 
       socket.on('job_error', (data: JobErrorData) => {
-        setCurrentJob((prev) => (prev ? { ...prev, status: 'failed', error_message: data.error } : null));
+        setCurrentJob((prev) => (prev ? { ...prev, status: 'failed' as const, error_message: data.error } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
 

@@ -159,8 +159,10 @@ export function ComplianceDonutChart({
               verticalAlign="bottom"
               height={36}
               iconType="circle"
-              formatter={(value, entry: { payload: { value: number } }) => {
+              formatter={(value, entry) => {
+                // @ts-expect-error - Recharts Legend formatter types are complex, entry.payload exists at runtime
                 const percentage = ((entry.payload.value / total) * 100).toFixed(1);
+                // @ts-expect-error - Recharts Legend formatter types are complex, entry.payload exists at runtime
                 return `${value}: ${entry.payload.value.toLocaleString()} (${percentage}%)`;
               }}
             />
