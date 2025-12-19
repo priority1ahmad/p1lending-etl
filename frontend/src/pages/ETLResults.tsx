@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Grid, IconButton, Tooltip, Collapse } from '@mui/material';
-import { Refresh, Folder, Dataset, CheckCircle, Warning, ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { Refresh, ChevronLeft, ChevronRight } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { resultsApi } from '../services/api/results';
@@ -18,8 +18,6 @@ import { PageHeader } from '../components/layout/PageHeader';
 
 // New feature components
 import { ResultsMetricCard } from '../components/features/results/ResultsMetricCard';
-import ResultsOverviewCharts from '../components/features/results/ResultsOverviewCharts';
-import type { JobStats } from '../components/features/results/ResultsOverviewCharts';
 import { JobsFilterPanel } from '../components/features/results/JobsFilterPanel';
 import type { JobFilters } from '../components/features/results/JobsFilterPanel';
 import { QuickStatsWidget } from '../components/features/results/QuickStatsWidget';
@@ -237,14 +235,6 @@ export function ETLResults() {
     return filtered;
   }, [jobsData?.jobs, jobFilters]);
 
-  // Prepare top jobs for bar chart
-  const topJobs: JobStats[] = useMemo(() => {
-    return jobs.map((job) => ({
-      job_name: job.job_name,
-      record_count: job.record_count,
-    }));
-  }, [jobs]);
-
   // Transform records
   const records: ResultRecord[] = (resultsData?.records || []).map((record: any) => ({
     record_id: record.record_id,
@@ -264,7 +254,7 @@ export function ETLResults() {
   const selectedJob = jobs.find((job) => job.job_id === selectedJobId);
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <PageHeader
         title="ETL Results"
         subtitle="Dashboard analytics and data export"
@@ -279,13 +269,12 @@ export function ETLResults() {
 
       {/* Metrics Grid - Compact */}
       {stats && (
-        <Grid container spacing={2}>
+        <Grid container spacing={1.5}>
           {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
           <Grid item xs={6} sm={6} md={3}>
             <ResultsMetricCard
               title="Total Jobs"
               value={stats.total_jobs}
-              icon={<Folder />}
               color={palette.primary[800]}
             />
           </Grid>
@@ -294,7 +283,6 @@ export function ETLResults() {
             <ResultsMetricCard
               title="Total Records"
               value={stats.total_records}
-              icon={<Dataset />}
               color={palette.accent[500]}
             />
           </Grid>
@@ -303,7 +291,6 @@ export function ETLResults() {
             <ResultsMetricCard
               title="Clean Records"
               value={stats.clean_records}
-              icon={<CheckCircle />}
               color={palette.success[500]}
             />
           </Grid>
@@ -312,17 +299,11 @@ export function ETLResults() {
             <ResultsMetricCard
               title="Litigators"
               value={stats.total_litigators}
-              icon={<Warning />}
               color={palette.warning[500]}
               suffix={`(${stats.litigator_percentage}%)`}
             />
           </Grid>
         </Grid>
-      )}
-
-      {/* Charts */}
-      {stats && topJobs.length > 0 && (
-        <ResultsOverviewCharts stats={stats} topJobs={topJobs} />
       )}
 
       {/* Two-Column Layout: Jobs List (25%) | Table (75%) */}

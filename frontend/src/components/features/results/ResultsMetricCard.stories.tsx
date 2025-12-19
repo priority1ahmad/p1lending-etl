@@ -1,16 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { ResultsMetricCard } from './ResultsMetricCard';
-import {
-  Dataset,
-  CheckCircle,
-  Warning,
-  Block,
-  TrendingUp,
-  Schedule,
-  Speed,
-  Group,
-  Assessment,
-} from '@mui/icons-material';
 import { Box, Typography, GridLegacy as Grid } from '@mui/material';
 import { palette } from '../../../theme';
 
@@ -33,7 +22,7 @@ const meta: Meta<typeof ResultsMetricCard> = {
     },
     color: {
       control: 'color',
-      description: 'Icon and accent color (use palette colors)',
+      description: 'Accent color (use palette colors)',
     },
     trend: {
       control: 'number',
@@ -53,7 +42,6 @@ export const TotalRecords: Story = {
   args: {
     title: 'Total Records',
     value: 5000,
-    icon: <Dataset />,
     color: palette.primary[800],
   },
 };
@@ -62,7 +50,6 @@ export const CleanRecords: Story = {
   args: {
     title: 'Clean Records',
     value: 4565,
-    icon: <CheckCircle />,
     color: palette.success[500],
   },
 };
@@ -71,7 +58,6 @@ export const LitigatorCount: Story = {
   args: {
     title: 'Litigators',
     value: 234,
-    icon: <Warning />,
     color: palette.warning[500],
   },
 };
@@ -80,7 +66,6 @@ export const DNCCount: Story = {
   args: {
     title: 'DNC List',
     value: 156,
-    icon: <Block />,
     color: palette.error[500],
   },
 };
@@ -89,7 +74,6 @@ export const BothFlagsCount: Story = {
   args: {
     title: 'Both Flags',
     value: 45,
-    icon: <Block />,
     color: palette.error[600],
   },
 };
@@ -103,7 +87,6 @@ export const CleanPercentage: Story = {
     title: 'Clean Rate',
     value: 91.3,
     suffix: '%',
-    icon: <Assessment />,
     color: palette.success[600],
   },
 };
@@ -113,7 +96,6 @@ export const ProcessingSpeed: Story = {
     title: 'Processing Speed',
     value: 250,
     suffix: 'records/sec',
-    icon: <Speed />,
     color: palette.accent[500],
   },
 };
@@ -123,7 +105,6 @@ export const TotalUsers: Story = {
     title: 'Total Users',
     value: 1234,
     suffix: 'contacts',
-    icon: <Group />,
     color: palette.primary[700],
   },
 };
@@ -136,7 +117,6 @@ export const WithPositiveTrend: Story = {
   args: {
     title: 'Clean Records',
     value: 4565,
-    icon: <CheckCircle />,
     color: palette.success[500],
     trend: 12.5,
   },
@@ -146,7 +126,6 @@ export const WithNegativeTrend: Story = {
   args: {
     title: 'Litigators',
     value: 234,
-    icon: <Warning />,
     color: palette.warning[500],
     trend: -5.2,
   },
@@ -156,7 +135,6 @@ export const WithZeroTrend: Story = {
   args: {
     title: 'DNC Count',
     value: 156,
-    icon: <Block />,
     color: palette.error[500],
     trend: 0,
   },
@@ -166,7 +144,6 @@ export const LargePositiveTrend: Story = {
   args: {
     title: 'Total Records',
     value: 5000,
-    icon: <Dataset />,
     color: palette.primary[800],
     trend: 45.8,
   },
@@ -177,7 +154,6 @@ export const WithTrendAndSuffix: Story = {
     title: 'Clean Rate',
     value: 91.3,
     suffix: '%',
-    icon: <Assessment />,
     color: palette.success[600],
     trend: 3.7,
   },
@@ -191,7 +167,6 @@ export const LargeNumber: Story = {
   args: {
     title: 'Total Processed',
     value: 1234567,
-    icon: <Dataset />,
     color: palette.accent[500],
   },
 };
@@ -200,7 +175,6 @@ export const StringValue: Story = {
   args: {
     title: 'Current Status',
     value: 'Running',
-    icon: <TrendingUp />,
     color: palette.accent[600],
   },
 };
@@ -210,7 +184,6 @@ export const DecimalValue: Story = {
     title: 'Avg Processing Time',
     value: 2.45,
     suffix: 'seconds',
-    icon: <Schedule />,
     color: palette.primary[700],
   },
 };
@@ -219,7 +192,6 @@ export const ZeroValue: Story = {
   args: {
     title: 'Errors Found',
     value: 0,
-    icon: <CheckCircle />,
     color: palette.success[500],
   },
 };
@@ -239,7 +211,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Primary Color"
             value={100}
-            icon={<Dataset />}
             color={palette.primary[800]}
           />
         </Grid>
@@ -247,7 +218,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Accent Color"
             value={200}
-            icon={<TrendingUp />}
             color={palette.accent[500]}
           />
         </Grid>
@@ -255,7 +225,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Success Color"
             value={300}
-            icon={<CheckCircle />}
             color={palette.success[500]}
           />
         </Grid>
@@ -263,7 +232,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Warning Color"
             value={400}
-            icon={<Warning />}
             color={palette.warning[500]}
           />
         </Grid>
@@ -271,7 +239,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Error Color"
             value={500}
-            icon={<Block />}
             color={palette.error[500]}
           />
         </Grid>
@@ -279,7 +246,6 @@ export const ColorVariations: Story = {
           <ResultsMetricCard
             title="Gray Color"
             value={600}
-            icon={<Schedule />}
             color={palette.gray[500]}
           />
         </Grid>
@@ -303,7 +269,6 @@ export const ResultsPageMetrics: Story = {
           <ResultsMetricCard
             title="Total Records"
             value={5000}
-            icon={<Dataset />}
             color={palette.primary[800]}
             trend={8.2}
           />
@@ -312,7 +277,6 @@ export const ResultsPageMetrics: Story = {
           <ResultsMetricCard
             title="Clean Records"
             value={4565}
-            icon={<CheckCircle />}
             color={palette.success[500]}
             trend={12.5}
           />
@@ -321,7 +285,6 @@ export const ResultsPageMetrics: Story = {
           <ResultsMetricCard
             title="Litigators"
             value={234}
-            icon={<Warning />}
             color={palette.warning[500]}
             trend={-3.4}
           />
@@ -330,7 +293,6 @@ export const ResultsPageMetrics: Story = {
           <ResultsMetricCard
             title="DNC List"
             value={156}
-            icon={<Block />}
             color={palette.error[500]}
             trend={-5.2}
           />
@@ -347,7 +309,6 @@ export const ResultsPageMetrics: Story = {
               title="Clean Rate"
               value={91.3}
               suffix="%"
-              icon={<Assessment />}
               color={palette.success[600]}
               trend={3.7}
             />
@@ -356,7 +317,6 @@ export const ResultsPageMetrics: Story = {
             <ResultsMetricCard
               title="Both Flags"
               value={45}
-              icon={<Block />}
               color={palette.error[600]}
             />
           </Grid>
@@ -365,7 +325,6 @@ export const ResultsPageMetrics: Story = {
               title="Processing Speed"
               value={250}
               suffix="rec/sec"
-              icon={<Speed />}
               color={palette.accent[500]}
             />
           </Grid>
@@ -387,18 +346,17 @@ export const ResponsiveGrid: Story = {
       </Typography>
       <Grid container spacing={3}>
         {[
-          { title: 'Metric 1', value: 1000, icon: <Dataset />, color: palette.primary[800] },
-          { title: 'Metric 2', value: 2000, icon: <CheckCircle />, color: palette.success[500] },
-          { title: 'Metric 3', value: 3000, icon: <Warning />, color: palette.warning[500] },
-          { title: 'Metric 4', value: 4000, icon: <Block />, color: palette.error[500] },
-          { title: 'Metric 5', value: 5000, icon: <TrendingUp />, color: palette.accent[500] },
-          { title: 'Metric 6', value: 6000, icon: <Assessment />, color: palette.primary[700] },
+          { title: 'Metric 1', value: 1000, color: palette.primary[800] },
+          { title: 'Metric 2', value: 2000, color: palette.success[500] },
+          { title: 'Metric 3', value: 3000, color: palette.warning[500] },
+          { title: 'Metric 4', value: 4000, color: palette.error[500] },
+          { title: 'Metric 5', value: 5000, color: palette.accent[500] },
+          { title: 'Metric 6', value: 6000, color: palette.primary[700] },
         ].map((metric, i) => (
           <Grid item xs={12} sm={6} md={4} lg={2} key={i}>
             <ResultsMetricCard
               title={metric.title}
               value={metric.value}
-              icon={metric.icon}
               color={metric.color}
               trend={i % 2 === 0 ? 5.5 : -2.3}
             />
@@ -424,7 +382,6 @@ export const CompactTwoColumn: Story = {
           <ResultsMetricCard
             title="Clean"
             value={4565}
-            icon={<CheckCircle />}
             color={palette.success[500]}
           />
         </Grid>
@@ -432,7 +389,6 @@ export const CompactTwoColumn: Story = {
           <ResultsMetricCard
             title="Flagged"
             value={435}
-            icon={<Warning />}
             color={palette.warning[500]}
           />
         </Grid>
@@ -441,7 +397,6 @@ export const CompactTwoColumn: Story = {
             title="Rate"
             value={91.3}
             suffix="%"
-            icon={<Assessment />}
             color={palette.primary[700]}
           />
         </Grid>
@@ -450,7 +405,6 @@ export const CompactTwoColumn: Story = {
             title="Speed"
             value={250}
             suffix="rec/s"
-            icon={<Speed />}
             color={palette.accent[500]}
           />
         </Grid>

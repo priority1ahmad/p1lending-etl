@@ -24,7 +24,7 @@ export interface CardProps extends Omit<MuiCardProps, 'variant' | 'title'> {
   /** Enable hover effect */
   hoverable?: boolean;
   /** Padding size */
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'xs' | 'sm' | 'md' | 'lg';
   /** Card header title */
   title?: ReactNode;
   /** Card header subtitle */
@@ -37,6 +37,7 @@ export interface CardProps extends Omit<MuiCardProps, 'variant' | 'title'> {
 
 const paddingSizes = {
   none: 0,
+  xs: 8,
   sm: 16,
   md: 24,
   lg: 32,

@@ -1,6 +1,6 @@
 /**
  * ResultsMetricCard Component
- * Individual metric card with icon, value, and optional trend indicator
+ * Compact metric card with value and optional trend indicator
  */
 
 import { Box, Typography } from '@mui/material';
@@ -13,9 +13,7 @@ export interface ResultsMetricCardProps {
   title: string;
   /** Metric value (number or formatted string) */
   value: string | number;
-  /** Icon element to display */
-  icon: React.ReactNode;
-  /** Icon and accent color (use palette colors) */
+  /** Accent color (use palette colors) */
   color: string;
   /** Optional trend percentage (positive or negative) */
   trend?: number;
@@ -26,7 +24,6 @@ export interface ResultsMetricCardProps {
 export function ResultsMetricCard({
   title,
   value,
-  icon,
   color,
   trend,
   suffix,
@@ -36,28 +33,8 @@ export function ResultsMetricCard({
   const trendPositive = trend !== undefined && trend >= 0;
 
   return (
-    <Card variant="default" padding="sm">
-      <Box sx={{ position: 'relative' }}>
-        {/* Icon in top-right corner */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            right: 0,
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            backgroundColor: `${color}15`, // 15% opacity
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color,
-            fontSize: 18,
-          }}
-        >
-          {icon}
-        </Box>
-
+    <Card variant="default" padding="xs">
+      <Box>
         {/* Title */}
         <Typography
           variant="body2"
@@ -65,22 +42,22 @@ export function ResultsMetricCard({
             color: textColors.secondary,
             fontWeight: 500,
             textTransform: 'uppercase',
-            fontSize: '0.6875rem',
+            fontSize: '0.625rem',
             letterSpacing: '0.5px',
-            mb: 0.5,
+            mb: 0.25,
           }}
         >
           {title}
         </Typography>
 
         {/* Value */}
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: hasTrend ? 0.5 : 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5, mb: hasTrend ? 0.25 : 0 }}>
           <Typography
             variant="h3"
             sx={{
               fontWeight: 700,
-              color: textColors.primary,
-              fontSize: '1.5rem',
+              color,
+              fontSize: '1.25rem',
               lineHeight: 1.2,
             }}
           >
@@ -90,7 +67,7 @@ export function ResultsMetricCard({
             <Typography
               component="span"
               sx={{
-                fontSize: '0.75rem',
+                fontSize: '0.6875rem',
                 fontWeight: 500,
                 color: textColors.secondary,
               }}
