@@ -1,21 +1,24 @@
 """
 Retry utilities with exponential backoff and circuit breaker pattern.
 """
+
 import time
 import random
 import functools
 import threading
 import requests
-from typing import Callable, Tuple, Optional
+from typing import Callable, Tuple
 
 
 class RateLimitExceeded(Exception):
     """Raised when API rate limit is hit (HTTP 429) and max retries exceeded"""
+
     pass
 
 
 class CircuitBreakerOpen(Exception):
     """Raised when circuit breaker is open (blocking requests)"""
+
     pass
 
 
@@ -26,7 +29,7 @@ def exponential_backoff_retry(
     exponential_base: float = 2.0,
     jitter: bool = True,
     retry_on: Tuple = (requests.exceptions.HTTPError, requests.exceptions.Timeout),
-    logger = None
+    logger=None,
 ):
     """
     Decorator for exponential backoff retry with jitter.
@@ -45,6 +48,7 @@ def exponential_backoff_retry(
         retry_on: Exception types to retry on
         logger: Logger instance for logging retry attempts
     """
+
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
@@ -54,17 +58,19 @@ def exponential_backoff_retry(
                 except retry_on as e:
                     # Check if this is a rate limit error (HTTP 429)
                     is_rate_limit = False
-                    if hasattr(e, 'response') and e.response is not None:
+                    if hasattr(e, "response") and e.response is not None:
                         if e.response.status_code == 429:
                             is_rate_limit = True
 
                     if attempt >= max_retries:
                         if is_rate_limit:
-                            raise RateLimitExceeded(f"Rate limit exceeded after {max_retries} retries") from e
+                            raise RateLimitExceeded(
+                                f"Rate limit exceeded after {max_retries} retries"
+                            ) from e
                         raise
 
                     # Calculate delay with exponential backoff
-                    delay = min(base_delay * (exponential_base ** attempt), max_delay)
+                    delay = min(base_delay * (exponential_base**attempt), max_delay)
 
                     # Add jitter (±20% randomness)
                     if jitter:
@@ -81,6 +87,7 @@ def exponential_backoff_retry(
                     time.sleep(delay)
 
         return wrapper
+
     return decorator
 
 
@@ -105,7 +112,7 @@ class CircuitBreaker:
         failure_threshold: int = 5,
         recovery_timeout: float = 60.0,
         success_threshold: int = 2,
-        logger = None
+        logger=None,
     ):
         """
         Args:
@@ -130,13 +137,20 @@ class CircuitBreaker:
         with self._lock:
             # Check if circuit should transition to HALF_OPEN
             if self._state == "OPEN":
-                if self._last_failure_time and time.time() - self._last_failure_time >= self.recovery_timeout:
+                if (
+                    self._last_failure_time
+                    and time.time() - self._last_failure_time >= self.recovery_timeout
+                ):
                     self._state = "HALF_OPEN"
                     self._success_count = 0
                     if self.logger:
                         self.logger.info("🔄 Circuit breaker entering HALF_OPEN state")
                 else:
-                    time_remaining = self.recovery_timeout - (time.time() - self._last_failure_time) if self._last_failure_time else 0
+                    time_remaining = (
+                        self.recovery_timeout - (time.time() - self._last_failure_time)
+                        if self._last_failure_time
+                        else 0
+                    )
                     raise CircuitBreakerOpen(
                         f"Circuit breaker is OPEN. Will retry in {time_remaining:.1f}s"
                     )
@@ -145,7 +159,7 @@ class CircuitBreaker:
             result = func(*args, **kwargs)
             self._on_success()
             return result
-        except Exception as e:
+        except Exception:
             self._on_failure()
             raise
 

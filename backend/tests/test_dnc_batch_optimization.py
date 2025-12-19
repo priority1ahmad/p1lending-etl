@@ -8,7 +8,7 @@ Run with: pytest tests/test_dnc_batch_optimization.py -v
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import sqlite3
 import tempfile
 import os
@@ -21,7 +21,7 @@ class TestNormalizeToFullPhone:
         """Should return 10-digit phone unchanged"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -33,7 +33,7 @@ class TestNormalizeToFullPhone:
         """Should strip leading '1' from 11-digit phone"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -45,7 +45,7 @@ class TestNormalizeToFullPhone:
         """Should extract digits from formatted phone"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -57,7 +57,7 @@ class TestNormalizeToFullPhone:
         """Should handle phone with dashes"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -69,7 +69,7 @@ class TestNormalizeToFullPhone:
         """Should return None for invalid phone numbers"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -89,7 +89,7 @@ class TestNormalizeToFullPhone:
         """Should return None for non-numeric input"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.logger = Mock()
 
@@ -104,31 +104,33 @@ class TestCheckMultiplePhonesBatched:
     def mock_dnc_database(self):
         """Create a temporary SQLite database for testing"""
         # Create temp file
-        fd, path = tempfile.mkstemp(suffix='.db')
+        fd, path = tempfile.mkstemp(suffix=".db")
         os.close(fd)
 
         # Create table and insert test data
         conn = sqlite3.connect(path)
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE dnc_list (
                 area_code TEXT,
                 phone_number TEXT,
                 full_phone TEXT,
                 PRIMARY KEY (area_code, phone_number)
             )
-        ''')
-        cursor.execute('CREATE INDEX idx_full_phone ON dnc_list(full_phone)')
+        """
+        )
+        cursor.execute("CREATE INDEX idx_full_phone ON dnc_list(full_phone)")
 
         # Insert some test phones into DNC list
         test_dnc_phones = [
-            ('555', '1234567', '5551234567'),
-            ('555', '9876543', '5559876543'),
-            ('800', '5551212', '8005551212'),
+            ("555", "1234567", "5551234567"),
+            ("555", "9876543", "5559876543"),
+            ("800", "5551212", "8005551212"),
         ]
         cursor.executemany(
-            'INSERT INTO dnc_list (area_code, phone_number, full_phone) VALUES (?, ?, ?)',
-            test_dnc_phones
+            "INSERT INTO dnc_list (area_code, phone_number, full_phone) VALUES (?, ?, ?)",
+            test_dnc_phones,
         )
         conn.commit()
         conn.close()
@@ -142,7 +144,7 @@ class TestCheckMultiplePhonesBatched:
         """Should return empty list for empty phone list"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = "/nonexistent/path.db"
             checker.logger = Mock()
@@ -155,7 +157,7 @@ class TestCheckMultiplePhonesBatched:
         """Should correctly identify phones in DNC list"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = mock_dnc_database
             checker.logger = Mock()
@@ -168,10 +170,10 @@ class TestCheckMultiplePhonesBatched:
             def normalize(phone):
                 if not phone:
                     return None
-                digits = ''.join(filter(str.isdigit, str(phone)))
+                digits = "".join(filter(str.isdigit, str(phone)))
                 if len(digits) == 10:
                     return digits
-                elif len(digits) == 11 and digits.startswith('1'):
+                elif len(digits) == 11 and digits.startswith("1"):
                     return digits[1:]
                 return None
 
@@ -183,7 +185,7 @@ class TestCheckMultiplePhonesBatched:
             # 5551234567 and 5559876543 are in DNC
             assert len(results) == 3
 
-            dnc_phones = [r['phone'] for r in results if r.get('in_dnc_list')]
+            dnc_phones = [r["phone"] for r in results if r.get("in_dnc_list")]
             assert "5551234567" in dnc_phones
             assert "5559876543" in dnc_phones
             assert "5559999999" not in dnc_phones
@@ -192,7 +194,7 @@ class TestCheckMultiplePhonesBatched:
         """Should preserve original phone format in results"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = mock_dnc_database
             checker.logger = Mock()
@@ -204,10 +206,10 @@ class TestCheckMultiplePhonesBatched:
             def normalize(phone):
                 if not phone:
                     return None
-                digits = ''.join(filter(str.isdigit, str(phone)))
+                digits = "".join(filter(str.isdigit, str(phone)))
                 if len(digits) == 10:
                     return digits
-                elif len(digits) == 11 and digits.startswith('1'):
+                elif len(digits) == 11 and digits.startswith("1"):
                     return digits[1:]
                 return None
 
@@ -218,13 +220,13 @@ class TestCheckMultiplePhonesBatched:
             results = checker.check_multiple_phones(phones)
 
             # Original format should be preserved
-            assert results[0]['phone'] == "(555) 123-4567"
+            assert results[0]["phone"] == "(555) 123-4567"
 
     def test_handles_invalid_phones(self, mock_dnc_database):
         """Should handle invalid phone numbers gracefully"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = mock_dnc_database
             checker.logger = Mock()
@@ -236,10 +238,10 @@ class TestCheckMultiplePhonesBatched:
             def normalize(phone):
                 if not phone:
                     return None
-                digits = ''.join(filter(str.isdigit, str(phone)))
+                digits = "".join(filter(str.isdigit, str(phone)))
                 if len(digits) == 10:
                     return digits
-                elif len(digits) == 11 and digits.startswith('1'):
+                elif len(digits) == 11 and digits.startswith("1"):
                     return digits[1:]
                 return None
 
@@ -251,14 +253,14 @@ class TestCheckMultiplePhonesBatched:
             assert len(results) == 3
 
             # Invalid phones should have error status
-            invalid_results = [r for r in results if r.get('status') == 'error']
+            invalid_results = [r for r in results if r.get("status") == "error"]
             assert len(invalid_results) == 2
 
     def test_returns_correct_result_structure(self, mock_dnc_database):
         """Should return results with correct structure"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = mock_dnc_database
             checker.logger = Mock()
@@ -268,7 +270,7 @@ class TestCheckMultiplePhonesBatched:
             checker.logger.debug = Mock()
 
             def normalize(phone):
-                digits = ''.join(filter(str.isdigit, str(phone)))
+                digits = "".join(filter(str.isdigit, str(phone)))
                 if len(digits) == 10:
                     return digits
                 return None
@@ -282,15 +284,15 @@ class TestCheckMultiplePhonesBatched:
             result = results[0]
 
             # Check required fields
-            assert 'phone' in result
-            assert 'in_dnc_list' in result
-            assert 'status' in result
+            assert "phone" in result
+            assert "in_dnc_list" in result
+            assert "status" in result
 
     def test_handles_database_not_found(self):
         """Should handle missing database gracefully"""
         from app.services.etl.dnc_service import DNCChecker
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
             checker.db_path = "/nonexistent/database.db"
             checker.logger = Mock()
@@ -300,8 +302,8 @@ class TestCheckMultiplePhonesBatched:
             results = checker.check_multiple_phones(phones)
 
             assert len(results) == 1
-            assert results[0]['status'] == 'error'
-            assert results[0]['in_dnc_list'] == False
+            assert results[0]["status"] == "error"
+            assert not results[0]["in_dnc_list"]
 
 
 class TestBatchChunking:
@@ -319,22 +321,24 @@ class TestBatchChunking:
                 execute_calls.append(len(params))
             return []
 
-        with patch.object(DNCChecker, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(DNCChecker, "__init__", lambda x, *args, **kwargs: None):
             checker = DNCChecker.__new__(DNCChecker)
 
             # Create temp database
-            fd, path = tempfile.mkstemp(suffix='.db')
+            fd, path = tempfile.mkstemp(suffix=".db")
             os.close(fd)
             conn = sqlite3.connect(path)
             cursor = conn.cursor()
-            cursor.execute('''
+            cursor.execute(
+                """
                 CREATE TABLE dnc_list (
                     area_code TEXT,
                     phone_number TEXT,
                     full_phone TEXT
                 )
-            ''')
-            cursor.execute('CREATE INDEX idx_full_phone ON dnc_list(full_phone)')
+            """
+            )
+            cursor.execute("CREATE INDEX idx_full_phone ON dnc_list(full_phone)")
             conn.commit()
             conn.close()
 
@@ -369,9 +373,8 @@ class TestFeatureFlag:
         """Should have dnc_use_batched_query setting"""
         from app.core.config import settings
 
-        has_flag = (
-            hasattr(settings, 'dnc_use_batched_query') or
-            (hasattr(settings, 'etl') and hasattr(settings.etl, 'dnc_use_batched_query'))
+        has_flag = hasattr(settings, "dnc_use_batched_query") or (
+            hasattr(settings, "etl") and hasattr(settings.etl, "dnc_use_batched_query")
         )
 
         assert has_flag, "dnc_use_batched_query setting should exist"
@@ -380,10 +383,10 @@ class TestFeatureFlag:
         """Feature flag should default to True"""
         from app.core.config import settings
 
-        if hasattr(settings, 'dnc_use_batched_query'):
-            assert settings.dnc_use_batched_query == True
-        elif hasattr(settings, 'etl') and hasattr(settings.etl, 'dnc_use_batched_query'):
-            assert settings.etl.dnc_use_batched_query == True
+        if hasattr(settings, "dnc_use_batched_query"):
+            assert settings.dnc_use_batched_query
+        elif hasattr(settings, "etl") and hasattr(settings.etl, "dnc_use_batched_query"):
+            assert settings.etl.dnc_use_batched_query
 
 
 class TestPerformance:
@@ -399,6 +402,7 @@ class TestPerformance:
         # The implementation should use WHERE IN for batched queries
         # We can verify this by checking the code structure
         import inspect
+
         source = inspect.getsource(DNCChecker.check_multiple_phones)
 
         assert "WHERE" in source or "where" in source.lower()

@@ -69,13 +69,11 @@ COLUMN_ALIASES: Dict[str, str] = {
     "family_name": "last_name",
     "full_name": "first_name",  # Will need special handling to split
     "name": "first_name",  # Will need special handling to split
-
     # Email fields
     "email_address": "email",
     "emailaddress": "email",
     "e_mail": "email",
     "mail": "email",
-
     # Phone fields
     "phone": "phone_1",
     "phone1": "phone_1",
@@ -94,7 +92,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "work_phone": "phone_3",
     "workphone": "phone_3",
     "alternate_phone": "phone_3",
-
     # Address fields
     "street": "address",
     "street_address": "address",
@@ -102,7 +99,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "address_1": "address",
     "property_address": "address",
     "mailing_address": "address",
-
     # Location fields
     "city_name": "city",
     "town": "city",
@@ -114,7 +110,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "postal_code": "zip_code",
     "postalcode": "zip_code",
     "county_name": "county",
-
     # Property fields
     "prop_type": "property_type",
     "propertytype": "property_type",
@@ -131,7 +126,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "equity": "estimated_equity",
     "home_equity": "estimated_equity",
     "homeequity": "estimated_equity",
-
     # Loan fields
     "loantype": "loan_type",
     "loan": "loan_type",
@@ -144,7 +138,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "creditscore": "credit_score",
     "fico": "credit_score",
     "fico_score": "credit_score",
-
     # Financial fields
     "employment": "employment_status",
     "emp_status": "employment_status",
@@ -160,7 +153,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "foreclosure_flag": "foreclosures",
     "taxliens": "tax_liens",
     "tax_lien": "tax_liens",
-
     # Loan details
     "cashout": "cash_out_amount",
     "cash_out": "cash_out_amount",
@@ -176,7 +168,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "veteran": "veteran_status",
     "military": "veteran_status",
     "vet_status": "veteran_status",
-
     # Lead tracking
     "source": "lead_source",
     "leadsource": "lead_source",
@@ -200,7 +191,6 @@ COLUMN_ALIASES: Dict[str, str] = {
     "utmmedium": "utm_medium",
     "utm_camp": "utm_campaign",
     "utmcampaign": "utm_campaign",
-
     # Other fields
     "comments": "notes",
     "note": "notes",

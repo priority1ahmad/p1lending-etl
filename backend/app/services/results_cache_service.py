@@ -5,7 +5,6 @@ Caches ETL job results in PostgreSQL for fast retrieval.
 Maintains only the last 3 runs to manage storage.
 """
 
-import json
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, delete, func
@@ -38,7 +37,7 @@ class ResultsCacheService:
         records: List[Dict[str, Any]],
         total_records: int,
         litigator_count: int,
-        db: AsyncSession
+        db: AsyncSession,
     ) -> bool:
         """
         Cache results for a completed job.
@@ -63,42 +62,50 @@ class ResultsCacheService:
 
             # Store records in chunks
             for i in range(0, len(records), self.CHUNK_SIZE):
-                chunk = records[i:i + self.CHUNK_SIZE]
+                chunk = records[i : i + self.CHUNK_SIZE]
                 offset = i
                 cache_key = f"{table_id}_{offset}_{self.CHUNK_SIZE}"
 
                 # Use upsert to handle re-caching
-                stmt = insert(ResultsCache).values(
-                    table_id=table_id,
-                    job_id=job_id,
-                    cache_key=cache_key,
-                    data=chunk,
-                    record_count=len(chunk),
-                    expires_at=expires_at
-                ).on_conflict_do_update(
-                    index_elements=['cache_key'],
-                    set_={
-                        'data': chunk,
-                        'record_count': len(chunk),
-                        'expires_at': expires_at,
-                        'created_at': func.now()
-                    }
+                stmt = (
+                    insert(ResultsCache)
+                    .values(
+                        table_id=table_id,
+                        job_id=job_id,
+                        cache_key=cache_key,
+                        data=chunk,
+                        record_count=len(chunk),
+                        expires_at=expires_at,
+                    )
+                    .on_conflict_do_update(
+                        index_elements=["cache_key"],
+                        set_={
+                            "data": chunk,
+                            "record_count": len(chunk),
+                            "expires_at": expires_at,
+                            "created_at": func.now(),
+                        },
+                    )
                 )
                 await db.execute(stmt)
 
             # Update metadata
-            stmt = insert(ResultsCacheMetadata).values(
-                table_id=table_id,
-                job_id=job_id,
-                total_records=total_records,
-                litigator_count=litigator_count
-            ).on_conflict_do_update(
-                index_elements=['table_id'],
-                set_={
-                    'total_records': total_records,
-                    'litigator_count': litigator_count,
-                    'cached_at': func.now()
-                }
+            stmt = (
+                insert(ResultsCacheMetadata)
+                .values(
+                    table_id=table_id,
+                    job_id=job_id,
+                    total_records=total_records,
+                    litigator_count=litigator_count,
+                )
+                .on_conflict_do_update(
+                    index_elements=["table_id"],
+                    set_={
+                        "total_records": total_records,
+                        "litigator_count": litigator_count,
+                        "cached_at": func.now(),
+                    },
+                )
             )
             await db.execute(stmt)
 
@@ -112,11 +119,7 @@ class ResultsCacheService:
             return False
 
     async def get_cached_results(
-        self,
-        table_id: str,
-        offset: int,
-        limit: int,
-        db: AsyncSession
+        self, table_id: str, offset: int, limit: int, db: AsyncSession
     ) -> Optional[Dict[str, Any]]:
         """
         Get cached results for a table_id.
@@ -133,9 +136,7 @@ class ResultsCacheService:
         try:
             # Check if this table_id is cached
             meta_result = await db.execute(
-                select(ResultsCacheMetadata).where(
-                    ResultsCacheMetadata.table_id == table_id
-                )
+                select(ResultsCacheMetadata).where(ResultsCacheMetadata.table_id == table_id)
             )
             metadata = meta_result.scalar_one_or_none()
 
@@ -143,15 +144,16 @@ class ResultsCacheService:
                 return None
 
             # Calculate which cache chunks we need
-            start_chunk = (offset // self.CHUNK_SIZE) * self.CHUNK_SIZE
-            end_record = offset + limit
+            (offset // self.CHUNK_SIZE) * self.CHUNK_SIZE
+            offset + limit
 
             # Fetch relevant cache entries
             result = await db.execute(
-                select(ResultsCache).where(
-                    ResultsCache.table_id == table_id,
-                    ResultsCache.expires_at > datetime.utcnow()
-                ).order_by(ResultsCache.cache_key)
+                select(ResultsCache)
+                .where(
+                    ResultsCache.table_id == table_id, ResultsCache.expires_at > datetime.utcnow()
+                )
+                .order_by(ResultsCache.cache_key)
             )
             cache_entries = result.scalars().all()
 
@@ -165,7 +167,7 @@ class ResultsCacheService:
                 all_records.extend(entry.data)
 
             # Apply offset and limit
-            paginated = all_records[offset:offset + limit]
+            paginated = all_records[offset : offset + limit]
 
             return {
                 "records": paginated,
@@ -174,7 +176,7 @@ class ResultsCacheService:
                 "limit": limit,
                 "litigator_count": metadata.litigator_count,
                 "cached": True,
-                "cached_at": metadata.cached_at.isoformat() if metadata.cached_at else None
+                "cached_at": metadata.cached_at.isoformat() if metadata.cached_at else None,
             }
 
         except Exception as e:
@@ -184,9 +186,7 @@ class ResultsCacheService:
     async def is_cached(self, table_id: str, db: AsyncSession) -> bool:
         """Check if a table_id is cached and not expired."""
         result = await db.execute(
-            select(ResultsCacheMetadata.id).where(
-                ResultsCacheMetadata.table_id == table_id
-            )
+            select(ResultsCacheMetadata.id).where(ResultsCacheMetadata.table_id == table_id)
         )
         if not result.scalar():
             return False
@@ -194,8 +194,7 @@ class ResultsCacheService:
         # Check if any cache entries are still valid
         cache_result = await db.execute(
             select(func.count(ResultsCache.id)).where(
-                ResultsCache.table_id == table_id,
-                ResultsCache.expires_at > datetime.utcnow()
+                ResultsCache.table_id == table_id, ResultsCache.expires_at > datetime.utcnow()
             )
         )
         return (cache_result.scalar() or 0) > 0
@@ -203,9 +202,7 @@ class ResultsCacheService:
     async def invalidate_cache(self, table_id: str, db: AsyncSession) -> bool:
         """Invalidate cache for a specific table_id."""
         try:
-            await db.execute(
-                delete(ResultsCache).where(ResultsCache.table_id == table_id)
-            )
+            await db.execute(delete(ResultsCache).where(ResultsCache.table_id == table_id))
             await db.execute(
                 delete(ResultsCacheMetadata).where(ResultsCacheMetadata.table_id == table_id)
             )
@@ -221,9 +218,7 @@ class ResultsCacheService:
         """Evict oldest caches if more than MAX_CACHED_RUNS exist."""
         try:
             # Count current cached runs
-            count_result = await db.execute(
-                select(func.count(ResultsCacheMetadata.id))
-            )
+            count_result = await db.execute(select(func.count(ResultsCacheMetadata.id)))
             current_count = count_result.scalar() or 0
 
             if current_count >= self.MAX_CACHED_RUNS:
@@ -237,11 +232,11 @@ class ResultsCacheService:
                 oldest_table_ids = [row[0] for row in oldest_result.fetchall()]
 
                 for table_id in oldest_table_ids:
+                    await db.execute(delete(ResultsCache).where(ResultsCache.table_id == table_id))
                     await db.execute(
-                        delete(ResultsCache).where(ResultsCache.table_id == table_id)
-                    )
-                    await db.execute(
-                        delete(ResultsCacheMetadata).where(ResultsCacheMetadata.table_id == table_id)
+                        delete(ResultsCacheMetadata).where(
+                            ResultsCacheMetadata.table_id == table_id
+                        )
                     )
 
                 self.logger.info(f"Evicted {len(oldest_table_ids)} old cache entries")
@@ -257,8 +252,7 @@ class ResultsCacheService:
     async def get_cached_table_ids(self, db: AsyncSession) -> List[Dict[str, Any]]:
         """Get list of currently cached table_ids with metadata."""
         result = await db.execute(
-            select(ResultsCacheMetadata)
-            .order_by(ResultsCacheMetadata.cached_at.desc())
+            select(ResultsCacheMetadata).order_by(ResultsCacheMetadata.cached_at.desc())
         )
         entries = result.scalars().all()
 
@@ -268,7 +262,7 @@ class ResultsCacheService:
                 "job_id": str(e.job_id),
                 "total_records": e.total_records,
                 "litigator_count": e.litigator_count,
-                "cached_at": e.cached_at.isoformat() if e.cached_at else None
+                "cached_at": e.cached_at.isoformat() if e.cached_at else None,
             }
             for e in entries
         ]

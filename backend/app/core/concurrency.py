@@ -1,8 +1,8 @@
 """
 Concurrency utilities for dynamic worker calculation and threading metrics.
 """
+
 import time
-from typing import Optional
 import logging
 
 
@@ -11,7 +11,7 @@ def calculate_optimal_workers(
     batch_size: int,
     min_workers: int,
     max_workers: int,
-    workers_per_batch: float = 1.5
+    workers_per_batch: float = 1.5,
 ) -> int:
     """
     Calculate optimal thread count based on workload.
@@ -58,7 +58,7 @@ def log_worker_decision(
     workload_size: int,
     batch_size: int,
     calculated_workers: int,
-    reason: str
+    reason: str,
 ) -> None:
     """
     Log why specific worker count was chosen for observability.
@@ -88,36 +88,39 @@ class ThreadingMetrics:
 
     def log_worker_decision(self, workload_size: int, batch_size: int, workers: int, service: str):
         """Record a worker count decision"""
-        self.decisions.append({
-            'timestamp': time.time(),
-            'service': service,
-            'workload_size': workload_size,
-            'batch_size': batch_size,
-            'workers_chosen': workers
-        })
+        self.decisions.append(
+            {
+                "timestamp": time.time(),
+                "service": service,
+                "workload_size": workload_size,
+                "batch_size": batch_size,
+                "workers_chosen": workers,
+            }
+        )
 
     def log_rate_limit_event(self, service: str, attempt: int, delay: float):
         """Record a rate limit event (HTTP 429)"""
-        self.rate_limit_events.append({
-            'timestamp': time.time(),
-            'service': service,
-            'attempt': attempt,
-            'delay': delay
-        })
+        self.rate_limit_events.append(
+            {"timestamp": time.time(), "service": service, "attempt": attempt, "delay": delay}
+        )
 
     def log_circuit_breaker_event(self, service: str, state: str, failures: int):
         """Record a circuit breaker state change"""
-        self.circuit_breaker_events.append({
-            'timestamp': time.time(),
-            'service': service,
-            'state': state,
-            'failure_count': failures
-        })
+        self.circuit_breaker_events.append(
+            {
+                "timestamp": time.time(),
+                "service": service,
+                "state": state,
+                "failure_count": failures,
+            }
+        )
 
     def get_summary(self):
         """Return metrics summary for job logs"""
         return {
-            'total_worker_decisions': len(self.decisions),
-            'rate_limit_hits': len(self.rate_limit_events),
-            'circuit_breaker_opens': len([e for e in self.circuit_breaker_events if e['state'] == 'OPEN'])
+            "total_worker_decisions": len(self.decisions),
+            "rate_limit_hits": len(self.rate_limit_events),
+            "circuit_breaker_opens": len(
+                [e for e in self.circuit_breaker_events if e["state"] == "OPEN"]
+            ),
         }

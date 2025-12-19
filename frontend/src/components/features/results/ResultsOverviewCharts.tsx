@@ -139,7 +139,7 @@ export default function ResultsOverviewCharts({
   return (
     <Grid container spacing={3}>
       {/* Pie Chart - Clean vs Litigators */}
-      {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+      {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
       <Grid item xs={12} md={6}>
         <Card
           title="Clean vs Litigator Distribution"
@@ -180,7 +180,7 @@ export default function ResultsOverviewCharts({
       </Grid>
 
       {/* Bar Chart - Top 10 Jobs */}
-      {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+      {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
       <Grid item xs={12} md={6}>
         <Card
           title="Top 10 Jobs by Record Count"

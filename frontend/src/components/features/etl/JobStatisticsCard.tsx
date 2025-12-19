@@ -32,7 +32,7 @@ interface StatItemProps {
 
 function StatItem({ label, value, color }: StatItemProps) {
   return (
-    // @ts-ignore - MUI v7 Grid item prop works at runtime
+    // @ts-expect-error - MUI v7 Grid item prop works at runtime
     <Grid item xs={12} sm={6} md={2.4}>
       <Typography variant="body2" sx={{ color: textColors.secondary, mb: 0.5 }}>
         {label}

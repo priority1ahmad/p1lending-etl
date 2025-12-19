@@ -183,7 +183,7 @@ export const DashboardMetricsGrid: Story = {
         Dashboard Metrics Example
       </Typography>
       <Grid container spacing={3}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={3}>
           <DashboardMetricCard
             title="Active Jobs"
@@ -192,7 +192,7 @@ export const DashboardMetricsGrid: Story = {
             color={palette.accent[500]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={3}>
           <DashboardMetricCard
             title="Completed Today"
@@ -202,7 +202,7 @@ export const DashboardMetricsGrid: Story = {
             trend={{ value: 8.5, direction: 'up' }}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={3}>
           <DashboardMetricCard
             title="Total Records"
@@ -211,7 +211,7 @@ export const DashboardMetricsGrid: Story = {
             color={palette.primary[800]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={3}>
           <DashboardMetricCard
             title="Success Rate"
@@ -235,7 +235,7 @@ export const ColorVariations: Story = {
         Color Variations
       </Typography>
       <Grid container spacing={2}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Primary Color"
@@ -244,7 +244,7 @@ export const ColorVariations: Story = {
             color={palette.primary[800]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Accent Color"
@@ -253,7 +253,7 @@ export const ColorVariations: Story = {
             color={palette.accent[500]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Success Color"
@@ -262,7 +262,7 @@ export const ColorVariations: Story = {
             color={palette.success[500]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Warning Color"
@@ -271,7 +271,7 @@ export const ColorVariations: Story = {
             color={palette.warning[500]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Error Color"
@@ -280,7 +280,7 @@ export const ColorVariations: Story = {
             color={palette.error[500]}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <DashboardMetricCard
             title="Gray Color"
@@ -303,7 +303,7 @@ export const ResponsiveGrid: Story = {
       </Typography>
       <Grid container spacing={3}>
         {[1, 2, 3, 4, 5, 6].map((i) => (
-          /* @ts-ignore - MUI v7 Grid item prop */
+          /* @ts-expect-error - MUI v7 Grid item prop */
           <Grid item xs={12} sm={6} md={4} lg={2} key={i}>
             <DashboardMetricCard
               title={`Metric ${i}`}

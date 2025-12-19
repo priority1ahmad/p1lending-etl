@@ -33,12 +33,12 @@ class TableIDService:
 
         Removes spaces, special characters, and limits length.
         """
-        if name.endswith('.sql'):
+        if name.endswith(".sql"):
             name = name[:-4]
 
-        sanitized = re.sub(r'[^a-zA-Z0-9]', '_', name)
-        sanitized = re.sub(r'_+', '_', sanitized)
-        sanitized = sanitized.strip('_')
+        sanitized = re.sub(r"[^a-zA-Z0-9]", "_", name)
+        sanitized = re.sub(r"_+", "_", sanitized)
+        sanitized = sanitized.strip("_")
 
         if len(sanitized) > 50:
             sanitized = sanitized[:50]
@@ -47,18 +47,13 @@ class TableIDService:
 
     def _get_date_suffix(self) -> str:
         """Get current date in MMDDYYYY format."""
-        return datetime.now().strftime('%m%d%Y')
+        return datetime.now().strftime("%m%d%Y")
 
     def _get_random_digits(self) -> str:
         """Generate 6 random digits."""
-        return ''.join([str(random.randint(0, 9)) for _ in range(6)])
+        return "".join([str(random.randint(0, 9)) for _ in range(6)])
 
-    async def generate_table_id(
-        self,
-        script_name: str,
-        row_count: int,
-        db: AsyncSession
-    ) -> str:
+    async def generate_table_id(self, script_name: str, row_count: int, db: AsyncSession) -> str:
         """
         Generate a unique table ID for an ETL job.
 
@@ -89,25 +84,14 @@ class TableIDService:
         self.logger.info(f"Generated table_id: {table_id}")
         return table_id
 
-    async def _check_table_id_exists(
-        self,
-        table_id: str,
-        db: AsyncSession
-    ) -> bool:
+    async def _check_table_id_exists(self, table_id: str, db: AsyncSession) -> bool:
         """Check if a table_id already exists."""
-        result = await db.execute(
-            select(func.count(ETLJob.id)).where(
-                ETLJob.table_id == table_id
-            )
-        )
+        result = await db.execute(select(func.count(ETLJob.id)).where(ETLJob.table_id == table_id))
         count = result.scalar() or 0
         return count > 0
 
     def generate_table_id_sync(
-        self,
-        script_name: str,
-        row_count: int,
-        existing_count: int = 0
+        self, script_name: str, row_count: int, existing_count: int = 0
     ) -> str:
         """
         Synchronous version for use in Celery tasks.

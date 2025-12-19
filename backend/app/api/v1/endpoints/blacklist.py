@@ -2,10 +2,9 @@
 Phone Blacklist endpoints
 """
 
-from typing import List, Optional
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from uuid import UUID
 
 from app.db.session import get_db
 from app.db.models.user import User
@@ -30,13 +29,13 @@ router = APIRouter(prefix="/blacklist", tags=["blacklist"])
 async def add_phones_to_blacklist(
     request: PhoneBlacklistAdd,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Add phone numbers to the blacklist"""
-    if request.reason not in ['litigator', 'manual', 'dnc']:
+    if request.reason not in ["litigator", "manual", "dnc"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reason must be 'litigator', 'manual', or 'dnc'"
+            detail="Reason must be 'litigator', 'manual', or 'dnc'",
         )
 
     blacklist_service = get_blacklist_service()
@@ -47,13 +46,11 @@ async def add_phones_to_blacklist(
         db=db,
         source_table_id=request.source_table_id,
         source_job_id=str(request.source_job_id) if request.source_job_id else None,
-        added_by=str(current_user.id)
+        added_by=str(current_user.id),
     )
 
     return PhoneBlacklistResponse(
-        success=True,
-        message=f"Added {added_count} phones to blacklist",
-        count=added_count
+        success=True, message=f"Added {added_count} phones to blacklist", count=added_count
     )
 
 
@@ -61,7 +58,7 @@ async def add_phones_to_blacklist(
 async def add_litigators_from_job(
     request: PhoneBlacklistAddFromJob,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Add all litigator phones from a specific job/table_id to the blacklist.
@@ -77,25 +74,25 @@ async def add_litigators_from_job(
             job_id=None,
             offset=0,
             limit=100000,  # Get all records
-            exclude_litigators=False
+            exclude_litigators=False,
         )
 
-        if not results or not results.get('records'):
+        if not results or not results.get("records"):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"No results found for table_id: {request.table_id}"
+                detail=f"No results found for table_id: {request.table_id}",
             )
 
         # Filter to only litigator records and extract phones
         litigator_phones = []
-        for record in results['records']:
+        for record in results["records"]:
             # Check if this record is from the requested table_id
-            if record.get('table_id') != request.table_id:
+            if record.get("table_id") != request.table_id:
                 continue
 
-            if record.get('in_litigator_list') == 'Yes' or record.get('IN_LITIGATOR_LIST') == 'Yes':
+            if record.get("in_litigator_list") == "Yes" or record.get("IN_LITIGATOR_LIST") == "Yes":
                 # Extract all phone numbers from this record
-                for phone_key in ['phone_1', 'phone_2', 'phone_3', 'PHONE_1', 'PHONE_2', 'PHONE_3']:
+                for phone_key in ["phone_1", "phone_2", "phone_3", "PHONE_1", "PHONE_2", "PHONE_3"]:
                     phone = record.get(phone_key)
                     if phone and str(phone).strip():
                         litigator_phones.append(str(phone).strip())
@@ -104,24 +101,26 @@ async def add_litigators_from_job(
             return PhoneBlacklistResponse(
                 success=True,
                 message=f"No litigator phones found for table_id: {request.table_id}",
-                count=0
+                count=0,
             )
 
         # Add to blacklist
         added_count = await blacklist_service.add_phones_to_blacklist(
             phone_numbers=litigator_phones,
-            reason='litigator',
+            reason="litigator",
             db=db,
             source_table_id=request.table_id,
-            added_by=str(current_user.id)
+            added_by=str(current_user.id),
         )
 
-        etl_logger.info(f"Added {added_count} litigator phones from table_id {request.table_id} to blacklist")
+        etl_logger.info(
+            f"Added {added_count} litigator phones from table_id {request.table_id} to blacklist"
+        )
 
         return PhoneBlacklistResponse(
             success=True,
             message=f"Added {added_count} litigator phones to blacklist from {len(litigator_phones)} found",
-            count=added_count
+            count=added_count,
         )
 
     except HTTPException:
@@ -130,7 +129,7 @@ async def add_litigators_from_job(
         etl_logger.error(f"Error adding litigators to blacklist: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error processing litigator phones: {str(e)}"
+            detail=f"Error processing litigator phones: {str(e)}",
         )
 
 
@@ -138,20 +137,17 @@ async def add_litigators_from_job(
 async def remove_phones_from_blacklist(
     request: PhoneBlacklistRemove,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Remove phone numbers from the blacklist"""
     blacklist_service = get_blacklist_service()
 
     removed_count = await blacklist_service.remove_from_blacklist(
-        phone_numbers=request.phone_numbers,
-        db=db
+        phone_numbers=request.phone_numbers, db=db
     )
 
     return PhoneBlacklistResponse(
-        success=True,
-        message=f"Removed {removed_count} phones from blacklist",
-        count=removed_count
+        success=True, message=f"Removed {removed_count} phones from blacklist", count=removed_count
     )
 
 
@@ -159,33 +155,29 @@ async def remove_phones_from_blacklist(
 async def remove_single_phone(
     phone_number: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Remove a single phone number from the blacklist"""
     blacklist_service = get_blacklist_service()
 
     removed_count = await blacklist_service.remove_from_blacklist(
-        phone_numbers=[phone_number],
-        db=db
+        phone_numbers=[phone_number], db=db
     )
 
     if removed_count == 0:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Phone number {phone_number} not found in blacklist"
+            detail=f"Phone number {phone_number} not found in blacklist",
         )
 
     return PhoneBlacklistResponse(
-        success=True,
-        message=f"Removed phone {phone_number} from blacklist",
-        count=removed_count
+        success=True, message=f"Removed phone {phone_number} from blacklist", count=removed_count
     )
 
 
 @router.get("/stats", response_model=PhoneBlacklistStatsResponse)
 async def get_blacklist_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get statistics about the phone blacklist"""
     blacklist_service = get_blacklist_service()
@@ -197,24 +189,23 @@ async def get_blacklist_stats(
 async def list_blacklist_entries(
     offset: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
-    reason: Optional[str] = Query(None, description="Filter by reason: 'litigator', 'manual', or 'dnc'"),
+    reason: Optional[str] = Query(
+        None, description="Filter by reason: 'litigator', 'manual', or 'dnc'"
+    ),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of blacklist entries"""
-    if reason and reason not in ['litigator', 'manual', 'dnc']:
+    if reason and reason not in ["litigator", "manual", "dnc"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Reason filter must be 'litigator', 'manual', or 'dnc'"
+            detail="Reason filter must be 'litigator', 'manual', or 'dnc'",
         )
 
     blacklist_service = get_blacklist_service()
 
     result = await blacklist_service.get_blacklist_entries(
-        db=db,
-        offset=offset,
-        limit=limit,
-        reason=reason
+        db=db, offset=offset, limit=limit, reason=reason
     )
 
     return PhoneBlacklistListResponse(**result)
@@ -224,7 +215,7 @@ async def list_blacklist_entries(
 async def check_phone_blacklisted(
     phone_number: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Check if a specific phone number is blacklisted"""
     blacklist_service = get_blacklist_service()
@@ -234,5 +225,5 @@ async def check_phone_blacklisted(
     return PhoneBlacklistCheckResponse(
         phone_number=phone_number,
         is_blacklisted=is_blacklisted,
-        reason=None  # Could be extended to return the reason if needed
+        reason=None,  # Could be extended to return the reason if needed
     )

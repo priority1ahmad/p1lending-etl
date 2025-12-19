@@ -16,14 +16,14 @@ from app.schemas.auth import (
     RefreshTokenRequest,
     UserResponse,
     UserUpdateRequest,
-    PasswordChangeRequest
+    PasswordChangeRequest,
 )
 from app.core.security import (
     verify_password,
     create_access_token,
     create_refresh_token,
     decode_token,
-    get_password_hash
+    get_password_hash,
 )
 from app.api.v1.deps import get_current_user
 from app.core.logger import etl_logger
@@ -33,6 +33,7 @@ from app.core.account_lockout import account_lockout
 
 router = APIRouter()
 
+
 async def log_login_attempt(
     db: AsyncSession,
     email: str,
@@ -40,7 +41,7 @@ async def log_login_attempt(
     user_id=None,
     ip_address: str = None,
     user_agent: str = None,
-    failure_reason: str = None
+    failure_reason: str = None,
 ):
     """Log a login attempt to the audit table"""
     try:
@@ -50,7 +51,7 @@ async def log_login_attempt(
             ip_address=ip_address,
             user_agent=user_agent[:500] if user_agent and len(user_agent) > 500 else user_agent,
             login_status=status,
-            failure_reason=failure_reason
+            failure_reason=failure_reason,
         )
         db.add(audit_log)
         await db.commit()
@@ -62,11 +63,7 @@ async def log_login_attempt(
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(
-    credentials: LoginRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db)
-):
+async def login(credentials: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """
     Login endpoint - authenticate user and return JWT tokens
     With rate limiting and account lockout protection
@@ -86,12 +83,14 @@ async def login(
             status="account_locked",
             ip_address=ip_address,
             user_agent=user_agent,
-            failure_reason=f"Account locked for {remaining} more seconds"
+            failure_reason=f"Account locked for {remaining} more seconds",
         )
-        etl_logger.warning(f"Login attempt on locked account: {credentials.email} from {ip_address}")
+        etl_logger.warning(
+            f"Login attempt on locked account: {credentials.email} from {ip_address}"
+        )
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
-            detail=f"Account is locked due to too many failed login attempts. Try again in {remaining // 60} minutes."
+            detail=f"Account is locked due to too many failed login attempts. Try again in {remaining // 60} minutes.",
         )
 
     # Find user by email
@@ -106,13 +105,12 @@ async def login(
             status="invalid_email",
             ip_address=ip_address,
             user_agent=user_agent,
-            failure_reason="Email not found in system"
+            failure_reason="Email not found in system",
         )
         # Record failed attempt for account lockout
         await account_lockout.record_failed_attempt(credentials.email, ip_address)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not verify_password(credentials.password, user.hashed_password):
@@ -124,13 +122,12 @@ async def login(
             user_id=user.id,
             ip_address=ip_address,
             user_agent=user_agent,
-            failure_reason="Incorrect password"
+            failure_reason="Incorrect password",
         )
         # Record failed attempt for account lockout
         await account_lockout.record_failed_attempt(credentials.email, ip_address)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password"
         )
 
     if not user.is_active:
@@ -142,11 +139,10 @@ async def login(
             user_id=user.id,
             ip_address=ip_address,
             user_agent=user_agent,
-            failure_reason="User account is deactivated"
+            failure_reason="User account is deactivated",
         )
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
         )
 
     # Successful authentication - clear any previous failures
@@ -163,16 +159,14 @@ async def login(
         status="success",
         user_id=user.id,
         ip_address=ip_address,
-        user_agent=user_agent
+        user_agent=user_agent,
     )
 
     # Send NTFY notification for successful login
     try:
         ntfy_events = get_ntfy_events()
         await ntfy_events.notify_login(
-            email=credentials.email,
-            ip_address=ip_address,
-            status="success"
+            email=credentials.email, ip_address=ip_address, status="success"
         )
     except Exception as ntfy_error:
         etl_logger.warning(f"Failed to send NTFY login notification: {ntfy_error}")
@@ -183,14 +177,12 @@ async def login(
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="bearer",
-        user=UserResponse.model_validate(user)
+        user=UserResponse.model_validate(user),
     )
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(
-    request: RefreshTokenRequest
-):
+async def refresh_token(request: RefreshTokenRequest):
     """
     Refresh access token using refresh token
     """
@@ -198,15 +190,13 @@ async def refresh_token(
 
     if payload is None or payload.get("type") != "refresh":
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     user_id = payload.get("sub")
     if user_id is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
         )
 
     # Create new access token
@@ -215,15 +205,12 @@ async def refresh_token(
     return TokenResponse(
         access_token=access_token,
         refresh_token=request.refresh_token,  # Refresh token remains the same
-        token_type="bearer"
+        token_type="bearer",
     )
 
 
 @router.post("/logout")
-async def logout(
-    request: Request,
-    current_user: User = Depends(get_current_user)
-):
+async def logout(request: Request, current_user: User = Depends(get_current_user)):
     """
     Logout endpoint - blacklist the current token to invalidate it
     """
@@ -242,7 +229,9 @@ async def logout(
                     if remaining > 0:
                         # Blacklist the token for the remaining time
                         await token_blacklist.blacklist_token(jti, remaining)
-                        etl_logger.info(f"Token blacklisted for user {current_user.email} (JTI: {jti[:8]}...)")
+                        etl_logger.info(
+                            f"Token blacklisted for user {current_user.email} (JTI: {jti[:8]}...)"
+                        )
                     else:
                         etl_logger.warning(f"Token already expired for user {current_user.email}")
                 else:
@@ -254,9 +243,7 @@ async def logout(
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(
-    current_user: User = Depends(get_current_user)
-):
+async def get_me(current_user: User = Depends(get_current_user)):
     """
     Get current user information
     """
@@ -267,7 +254,7 @@ async def get_me(
 async def update_profile(
     update_data: UserUpdateRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Update current user's profile (first name, last name)
@@ -295,7 +282,7 @@ async def update_profile(
 async def change_password(
     password_data: PasswordChangeRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Change current user's password
@@ -303,22 +290,20 @@ async def change_password(
     # Verify current password
     if not verify_password(password_data.current_password, current_user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect"
         )
 
     # Verify new passwords match (additional server-side check)
     if password_data.new_password != password_data.confirm_password:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New passwords do not match"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="New passwords do not match"
         )
 
     # Check that new password is different from current
     if verify_password(password_data.new_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be different from current password"
+            detail="New password must be different from current password",
         )
 
     # Update password

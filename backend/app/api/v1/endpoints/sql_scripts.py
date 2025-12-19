@@ -18,8 +18,7 @@ router = APIRouter(prefix="/scripts", tags=["scripts"])
 
 @router.get("", response_model=List[SQLScriptResponse])
 async def list_scripts(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """List all SQL scripts"""
     result = await db.execute(select(SQLScript).order_by(SQLScript.created_at.desc()))
@@ -31,18 +30,15 @@ async def list_scripts(
 async def get_script(
     script_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Get a specific SQL script by ID"""
     result = await db.execute(select(SQLScript).where(SQLScript.id == script_id))
     script = result.scalar_one_or_none()
-    
+
     if not script:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="SQL script not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SQL script not found")
+
     return script
 
 
@@ -50,30 +46,30 @@ async def get_script(
 async def create_script(
     script_data: SQLScriptCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new SQL script"""
     # Check if script name already exists
     result = await db.execute(select(SQLScript).where(SQLScript.name == script_data.name))
     existing = result.scalar_one_or_none()
-    
+
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SQL script with this name already exists"
+            detail="SQL script with this name already exists",
         )
-    
+
     script = SQLScript(
         name=script_data.name,
         description=script_data.description,
         content=script_data.content,
-        created_by=current_user.id
+        created_by=current_user.id,
     )
-    
+
     db.add(script)
     await db.commit()
     await db.refresh(script)
-    
+
     return script
 
 
@@ -82,18 +78,15 @@ async def update_script(
     script_id: UUID,
     script_data: SQLScriptUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing SQL script"""
     result = await db.execute(select(SQLScript).where(SQLScript.id == script_id))
     script = result.scalar_one_or_none()
-    
+
     if not script:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="SQL script not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SQL script not found")
+
     # Check name uniqueness if name is being updated
     if script_data.name and script_data.name != script.name:
         result = await db.execute(select(SQLScript).where(SQLScript.name == script_data.name))
@@ -101,9 +94,9 @@ async def update_script(
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="SQL script with this name already exists"
+                detail="SQL script with this name already exists",
             )
-    
+
     # Update fields
     if script_data.name is not None:
         script.name = script_data.name
@@ -111,10 +104,10 @@ async def update_script(
         script.description = script_data.description
     if script_data.content is not None:
         script.content = script_data.content
-    
+
     await db.commit()
     await db.refresh(script)
-    
+
     return script
 
 
@@ -122,20 +115,16 @@ async def update_script(
 async def delete_script(
     script_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a SQL script"""
     result = await db.execute(select(SQLScript).where(SQLScript.id == script_id))
     script = result.scalar_one_or_none()
-    
+
     if not script:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="SQL script not found"
-        )
-    
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="SQL script not found")
+
     await db.delete(script)
     await db.commit()
-    
-    return None
 
+    return None

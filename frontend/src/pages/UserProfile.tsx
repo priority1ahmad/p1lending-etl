@@ -142,7 +142,7 @@ export function UserProfile() {
 
       <Grid container spacing={3}>
         {/* Profile Overview Card */}
-        {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+        {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
         <Grid item xs={12} md={4}>
           <Card variant="default" padding="lg">
             <Box sx={{ textAlign: 'center', py: 2 }}>
@@ -198,7 +198,7 @@ export function UserProfile() {
         </Grid>
 
         {/* Profile Edit Card */}
-        {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+        {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
         <Grid item xs={12} md={8}>
           <Card variant="default" padding="lg">
             {/* Profile Information Section */}
@@ -210,7 +210,7 @@ export function UserProfile() {
             </Box>
 
             <Grid container spacing={2}>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -220,7 +220,7 @@ export function UserProfile() {
                   placeholder="Enter your first name"
                 />
               </Grid>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -230,7 +230,7 @@ export function UserProfile() {
                   placeholder="Enter your last name"
                 />
               </Grid>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -276,7 +276,7 @@ export function UserProfile() {
             </Box>
 
             <Grid container spacing={2}>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12}>
                 <TextField
                   fullWidth
@@ -287,7 +287,7 @@ export function UserProfile() {
                   placeholder="Enter your current password"
                 />
               </Grid>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
@@ -299,7 +299,7 @@ export function UserProfile() {
                   helperText="Minimum 8 characters"
                 />
               </Grid>
-              {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+              {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth

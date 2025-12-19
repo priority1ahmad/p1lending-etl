@@ -13,7 +13,7 @@ import string
 from typing import Optional, Tuple, List
 from uuid import UUID
 
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.user import User
@@ -67,7 +67,7 @@ class UserService:
         # Shuffle to randomize position of required characters
         secrets.SystemRandom().shuffle(password)
 
-        return ''.join(password)
+        return "".join(password)
 
     @staticmethod
     async def log_user_action(
@@ -77,7 +77,7 @@ class UserService:
         admin_user: User,
         ip_address: Optional[str] = None,
         target_user_id: Optional[UUID] = None,
-        details: Optional[str] = None
+        details: Optional[str] = None,
     ) -> None:
         """
         Log a user management action to the audit table.
@@ -100,7 +100,7 @@ class UserService:
                 email=target_email.lower(),
                 ip_address=ip_address,
                 login_status=action,
-                failure_reason=details or f"Action performed by {admin_user.email}"
+                failure_reason=details or f"Action performed by {admin_user.email}",
             )
             db.add(audit_log)
             await db.flush()  # Don't commit yet - let caller handle transaction
@@ -123,9 +123,7 @@ class UserService:
         total = count_result.scalar() or 0
 
         # Get all users ordered by created_at desc
-        result = await db.execute(
-            select(User).order_by(User.created_at.desc())
-        )
+        result = await db.execute(select(User).order_by(User.created_at.desc()))
         users = list(result.scalars().all())
 
         return users, total
@@ -139,9 +137,7 @@ class UserService:
     @staticmethod
     async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
         """Get a user by their email."""
-        result = await db.execute(
-            select(User).where(User.email == email.lower())
-        )
+        result = await db.execute(select(User).where(User.email == email.lower()))
         return result.scalar_one_or_none()
 
     @staticmethod
@@ -152,7 +148,7 @@ class UserService:
         last_name: Optional[str],
         is_superuser: bool,
         admin_user: User,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
     ) -> Tuple[User, str]:
         """
         Create a new user with an auto-generated temporary password.
@@ -194,7 +190,7 @@ class UserService:
             last_name=last_name,
             full_name=full_name,
             is_active=True,
-            is_superuser=is_superuser
+            is_superuser=is_superuser,
         )
         db.add(user)
         await db.flush()  # Get user ID for audit log
@@ -207,7 +203,7 @@ class UserService:
             admin_user=admin_user,
             ip_address=ip_address,
             target_user_id=user.id,
-            details=f"User created by {admin_user.email}"
+            details=f"User created by {admin_user.email}",
         )
 
         await db.commit()
@@ -218,10 +214,7 @@ class UserService:
 
     @staticmethod
     async def delete_user(
-        db: AsyncSession,
-        user_id: UUID,
-        admin_user: User,
-        ip_address: Optional[str] = None
+        db: AsyncSession, user_id: UUID, admin_user: User, ip_address: Optional[str] = None
     ) -> bool:
         """
         Permanently delete a user (hard delete).
@@ -259,7 +252,7 @@ class UserService:
             admin_user=admin_user,
             ip_address=ip_address,
             target_user_id=None,  # Will be NULL after delete anyway
-            details=f"User deleted by {admin_user.email}"
+            details=f"User deleted by {admin_user.email}",
         )
 
         # Delete the user
@@ -275,7 +268,7 @@ class UserService:
         user_id: UUID,
         new_password: str,
         admin_user: User,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
     ) -> User:
         """
         Reset a user's password (admin sets the new password).
@@ -309,7 +302,7 @@ class UserService:
             admin_user=admin_user,
             ip_address=ip_address,
             target_user_id=user.id,
-            details=f"Password reset by {admin_user.email}"
+            details=f"Password reset by {admin_user.email}",
         )
 
         await db.commit()
@@ -320,9 +313,7 @@ class UserService:
 
     @staticmethod
     async def get_audit_logs(
-        db: AsyncSession,
-        limit: int = 100,
-        offset: int = 0
+        db: AsyncSession, limit: int = 100, offset: int = 0
     ) -> Tuple[List[LoginAuditLog], int]:
         """
         Get audit logs (login events + user management events).

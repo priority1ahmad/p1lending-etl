@@ -32,11 +32,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
 
-    to_encode.update({
-        "exp": expire,
-        "type": "access",
-        "jti": str(uuid.uuid4())  # Add unique token ID for blacklist
-    })
+    to_encode.update(
+        {
+            "exp": expire,
+            "type": "access",
+            "jti": str(uuid.uuid4()),  # Add unique token ID for blacklist
+        }
+    )
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
@@ -45,11 +47,13 @@ def create_refresh_token(data: dict) -> str:
     """Create JWT refresh token with unique JTI for blacklist support"""
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
-    to_encode.update({
-        "exp": expire,
-        "type": "refresh",
-        "jti": str(uuid.uuid4())  # Add unique token ID for blacklist
-    })
+    to_encode.update(
+        {
+            "exp": expire,
+            "type": "refresh",
+            "jti": str(uuid.uuid4()),  # Add unique token ID for blacklist
+        }
+    )
     encoded_jwt = jwt.encode(to_encode, settings.secret_key, algorithm=settings.algorithm)
     return encoded_jwt
 
@@ -71,4 +75,3 @@ def decode_token(token: str) -> Optional[dict]:
     except Exception as e:
         etl_logger.warning(f"Unexpected error during token decode: {type(e).__name__}: {str(e)}")
         return None
-

@@ -117,7 +117,9 @@ async def process_file(
         # Determine rows to upload based on skip_validation_errors flag
         if process_request.skip_validation_errors:
             # Remove rows with errors
-            error_row_indices = [err["row"] - 2 for err in validation_errors]  # -2 to adjust for header
+            error_row_indices = [
+                err["row"] - 2 for err in validation_errors
+            ]  # -2 to adjust for header
             rows_to_upload = normalized_df.drop(error_row_indices, errors="ignore")
             rows_uploaded = len(rows_to_upload)
             rows_skipped = error_rows
@@ -170,7 +172,9 @@ async def process_file(
             "job_id": None,  # No ETL job created yet
             "rows_uploaded": rows_uploaded,
             "rows_skipped": rows_skipped,
-            "validation_errors": validation_errors[:10] if validation_errors else None,  # First 10 errors
+            "validation_errors": (
+                validation_errors[:10] if validation_errors else None
+            ),  # First 10 errors
             "message": f"File processed successfully. {rows_uploaded} rows ready for ETL.",
         }
 

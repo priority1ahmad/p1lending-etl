@@ -56,8 +56,10 @@ async def delete_user_by_email(email: str, confirm: bool = True) -> bool:
 
         # Confirm deletion
         if confirm:
-            confirmation = input("⚠️  Are you sure you want to DELETE this user? (yes/no): ").strip().lower()
-            if confirmation != 'yes':
+            confirmation = (
+                input("⚠️  Are you sure you want to DELETE this user? (yes/no): ").strip().lower()
+            )
+            if confirmation != "yes":
                 print("❌ Deletion cancelled")
                 return False
 
@@ -104,8 +106,10 @@ async def delete_user_by_id(user_id: str, confirm: bool = True) -> bool:
 
         # Confirm deletion
         if confirm:
-            confirmation = input("⚠️  Are you sure you want to DELETE this user? (yes/no): ").strip().lower()
-            if confirmation != 'yes':
+            confirmation = (
+                input("⚠️  Are you sure you want to DELETE this user? (yes/no): ").strip().lower()
+            )
+            if confirmation != "yes":
                 print("❌ Deletion cancelled")
                 return False
 
@@ -149,7 +153,7 @@ async def interactive_delete_user():
     while True:
         try:
             selection = input("Select user number to delete (or 'q' to quit): ").strip()
-            if selection.lower() == 'q':
+            if selection.lower() == "q":
                 print("❌ Deletion cancelled")
                 return False
 
@@ -177,7 +181,7 @@ async def interactive_delete_user():
 
     # Confirm deletion
     confirmation = input("⚠️  Type 'DELETE' in capital letters to confirm: ").strip()
-    if confirmation != 'DELETE':
+    if confirmation != "DELETE":
         print("❌ Deletion cancelled")
         return False
 

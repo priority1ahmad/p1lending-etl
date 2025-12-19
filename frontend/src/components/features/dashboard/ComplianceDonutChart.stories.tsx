@@ -162,7 +162,7 @@ export const InDashboardLayout: Story = {
         Compliance Analytics
       </Typography>
       <Grid container spacing={3}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} md={6}>
           <ComplianceDonutChart
             title="Overall Compliance"
@@ -170,7 +170,7 @@ export const InDashboardLayout: Story = {
             data={highComplianceData}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} md={6}>
           <ComplianceDonutChart
             title="This Month"
@@ -191,7 +191,7 @@ export const MultipleCharts: Story = {
         Compliance Comparison
       </Typography>
       <Grid container spacing={2}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <ComplianceDonutChart
             title="Perfect"
@@ -200,7 +200,7 @@ export const MultipleCharts: Story = {
             size={200}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <ComplianceDonutChart
             title="High"
@@ -209,7 +209,7 @@ export const MultipleCharts: Story = {
             size={200}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <ComplianceDonutChart
             title="Low"

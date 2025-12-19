@@ -18,12 +18,17 @@ class ResultsCache(Base):
     Each cache entry stores a chunk of data (e.g., 1000 records per entry).
     Only the last 3 runs are cached; older caches are evicted automatically.
     """
+
     __tablename__ = "results_cache"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     table_id = Column(String(255), nullable=False, index=True)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("etl_jobs.id", ondelete="CASCADE"), nullable=False)
-    cache_key = Column(String(255), nullable=False, unique=True, index=True)  # Format: {table_id}_{offset}_{limit}
+    job_id = Column(
+        UUID(as_uuid=True), ForeignKey("etl_jobs.id", ondelete="CASCADE"), nullable=False
+    )
+    cache_key = Column(
+        String(255), nullable=False, unique=True, index=True
+    )  # Format: {table_id}_{offset}_{limit}
     data = Column(JSONB, nullable=False)  # Array of result records
     record_count = Column(Integer, nullable=False)  # Number of records in this chunk
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -43,11 +48,14 @@ class ResultsCacheMetadata(Base):
     Used to quickly determine if a table_id is cached and to manage
     cache eviction (keeping only last 3 runs).
     """
+
     __tablename__ = "results_cache_metadata"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     table_id = Column(String(255), nullable=False, unique=True, index=True)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("etl_jobs.id", ondelete="CASCADE"), nullable=False)
+    job_id = Column(
+        UUID(as_uuid=True), ForeignKey("etl_jobs.id", ondelete="CASCADE"), nullable=False
+    )
     total_records = Column(Integer, nullable=False)
     litigator_count = Column(Integer, default=0, nullable=False)
     cached_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

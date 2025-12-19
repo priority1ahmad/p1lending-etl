@@ -1,4 +1,5 @@
 """SQL utility functions for safe string escaping."""
+
 import json
 import pandas as pd
 from typing import Any

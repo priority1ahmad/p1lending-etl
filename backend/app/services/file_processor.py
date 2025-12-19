@@ -7,14 +7,11 @@ import re
 from typing import Dict, List, Optional, Tuple, Any
 from pathlib import Path
 import logging
-from datetime import datetime
 
 from app.core.schema import (
     STANDARD_SCHEMA,
-    COLUMN_ALIASES,
     normalize_column_name,
     get_standard_column,
-    validate_schema_mapping,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,7 +32,9 @@ class FileProcessor:
         self.file_type = file_type.lower()
         self._df: Optional[pd.DataFrame] = None
 
-    def read_file(self, sheet_name: Optional[str] = None, max_rows: Optional[int] = None) -> pd.DataFrame:
+    def read_file(
+        self, sheet_name: Optional[str] = None, max_rows: Optional[int] = None
+    ) -> pd.DataFrame:
         """
         Read CSV or Excel file into a pandas DataFrame.
 
@@ -216,9 +215,13 @@ class FileProcessor:
                 row_errors.append("Missing all contact methods (phone and email)")
 
             if row_errors:
-                validation_errors.append({"row": int(idx) + 2, "errors": row_errors})  # +2 for header and 0-index
+                validation_errors.append(
+                    {"row": int(idx) + 2, "errors": row_errors}
+                )  # +2 for header and 0-index
 
-        logger.info(f"Normalized {len(normalized_df)} rows with {len(validation_errors)} validation errors")
+        logger.info(
+            f"Normalized {len(normalized_df)} rows with {len(validation_errors)} validation errors"
+        )
         return normalized_df, validation_errors
 
     def get_column_info(self) -> List[Dict[str, Any]]:
@@ -229,7 +232,9 @@ class FileProcessor:
             List of dictionaries with column information
         """
         if self._df is None:
-            raise ValueError("File must be read before getting column info. Call read_file() first.")
+            raise ValueError(
+                "File must be read before getting column info. Call read_file() first."
+            )
 
         column_info = []
         for col in self._df.columns:
@@ -246,7 +251,9 @@ class FileProcessor:
 
         return column_info
 
-    def preview_mapped_data(self, column_mapping: Dict[str, str], num_rows: int = 10) -> Dict[str, Any]:
+    def preview_mapped_data(
+        self, column_mapping: Dict[str, str], num_rows: int = 10
+    ) -> Dict[str, Any]:
         """
         Preview data after applying mapping and normalization.
 

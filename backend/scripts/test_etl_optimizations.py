@@ -17,28 +17,26 @@ import sys
 import os
 import time
 import argparse
-from typing import Dict, List, Tuple
+from typing import Tuple
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.services.etl.engine import ETLEngine
 from app.services.etl.dnc_service import DNCChecker
-from app.services.etl.ccc_service import CCCAPIService
-from app.services.etl.idicore_service import IdiCOREAPIService
 from app.core.concurrency import calculate_optimal_workers
-from app.core.retry import CircuitBreaker, exponential_backoff_retry
+from app.core.retry import CircuitBreaker
 from app.core.config import settings
 
 
 class Colors:
     """ANSI color codes for terminal output"""
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    BOLD = '\033[1m'
-    END = '\033[0m'
+
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    BLUE = "\033[94m"
+    BOLD = "\033[1m"
+    END = "\033[0m"
 
 
 def print_header(text: str):
@@ -64,6 +62,7 @@ def print_metric(name: str, value: str):
 # ============================================
 # Test 1: Dynamic Worker Calculation
 # ============================================
+
 
 def test_worker_calculation() -> Tuple[bool, str]:
     """Test dynamic worker calculation logic"""
@@ -102,21 +101,20 @@ def test_worker_calculation() -> Tuple[bool, str]:
 # Test 2: Circuit Breaker Pattern
 # ============================================
 
+
 def test_circuit_breaker() -> Tuple[bool, str]:
     """Test circuit breaker state transitions"""
     print_header("Test 2: Circuit Breaker Pattern")
 
     import logging
+
     logger = logging.getLogger("test")
 
     all_passed = True
 
     # Create circuit breaker
     cb = CircuitBreaker(
-        failure_threshold=3,
-        recovery_timeout=2.0,
-        success_threshold=2,
-        logger=logger
+        failure_threshold=3, recovery_timeout=2.0, success_threshold=2, logger=logger
     )
 
     # Test initial state
@@ -131,7 +129,7 @@ def test_circuit_breaker() -> Tuple[bool, str]:
     for i in range(3):
         try:
             cb.call(failing_func)
-        except:
+        except Exception:
             pass
 
     passed = cb._state == "OPEN"
@@ -157,7 +155,7 @@ def test_circuit_breaker() -> Tuple[bool, str]:
         cb.call(lambda: "success")
         passed = cb._state == "HALF_OPEN" or cb._state == "CLOSED"
         print_test("Transitions to HALF_OPEN after timeout", passed, f"State: {cb._state}")
-    except:
+    except Exception:
         print_test("Transitions to HALF_OPEN after timeout", False)
         all_passed = False
 
@@ -167,6 +165,7 @@ def test_circuit_breaker() -> Tuple[bool, str]:
 # ============================================
 # Test 3: DNC Batch Query Performance
 # ============================================
+
 
 def test_dnc_batch_query(quick: bool = False) -> Tuple[bool, str]:
     """Test DNC batch query performance"""
@@ -190,12 +189,14 @@ def test_dnc_batch_query(quick: bool = False) -> Tuple[bool, str]:
 
         # Verify results format
         passed = len(results) == len(test_phones)
-        print_test("Returns correct number of results", passed, f"{len(results)}/{len(test_phones)}")
+        print_test(
+            "Returns correct number of results", passed, f"{len(results)}/{len(test_phones)}"
+        )
         all_passed &= passed
 
         # Verify result structure
         if results:
-            passed = all('phone' in r and 'in_dnc_list' in r for r in results)
+            passed = all("phone" in r and "in_dnc_list" in r for r in results)
             print_test("Results have correct structure", passed)
             all_passed &= passed
 
@@ -230,6 +231,7 @@ def test_dnc_batch_query(quick: bool = False) -> Tuple[bool, str]:
 # Test 4: Configuration Validation
 # ============================================
 
+
 def test_configuration() -> Tuple[bool, str]:
     """Test that all new configuration parameters are accessible"""
     print_header("Test 4: Configuration Validation")
@@ -239,12 +241,12 @@ def test_configuration() -> Tuple[bool, str]:
     # Test CCC configuration
     try:
         ccc_params = [
-            ('min_workers', settings.ccc_api.min_workers),
-            ('max_workers', settings.ccc_api.max_workers),
-            ('workers_per_batch', settings.ccc_api.workers_per_batch),
-            ('max_retries', settings.ccc_api.max_retries),
-            ('retry_base_delay', settings.ccc_api.retry_base_delay),
-            ('retry_max_delay', settings.ccc_api.retry_max_delay),
+            ("min_workers", settings.ccc_api.min_workers),
+            ("max_workers", settings.ccc_api.max_workers),
+            ("workers_per_batch", settings.ccc_api.workers_per_batch),
+            ("max_retries", settings.ccc_api.max_retries),
+            ("retry_base_delay", settings.ccc_api.retry_base_delay),
+            ("retry_max_delay", settings.ccc_api.retry_max_delay),
         ]
 
         for param_name, value in ccc_params:
@@ -259,12 +261,12 @@ def test_configuration() -> Tuple[bool, str]:
     # Test idiCORE configuration
     try:
         idicore_params = [
-            ('min_workers', settings.idicore.min_workers),
-            ('max_workers', settings.idicore.max_workers),
-            ('workers_scaling_factor', settings.idicore.workers_scaling_factor),
-            ('max_retries', settings.idicore.max_retries),
-            ('retry_base_delay', settings.idicore.retry_base_delay),
-            ('retry_max_delay', settings.idicore.retry_max_delay),
+            ("min_workers", settings.idicore.min_workers),
+            ("max_workers", settings.idicore.max_workers),
+            ("workers_scaling_factor", settings.idicore.workers_scaling_factor),
+            ("max_retries", settings.idicore.max_retries),
+            ("retry_base_delay", settings.idicore.retry_base_delay),
+            ("retry_max_delay", settings.idicore.retry_max_delay),
         ]
 
         for param_name, value in idicore_params:
@@ -278,14 +280,20 @@ def test_configuration() -> Tuple[bool, str]:
 
     # Test ETL configuration
     try:
-        passed = hasattr(settings.etl, 'use_database_filtering')
-        print_test("ETL: use_database_filtering", passed,
-                  f"Value: {getattr(settings.etl, 'use_database_filtering', 'N/A')}")
+        passed = hasattr(settings.etl, "use_database_filtering")
+        print_test(
+            "ETL: use_database_filtering",
+            passed,
+            f"Value: {getattr(settings.etl, 'use_database_filtering', 'N/A')}",
+        )
         all_passed &= passed
 
-        passed = hasattr(settings.etl, 'dnc_use_batched_query')
-        print_test("ETL: dnc_use_batched_query", passed,
-                  f"Value: {getattr(settings.etl, 'dnc_use_batched_query', 'N/A')}")
+        passed = hasattr(settings.etl, "dnc_use_batched_query")
+        print_test(
+            "ETL: dnc_use_batched_query",
+            passed,
+            f"Value: {getattr(settings.etl, 'dnc_use_batched_query', 'N/A')}",
+        )
         all_passed &= passed
 
     except Exception as e:
@@ -299,15 +307,16 @@ def test_configuration() -> Tuple[bool, str]:
 # Main Test Runner
 # ============================================
 
+
 def main():
     """Run all integration tests"""
-    parser = argparse.ArgumentParser(description='Test ETL Performance Optimizations')
-    parser.add_argument('--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('--quick', action='store_true', help='Skip slow tests')
+    parser = argparse.ArgumentParser(description="Test ETL Performance Optimizations")
+    parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("--quick", action="store_true", help="Skip slow tests")
     args = parser.parse_args()
 
     print(f"\n{Colors.BOLD}ETL Performance Optimization Test Suite{Colors.END}")
-    print(f"Testing optimizations for 4-8x performance improvement\n")
+    print("Testing optimizations for 4-8x performance improvement\n")
 
     results = []
 
@@ -330,10 +339,14 @@ def main():
     print(f"\n{Colors.BOLD}Results: {passed_count}/{total_count} tests passed{Colors.END}")
 
     if passed_count == total_count:
-        print(f"\n{Colors.GREEN}{Colors.BOLD}✓ All tests passed! Optimizations are working correctly.{Colors.END}\n")
+        print(
+            f"\n{Colors.GREEN}{Colors.BOLD}✓ All tests passed! Optimizations are working correctly.{Colors.END}\n"
+        )
         return 0
     else:
-        print(f"\n{Colors.RED}{Colors.BOLD}✗ Some tests failed. Please review the output above.{Colors.END}\n")
+        print(
+            f"\n{Colors.RED}{Colors.BOLD}✗ Some tests failed. Please review the output above.{Colors.END}\n"
+        )
         return 1
 
 

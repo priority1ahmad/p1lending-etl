@@ -2,7 +2,7 @@
 File Source model for CSV/Excel uploads
 """
 
-from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Integer, Enum as SQLEnum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -13,6 +13,7 @@ from app.db.base import Base
 
 class FileSourceStatus(str, enum.Enum):
     """File source processing status"""
+
     UPLOADED = "uploaded"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -21,6 +22,7 @@ class FileSourceStatus(str, enum.Enum):
 
 class FileSource(Base):
     """File Source model - represents an uploaded CSV/Excel file"""
+
     __tablename__ = "file_sources"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -30,7 +32,11 @@ class FileSource(Base):
     file_path = Column(String(500), nullable=False)
     file_size = Column(Integer, nullable=False)
     file_type = Column(String(20), nullable=False)  # 'csv' or 'xlsx'
-    status = Column(SQLEnum(FileSourceStatus, name='filesourcestatus', create_type=False), nullable=False, default=FileSourceStatus.UPLOADED)
+    status = Column(
+        SQLEnum(FileSourceStatus, name="filesourcestatus", create_type=False),
+        nullable=False,
+        default=FileSourceStatus.UPLOADED,
+    )
 
     # Column mapping configuration
     column_mapping = Column(JSONB, nullable=True)  # Maps file columns to standard schema
@@ -39,9 +45,13 @@ class FileSource(Base):
     error_rows = Column(Integer, nullable=True)
 
     # Metadata
-    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    uploaded_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
     processed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships

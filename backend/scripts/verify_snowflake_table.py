@@ -6,7 +6,6 @@ table has been created with the correct schema.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add parent directory to path
@@ -72,8 +71,8 @@ def verify_database_exists():
         result = conn.execute_query(table_check_query)
         if result is not None and not result.empty:
             print("✅ MASTER_PROCESSED_DB table exists")
-            row_count = result.iloc[0]['ROW_COUNT']
-            bytes_size = result.iloc[0]['BYTES']
+            row_count = result.iloc[0]["ROW_COUNT"]
+            bytes_size = result.iloc[0]["BYTES"]
             print(f"   Row Count: {row_count}")
             print(f"   Size: {bytes_size} bytes\n")
         else:
@@ -108,15 +107,30 @@ def verify_database_exists():
 
             # Verify expected columns
             expected_columns = [
-                'record_id', 'job_id', 'job_name', 'processed_at',
-                'first_name', 'last_name', 'address', 'city', 'state', 'zip_code',
-                'phone_1', 'phone_2', 'phone_3',
-                'email_1', 'email_2', 'email_3',
-                'in_litigator_list', 'phone_1_in_dnc', 'phone_2_in_dnc', 'phone_3_in_dnc',
-                'additional_data'
+                "record_id",
+                "job_id",
+                "job_name",
+                "processed_at",
+                "first_name",
+                "last_name",
+                "address",
+                "city",
+                "state",
+                "zip_code",
+                "phone_1",
+                "phone_2",
+                "phone_3",
+                "email_1",
+                "email_2",
+                "email_3",
+                "in_litigator_list",
+                "phone_1_in_dnc",
+                "phone_2_in_dnc",
+                "phone_3_in_dnc",
+                "additional_data",
             ]
 
-            actual_columns = [col.lower() for col in result['COLUMN_NAME'].tolist()]
+            actual_columns = [col.lower() for col in result["COLUMN_NAME"].tolist()]
             missing_columns = [col for col in expected_columns if col.lower() not in actual_columns]
 
             if missing_columns:

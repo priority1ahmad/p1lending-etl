@@ -63,10 +63,9 @@ async def create_initial_users():
             await session.commit()
             print(f"✅ User created: {email}")
             print(f"   Password: {user_data['password']}")
-            print(f"   ⚠️  Please change password after first login!")
+            print("   ⚠️  Please change password after first login!")
             print()
 
 
 if __name__ == "__main__":
     asyncio.run(create_initial_users())
-

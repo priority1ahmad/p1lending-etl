@@ -35,9 +35,9 @@ class PhoneBlacklistService:
         else:
             phone = str(phone)
 
-        digits = re.sub(r'\D', '', phone)
+        digits = re.sub(r"\D", "", phone)
 
-        if len(digits) == 11 and digits.startswith('1'):
+        if len(digits) == 11 and digits.startswith("1"):
             digits = digits[1:]
 
         if len(digits) == 10:
@@ -52,7 +52,7 @@ class PhoneBlacklistService:
         db: AsyncSession,
         source_table_id: Optional[str] = None,
         source_job_id: Optional[str] = None,
-        added_by: Optional[str] = None
+        added_by: Optional[str] = None,
     ) -> int:
         """
         Add multiple phones to the blacklist.
@@ -67,13 +67,17 @@ class PhoneBlacklistService:
                 continue
 
             try:
-                stmt = insert(PhoneBlacklist).values(
-                    phone_number=normalized,
-                    reason=reason,
-                    source_table_id=source_table_id,
-                    source_job_id=source_job_id,
-                    added_by=added_by
-                ).on_conflict_do_nothing(index_elements=['phone_number'])
+                stmt = (
+                    insert(PhoneBlacklist)
+                    .values(
+                        phone_number=normalized,
+                        reason=reason,
+                        source_table_id=source_table_id,
+                        source_job_id=source_job_id,
+                        added_by=added_by,
+                    )
+                    .on_conflict_do_nothing(index_elements=["phone_number"])
+                )
 
                 result = await db.execute(stmt)
                 if result.rowcount > 0:
@@ -94,17 +98,11 @@ class PhoneBlacklistService:
             return False
 
         result = await db.execute(
-            select(PhoneBlacklist.id).where(
-                PhoneBlacklist.phone_number == normalized
-            ).limit(1)
+            select(PhoneBlacklist.id).where(PhoneBlacklist.phone_number == normalized).limit(1)
         )
         return result.scalar() is not None
 
-    async def get_blacklisted_phones(
-        self,
-        phones: List[str],
-        db: AsyncSession
-    ) -> Set[str]:
+    async def get_blacklisted_phones(self, phones: List[str], db: AsyncSession) -> Set[str]:
         """Get set of phones that are blacklisted from the given list."""
         normalized_phones = []
         for phone in phones:
@@ -123,11 +121,7 @@ class PhoneBlacklistService:
 
         return set(row[0] for row in result.fetchall())
 
-    async def filter_blacklisted_phones(
-        self,
-        phones: List[str],
-        db: AsyncSession
-    ) -> List[str]:
+    async def filter_blacklisted_phones(self, phones: List[str], db: AsyncSession) -> List[str]:
         """Filter out blacklisted phones from a list."""
         blacklisted = await self.get_blacklisted_phones(phones, db)
 
@@ -139,15 +133,13 @@ class PhoneBlacklistService:
 
         filtered_count = len(phones) - len(clean_phones)
         if filtered_count > 0:
-            self.logger.info(f"Filtered {filtered_count} blacklisted phones from {len(phones)} total")
+            self.logger.info(
+                f"Filtered {filtered_count} blacklisted phones from {len(phones)} total"
+            )
 
         return clean_phones
 
-    async def remove_from_blacklist(
-        self,
-        phone_numbers: List[str],
-        db: AsyncSession
-    ) -> int:
+    async def remove_from_blacklist(self, phone_numbers: List[str], db: AsyncSession) -> int:
         """Remove phones from the blacklist."""
         normalized_phones = []
         for phone in phone_numbers:
@@ -159,9 +151,7 @@ class PhoneBlacklistService:
             return 0
 
         result = await db.execute(
-            delete(PhoneBlacklist).where(
-                PhoneBlacklist.phone_number.in_(normalized_phones)
-            )
+            delete(PhoneBlacklist).where(PhoneBlacklist.phone_number.in_(normalized_phones))
         )
 
         await db.commit()
@@ -171,16 +161,13 @@ class PhoneBlacklistService:
 
     async def get_blacklist_stats(self, db: AsyncSession) -> Dict[str, Any]:
         """Get statistics about the phone blacklist."""
-        total_result = await db.execute(
-            select(func.count(PhoneBlacklist.id))
-        )
+        total_result = await db.execute(select(func.count(PhoneBlacklist.id)))
         total = total_result.scalar() or 0
 
         reason_result = await db.execute(
-            select(
-                PhoneBlacklist.reason,
-                func.count(PhoneBlacklist.id)
-            ).group_by(PhoneBlacklist.reason)
+            select(PhoneBlacklist.reason, func.count(PhoneBlacklist.id)).group_by(
+                PhoneBlacklist.reason
+            )
         )
         by_reason = {row[0]: row[1] for row in reason_result.fetchall()}
 
@@ -189,15 +176,11 @@ class PhoneBlacklistService:
             "by_reason": by_reason,
             "litigator_count": by_reason.get("litigator", 0),
             "manual_count": by_reason.get("manual", 0),
-            "dnc_count": by_reason.get("dnc", 0)
+            "dnc_count": by_reason.get("dnc", 0),
         }
 
     async def get_blacklist_entries(
-        self,
-        db: AsyncSession,
-        offset: int = 0,
-        limit: int = 100,
-        reason: Optional[str] = None
+        self, db: AsyncSession, offset: int = 0, limit: int = 100, reason: Optional[str] = None
     ) -> Dict[str, Any]:
         """Get paginated blacklist entries."""
         query = select(PhoneBlacklist).order_by(PhoneBlacklist.created_at.desc())
@@ -222,13 +205,13 @@ class PhoneBlacklistService:
                     "phone_number": e.phone_number,
                     "reason": e.reason,
                     "source_table_id": e.source_table_id,
-                    "created_at": e.created_at.isoformat() if e.created_at else None
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
                 }
                 for e in entries
             ],
             "total": total,
             "offset": offset,
-            "limit": limit
+            "limit": limit,
         }
 
 
@@ -248,9 +231,9 @@ class PhoneBlacklistServiceSync:
         else:
             phone = str(phone)
 
-        digits = re.sub(r'\D', '', phone)
+        digits = re.sub(r"\D", "", phone)
 
-        if len(digits) == 11 and digits.startswith('1'):
+        if len(digits) == 11 and digits.startswith("1"):
             digits = digits[1:]
 
         if len(digits) == 10:
@@ -258,11 +241,7 @@ class PhoneBlacklistServiceSync:
 
         return None
 
-    def get_blacklisted_phones_sync(
-        self,
-        phones: List[str],
-        db_session
-    ) -> Set[str]:
+    def get_blacklisted_phones_sync(self, phones: List[str], db_session) -> Set[str]:
         """Synchronous version to get blacklisted phones."""
         from sqlalchemy import select as sync_select
 
@@ -287,9 +266,7 @@ class PhoneBlacklistServiceSync:
         """Load ALL blacklisted phone numbers from database."""
         from sqlalchemy import select as sync_select
 
-        result = db_session.execute(
-            sync_select(PhoneBlacklist.phone_number)
-        )
+        result = db_session.execute(sync_select(PhoneBlacklist.phone_number))
 
         return set(row[0] for row in result.fetchall())
 

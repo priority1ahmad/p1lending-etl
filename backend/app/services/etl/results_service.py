@@ -5,12 +5,9 @@ Manages storage and retrieval of processed ETL results in Snowflake MASTER_PROCE
 """
 
 import uuid
-import json
 from typing import Optional, List, Dict, Any
-from datetime import datetime
 import pandas as pd
 
-from app.core.config import settings
 from app.core.logger import etl_logger
 from app.services.etl.snowflake_service import SnowflakeConnection
 
@@ -153,6 +150,7 @@ class ETLResultsService:
     def _escape_string(self, value: Any) -> str:
         """Escape string value for SQL insertion"""
         from app.core.sql_utils import escape_sql_string
+
         return escape_sql_string(value, return_null=True)
 
     def store_batch_results(
@@ -162,7 +160,7 @@ class ETLResultsService:
         records: pd.DataFrame,
         batch_size: int = 500,
         table_id: Optional[str] = None,
-        table_title: Optional[str] = None
+        table_title: Optional[str] = None,
     ) -> int:
         """
         Store batch of processed records to Snowflake.
@@ -189,7 +187,7 @@ class ETLResultsService:
 
         # Process in batches
         for i in range(0, len(records), batch_size):
-            batch_df = records.iloc[i:i + batch_size]
+            batch_df = records.iloc[i : i + batch_size]
 
             # Build SELECT statements for each row (Snowflake doesn't allow PARSE_JSON in VALUES)
             select_parts = []
@@ -198,92 +196,135 @@ class ETLResultsService:
 
                 # Extract core fields
                 # Lead Information
-                lead_number = self._escape_string(row.get('Lead Number', ''))
-                campaign_date = self._escape_string(row.get('Campaign Date', ''))
-                lead_campaign = self._escape_string(row.get('Lead Campaign', ''))
-                lead_source = self._escape_string(row.get('Lead Source', ''))
-                ref_id = self._escape_string(row.get('Ref ID', ''))
+                lead_number = self._escape_string(row.get("Lead Number", ""))
+                campaign_date = self._escape_string(row.get("Campaign Date", ""))
+                lead_campaign = self._escape_string(row.get("Lead Campaign", ""))
+                lead_source = self._escape_string(row.get("Lead Source", ""))
+                ref_id = self._escape_string(row.get("Ref ID", ""))
 
                 # Person Data
-                first_name = self._escape_string(row.get('First Name', row.get('first_name', '')))
-                last_name = self._escape_string(row.get('Last Name', row.get('last_name', '')))
-                co_borrower = self._escape_string(row.get('Co Borrower Full Name', ''))
-                address = self._escape_string(row.get('Address', row.get('address', '')))
-                city = self._escape_string(row.get('City', row.get('city', '')))
-                state = self._escape_string(row.get('State', row.get('state', '')))
-                zip_code = self._escape_string(row.get('Zip', row.get('zip_code', row.get('Zip Code', ''))))
+                first_name = self._escape_string(row.get("First Name", row.get("first_name", "")))
+                last_name = self._escape_string(row.get("Last Name", row.get("last_name", "")))
+                co_borrower = self._escape_string(row.get("Co Borrower Full Name", ""))
+                address = self._escape_string(row.get("Address", row.get("address", "")))
+                city = self._escape_string(row.get("City", row.get("city", "")))
+                state = self._escape_string(row.get("State", row.get("state", "")))
+                zip_code = self._escape_string(
+                    row.get("Zip", row.get("zip_code", row.get("Zip Code", "")))
+                )
 
                 # Property Data
-                total_units = self._escape_string(row.get('Total Units', ''))
-                owner_occupied = self._escape_string(row.get('Owner Occupied', ''))
-                annual_tax = self._escape_string(row.get('Annual Tax Amount', ''))
-                assessed_value = self._escape_string(row.get('Assessed Value', ''))
-                estimated_value = self._escape_string(row.get('Estimated Value', ''))
+                total_units = self._escape_string(row.get("Total Units", ""))
+                owner_occupied = self._escape_string(row.get("Owner Occupied", ""))
+                annual_tax = self._escape_string(row.get("Annual Tax Amount", ""))
+                assessed_value = self._escape_string(row.get("Assessed Value", ""))
+                estimated_value = self._escape_string(row.get("Estimated Value", ""))
 
                 # Loan Data - First Mortgage
-                ltv = self._escape_string(row.get('LTV', ''))
-                loan_type = self._escape_string(row.get('Loan Type', ''))
-                first_mortgage_type = self._escape_string(row.get('First Mortgage Type', ''))
-                first_mortgage_amt = self._escape_string(row.get('First Mortgage Amount', ''))
-                first_mortgage_bal = self._escape_string(row.get('First Mortgage Balance', ''))
-                term = self._escape_string(row.get('Term', ''))
-                estimated_payment = self._escape_string(row.get('Estimated New Payment', ''))
+                ltv = self._escape_string(row.get("LTV", ""))
+                loan_type = self._escape_string(row.get("Loan Type", ""))
+                first_mortgage_type = self._escape_string(row.get("First Mortgage Type", ""))
+                first_mortgage_amt = self._escape_string(row.get("First Mortgage Amount", ""))
+                first_mortgage_bal = self._escape_string(row.get("First Mortgage Balance", ""))
+                term = self._escape_string(row.get("Term", ""))
+                estimated_payment = self._escape_string(row.get("Estimated New Payment", ""))
 
                 # Loan Data - Second Mortgage
-                second_mortgage_type = self._escape_string(row.get('Second Mortgage Type', ''))
-                second_mortgage_term = self._escape_string(row.get('Second Mortgage Term', ''))
-                second_mortgage_bal = self._escape_string(row.get('Second Mortgage Balance', ''))
-                has_second = self._escape_string(row.get('Has Second Mortgage', ''))
+                second_mortgage_type = self._escape_string(row.get("Second Mortgage Type", ""))
+                second_mortgage_term = self._escape_string(row.get("Second Mortgage Term", ""))
+                second_mortgage_bal = self._escape_string(row.get("Second Mortgage Balance", ""))
+                has_second = self._escape_string(row.get("Has Second Mortgage", ""))
 
                 # Current Loan Details
-                current_rate = self._escape_string(row.get('Current Interest Rate', ''))
-                current_lender = self._escape_string(row.get('Current Lender', ''))
-                arm_index = self._escape_string(row.get('ARM Index Type', ''))
-                origination_date = self._escape_string(row.get('Origination Date', ''))
-                rate_adj_date = self._escape_string(row.get('Rate Adjustment Date', ''))
+                current_rate = self._escape_string(row.get("Current Interest Rate", ""))
+                current_lender = self._escape_string(row.get("Current Lender", ""))
+                arm_index = self._escape_string(row.get("ARM Index Type", ""))
+                origination_date = self._escape_string(row.get("Origination Date", ""))
+                rate_adj_date = self._escape_string(row.get("Rate Adjustment Date", ""))
 
                 # Extract phone fields
-                phone_1 = self._escape_string(row.get('Phone 1', ''))
-                phone_2 = self._escape_string(row.get('Phone 2', ''))
-                phone_3 = self._escape_string(row.get('Phone 3', ''))
+                phone_1 = self._escape_string(row.get("Phone 1", ""))
+                phone_2 = self._escape_string(row.get("Phone 2", ""))
+                phone_3 = self._escape_string(row.get("Phone 3", ""))
 
                 # Extract email fields
-                email_1 = self._escape_string(row.get('Email 1', ''))
-                email_2 = self._escape_string(row.get('Email 2', ''))
-                email_3 = self._escape_string(row.get('Email 3', ''))
+                email_1 = self._escape_string(row.get("Email 1", ""))
+                email_2 = self._escape_string(row.get("Email 2", ""))
+                email_3 = self._escape_string(row.get("Email 3", ""))
 
                 # Extract compliance flags
-                in_litigator = self._escape_string(row.get('In Litigator List', 'No'))
-                phone_1_dnc = self._escape_string(row.get('Phone 1 In DNC List', 'No'))
-                phone_2_dnc = self._escape_string(row.get('Phone 2 In DNC List', 'No'))
-                phone_3_dnc = self._escape_string(row.get('Phone 3 In DNC List', 'No'))
+                in_litigator = self._escape_string(row.get("In Litigator List", "No"))
+                phone_1_dnc = self._escape_string(row.get("Phone 1 In DNC List", "No"))
+                phone_2_dnc = self._escape_string(row.get("Phone 2 In DNC List", "No"))
+                phone_3_dnc = self._escape_string(row.get("Phone 3 In DNC List", "No"))
 
                 # Store additional columns as JSON
                 core_columns = {
-                    'First Name', 'Last Name', 'Address', 'City', 'State', 'Zip', 'Zip Code',
-                    'first_name', 'last_name', 'address', 'city', 'state', 'zip_code',
-                    'Phone 1', 'Phone 2', 'Phone 3', 'Email 1', 'Email 2', 'Email 3',
-                    'In Litigator List', 'Phone 1 In DNC List', 'Phone 2 In DNC List', 'Phone 3 In DNC List',
+                    "First Name",
+                    "Last Name",
+                    "Address",
+                    "City",
+                    "State",
+                    "Zip",
+                    "Zip Code",
+                    "first_name",
+                    "last_name",
+                    "address",
+                    "city",
+                    "state",
+                    "zip_code",
+                    "Phone 1",
+                    "Phone 2",
+                    "Phone 3",
+                    "Email 1",
+                    "Email 2",
+                    "Email 3",
+                    "In Litigator List",
+                    "Phone 1 In DNC List",
+                    "Phone 2 In DNC List",
+                    "Phone 3 In DNC List",
                     # Mortgage fields
-                    'Lead Number', 'Campaign Date', 'Lead Campaign', 'Lead Source', 'Ref ID',
-                    'Co Borrower Full Name',
-                    'Total Units', 'Owner Occupied', 'Annual Tax Amount', 'Assessed Value', 'Estimated Value',
-                    'LTV', 'Loan Type', 'First Mortgage Type', 'First Mortgage Amount', 'First Mortgage Balance',
-                    'Term', 'Estimated New Payment',
-                    'Second Mortgage Type', 'Second Mortgage Term', 'Second Mortgage Balance', 'Has Second Mortgage',
-                    'Current Interest Rate', 'Current Lender', 'ARM Index Type', 'Origination Date',
-                    'Rate Adjustment Date'
+                    "Lead Number",
+                    "Campaign Date",
+                    "Lead Campaign",
+                    "Lead Source",
+                    "Ref ID",
+                    "Co Borrower Full Name",
+                    "Total Units",
+                    "Owner Occupied",
+                    "Annual Tax Amount",
+                    "Assessed Value",
+                    "Estimated Value",
+                    "LTV",
+                    "Loan Type",
+                    "First Mortgage Type",
+                    "First Mortgage Amount",
+                    "First Mortgage Balance",
+                    "Term",
+                    "Estimated New Payment",
+                    "Second Mortgage Type",
+                    "Second Mortgage Term",
+                    "Second Mortgage Balance",
+                    "Has Second Mortgage",
+                    "Current Interest Rate",
+                    "Current Lender",
+                    "ARM Index Type",
+                    "Origination Date",
+                    "Rate Adjustment Date",
                 }
                 additional_data = {}
                 for col in row.index:
                     if col not in core_columns:
                         val = row[col]
                         # Filter out NaN, empty strings, and whitespace-only values
-                        if pd.notna(val) and val != '' and str(val).strip() != '':
-                            additional_data[col] = str(val) if not isinstance(val, (int, float, bool)) else val
+                        if pd.notna(val) and val != "" and str(val).strip() != "":
+                            additional_data[col] = (
+                                str(val) if not isinstance(val, (int, float, bool)) else val
+                            )
 
                 from app.core.sql_utils import escape_json_for_sql
-                additional_json = escape_json_for_sql(additional_data)
+
+                escape_json_for_sql(additional_data)
 
                 # Escape table_id and table_title
                 escaped_table_id = self._escape_string(table_id) if table_id else "NULL"
@@ -326,7 +367,9 @@ class ETLResultsService:
                 result = self.snowflake_conn.execute_query(insert_sql)
                 # Check if query execution failed (returns None on error)
                 if result is None:
-                    self.logger.error(f"Failed to store batch - SQL execution returned None (check Snowflake logs)")
+                    self.logger.error(
+                        "Failed to store batch - SQL execution returned None (check Snowflake logs)"
+                    )
                     continue  # Skip this batch, don't increment total_stored
                 total_stored += len(batch_df)
                 self.logger.info(f"Stored batch of {len(batch_df)} records to MASTER_PROCESSED_DB")
@@ -341,7 +384,7 @@ class ETLResultsService:
         job_name: str = None,
         offset: int = 0,
         limit: int = 100,
-        exclude_litigators: bool = False
+        exclude_litigators: bool = False,
     ) -> Dict[str, Any]:
         """
         Get paginated job results from MASTER_PROCESSED_DB.
@@ -357,7 +400,7 @@ class ETLResultsService:
             Dict with 'records', 'total', 'offset', 'limit'
         """
         if not self._ensure_connection():
-            return {'records': [], 'total': 0, 'offset': offset, 'limit': limit}
+            return {"records": [], "total": 0, "offset": offset, "limit": limit}
 
         # Build WHERE clause
         conditions = []
@@ -377,7 +420,11 @@ class ETLResultsService:
         {where_clause}
         """
         count_result = self.snowflake_conn.execute_query(count_sql)
-        total = int(count_result.iloc[0]['TOTAL']) if count_result is not None and not count_result.empty else 0
+        total = (
+            int(count_result.iloc[0]["TOTAL"])
+            if count_result is not None and not count_result.empty
+            else 0
+        )
 
         # Get paginated records
         query_sql = f"""
@@ -394,16 +441,17 @@ class ETLResultsService:
         records = []
         if result_df is not None and not result_df.empty:
             result_df = self._normalize_columns(result_df)
-            raw_records = result_df.to_dict('records')
+            raw_records = result_df.to_dict("records")
 
             # Expand additional_data JSON into separate columns
             for record in raw_records:
-                additional_data = record.get('additional_data', {})
+                additional_data = record.get("additional_data", {})
 
                 # Parse additional_data if it's a string (JSON)
                 if isinstance(additional_data, str):
                     try:
                         import json
+
                         additional_data = json.loads(additional_data)
                     except Exception as e:
                         self.logger.warning(f"Failed to parse additional_data JSON: {e}")
@@ -419,11 +467,13 @@ class ETLResultsService:
                 records.append(record)
 
         return {
-            'records': records,
-            'total': total,
-            'offset': offset,
-            'limit': limit,
-            'litigator_count': self._get_litigator_count(job_id, job_name) if job_id or job_name else 0
+            "records": records,
+            "total": total,
+            "offset": offset,
+            "limit": limit,
+            "litigator_count": (
+                self._get_litigator_count(job_id, job_name) if job_id or job_name else 0
+            ),
         }
 
     def _get_litigator_count(self, job_id: str = None, job_name: str = None) -> int:
@@ -442,7 +492,7 @@ class ETLResultsService:
         {where_clause}
         """
         result = self.snowflake_conn.execute_query(count_sql)
-        return int(result.iloc[0]['TOTAL']) if result is not None and not result.empty else 0
+        return int(result.iloc[0]["TOTAL"]) if result is not None and not result.empty else 0
 
     def get_jobs_list(self, limit: int = 50) -> List[Dict[str, Any]]:
         """
@@ -471,14 +521,11 @@ class ETLResultsService:
 
         if result_df is not None and not result_df.empty:
             result_df = self._normalize_columns(result_df)
-            return result_df.to_dict('records')
+            return result_df.to_dict("records")
         return []
 
     def export_to_csv(
-        self,
-        job_id: str = None,
-        job_name: str = None,
-        exclude_litigators: bool = False
+        self, job_id: str = None, job_name: str = None, exclude_litigators: bool = False
     ) -> Optional[pd.DataFrame]:
         """
         Export job results to DataFrame for CSV download.
@@ -526,12 +573,13 @@ class ETLResultsService:
         expanded_records = []
         for _, row in result_df.iterrows():
             record = row.to_dict()
-            additional_data = record.get('additional_data', {})
+            additional_data = record.get("additional_data", {})
 
             # Parse additional_data if it's a string
             if isinstance(additional_data, str):
                 try:
                     import json
+
                     additional_data = json.loads(additional_data)
                 except Exception:
                     additional_data = {}
@@ -547,40 +595,69 @@ class ETLResultsService:
 
         # Define Google Sheets column order (exact match)
         google_sheets_columns = [
-            "Lead Number", "Campaign Date", "Lead Campaign", "Lead Source", "Ref ID",
-            "First Name", "Last Name", "Co Borrower Full Name",
-            "Address", "City", "State", "Zip",
-            "Total Units", "Owner Occupied", "Annual Tax Amount", "LTV", "Loan Type",
-            "Assessed Value", "Estimated Value",
-            "First Mortgage Amount", "First Mortgage Balance", "Term",
-            "Second Mortgage Amount", "Has Second Mortgage", "Estimated New Payment",
-            "Second Mortgage Type", "Second Mortgage Term",
-            "Current Interest Rate", "Current Lender", "ARM Index Type",
-            "Origination Date", "First Mortgage Type", "Rate Adjustment Date",
-            "Phone 1", "Phone 2", "Phone 3",
-            "Email 1", "Email 2", "Email 3",
-            "Phone 1 In DNC List", "Phone 2 In DNC List", "Phone 3 In DNC List",
-            "In Litigator List"
+            "Lead Number",
+            "Campaign Date",
+            "Lead Campaign",
+            "Lead Source",
+            "Ref ID",
+            "First Name",
+            "Last Name",
+            "Co Borrower Full Name",
+            "Address",
+            "City",
+            "State",
+            "Zip",
+            "Total Units",
+            "Owner Occupied",
+            "Annual Tax Amount",
+            "LTV",
+            "Loan Type",
+            "Assessed Value",
+            "Estimated Value",
+            "First Mortgage Amount",
+            "First Mortgage Balance",
+            "Term",
+            "Second Mortgage Amount",
+            "Has Second Mortgage",
+            "Estimated New Payment",
+            "Second Mortgage Type",
+            "Second Mortgage Term",
+            "Current Interest Rate",
+            "Current Lender",
+            "ARM Index Type",
+            "Origination Date",
+            "First Mortgage Type",
+            "Rate Adjustment Date",
+            "Phone 1",
+            "Phone 2",
+            "Phone 3",
+            "Email 1",
+            "Email 2",
+            "Email 3",
+            "Phone 1 In DNC List",
+            "Phone 2 In DNC List",
+            "Phone 3 In DNC List",
+            "In Litigator List",
         ]
 
         # Map database columns to Google Sheets format
         column_mapping = {
-            'first_name': 'First Name',
-            'last_name': 'Last Name',
-            'address': 'Address',
-            'city': 'City',
-            'state': 'State',
-            'zip_code': 'Zip',
-            'phone_1': 'Phone 1',
-            'phone_2': 'Phone 2',
-            'phone_3': 'Phone 3',
-            'email_1': 'Email 1',
-            'email_2': 'Email 2',
-            'email_3': 'Email 3',
-            'in_litigator_list': 'In Litigator List',
-            'phone_1_in_dnc': 'Phone 1 In DNC List',
-            'phone_2_in_dnc': 'Phone 2 In DNC List',
-            'phone_3_in_dnc': 'Phone 3 In DNC List',
+            "first_name": "First Name",
+            "last_name": "Last Name",
+            "address": "Address",
+            "city": "City",
+            "state": "State",
+            "zip_code": "Zip",
+            "phone_1": "Phone 1",
+            "phone_2": "Phone 2",
+            "phone_3": "Phone 3",
+            "email_1": "Email 1",
+            "email_2": "Email 2",
+            "email_3": "Email 3",
+            "in_litigator_list": "In Litigator List",
+            "phone_1_in_dnc": "Phone 1 In DNC List",
+            "phone_2_in_dnc": "Phone 2 In DNC List",
+            "phone_3_in_dnc": "Phone 3 In DNC List",
         }
 
         # Rename columns

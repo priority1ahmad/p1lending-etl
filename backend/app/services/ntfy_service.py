@@ -10,7 +10,6 @@ Topics:
 """
 
 import httpx
-import asyncio
 from typing import Optional, List, Dict, Any
 from enum import Enum
 from datetime import datetime
@@ -20,6 +19,7 @@ from app.core.logger import etl_logger
 
 class NtfyPriority(str, Enum):
     """NTFY Priority levels"""
+
     MIN = "1"
     LOW = "2"
     DEFAULT = "3"
@@ -219,11 +219,7 @@ class NtfyEventService:
         row_limit: Optional[int] = None,
     ) -> bool:
         """Notify when a preview is initiated (async)"""
-        message = (
-            f"**Preview Initiated**\n\n"
-            f"Script: {script_name}\n"
-            f"User: {user_email}"
-        )
+        message = f"**Preview Initiated**\n\n" f"Script: {script_name}\n" f"User: {user_email}"
         if row_limit:
             message += f"\nRow Limit: {row_limit}"
 
@@ -244,11 +240,7 @@ class NtfyEventService:
         row_limit: Optional[int] = None,
     ) -> bool:
         """Notify when a preview is initiated (sync for non-async contexts)"""
-        message = (
-            f"**Preview Initiated**\n\n"
-            f"Script: {script_name}\n"
-            f"User: {user_email}"
-        )
+        message = f"**Preview Initiated**\n\n" f"Script: {script_name}\n" f"User: {user_email}"
         if row_limit:
             message += f"\nRow Limit: {row_limit}"
 
@@ -406,11 +398,7 @@ class NtfyEventService:
         context: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Send urgent error alert (sync for Celery)"""
-        message = (
-            f"**ERROR ALERT**\n\n"
-            f"Type: {error_type}\n"
-            f"Message: {error_message[:500]}"
-        )
+        message = f"**ERROR ALERT**\n\n" f"Type: {error_type}\n" f"Message: {error_message[:500]}"
 
         if context:
             message += "\n\n**Context:**"
@@ -432,11 +420,7 @@ class NtfyEventService:
         context: Optional[Dict[str, Any]] = None,
     ) -> bool:
         """Send urgent error alert (async)"""
-        message = (
-            f"**ERROR ALERT**\n\n"
-            f"Type: {error_type}\n"
-            f"Message: {error_message[:500]}"
-        )
+        message = f"**ERROR ALERT**\n\n" f"Type: {error_type}\n" f"Message: {error_message[:500]}"
 
         if context:
             message += "\n\n**Context:**"

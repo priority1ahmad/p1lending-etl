@@ -8,7 +8,7 @@ Run with: pytest tests/test_etl_filtering.py -v
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import pandas as pd
 
 
@@ -20,14 +20,16 @@ class TestDetectAddressColumn:
         from app.services.etl.engine import ETLEngine
 
         # Mock Snowflake connection
-        mock_df = pd.DataFrame({
-            'First Name': ['John'],
-            'Last Name': ['Doe'],
-            'Address': ['123 Main St'],
-            'City': ['Boston']
-        })
+        mock_df = pd.DataFrame(
+            {
+                "First Name": ["John"],
+                "Last Name": ["Doe"],
+                "Address": ["123 Main St"],
+                "City": ["Boston"],
+            }
+        )
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -37,18 +39,20 @@ class TestDetectAddressColumn:
 
             result = engine._detect_address_column("SELECT * FROM test")
 
-            assert result == 'Address'
+            assert result == "Address"
 
     def test_detects_lowercase_address_column(self):
         """Should detect 'address' column (case-insensitive)"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({
-            'first_name': ['John'],
-            'address': ['123 Main St'],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "first_name": ["John"],
+                "address": ["123 Main St"],
+            }
+        )
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -58,18 +62,20 @@ class TestDetectAddressColumn:
 
             result = engine._detect_address_column("SELECT * FROM test")
 
-            assert result == 'address'
+            assert result == "address"
 
     def test_detects_property_address_column(self):
         """Should detect 'PROPERTY_ADDRESS' column"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({
-            'FIRST_NAME': ['John'],
-            'PROPERTY_ADDRESS': ['123 Main St'],
-        })
+        mock_df = pd.DataFrame(
+            {
+                "FIRST_NAME": ["John"],
+                "PROPERTY_ADDRESS": ["123 Main St"],
+            }
+        )
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -79,19 +85,17 @@ class TestDetectAddressColumn:
 
             result = engine._detect_address_column("SELECT * FROM test")
 
-            assert result == 'PROPERTY_ADDRESS'
+            assert result == "PROPERTY_ADDRESS"
 
     def test_raises_exception_when_no_address_column(self):
         """Should raise exception when no address column found"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({
-            'First Name': ['John'],
-            'Last Name': ['Doe'],
-            'City': ['Boston']  # No address column
-        })
+        mock_df = pd.DataFrame(
+            {"First Name": ["John"], "Last Name": ["Doe"], "City": ["Boston"]}  # No address column
+        )
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -110,7 +114,7 @@ class TestDetectAddressColumn:
 
         mock_df = pd.DataFrame()  # Empty DataFrame
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -121,7 +125,10 @@ class TestDetectAddressColumn:
             with pytest.raises(Exception) as exc_info:
                 engine._detect_address_column("SELECT * FROM test")
 
-            assert "no results" in str(exc_info.value).lower() or "cannot detect" in str(exc_info.value).lower()
+            assert (
+                "no results" in str(exc_info.value).lower()
+                or "cannot detect" in str(exc_info.value).lower()
+            )
 
 
 class TestBuildFilteredQuery:
@@ -131,9 +138,9 @@ class TestBuildFilteredQuery:
         """Should build query with NOT EXISTS clause"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -153,9 +160,9 @@ class TestBuildFilteredQuery:
         """Should add LIMIT clause when limit_rows is provided"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -171,9 +178,9 @@ class TestBuildFilteredQuery:
         """Should not add LIMIT clause when limit_rows is None"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -190,9 +197,9 @@ class TestBuildFilteredQuery:
         """Should use the detected address column name in query"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'PROPERTY_ADDRESS': ['123 Main St']})
+        mock_df = pd.DataFrame({"PROPERTY_ADDRESS": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -202,15 +209,15 @@ class TestBuildFilteredQuery:
 
             result = engine._build_filtered_query("SELECT * FROM test")
 
-            assert 'PROPERTY_ADDRESS' in result
+            assert "PROPERTY_ADDRESS" in result
 
     def test_handles_complex_user_sql(self):
         """Should handle complex SQL with JOINs and subqueries"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -239,12 +246,11 @@ class TestFilterUnprocessedRecordsDeprecation:
         """Should log deprecation warning when called"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({
-            'Address': ['123 Main St', '456 Oak Ave'],
-            'Name': ['John', 'Jane']
-        })
+        mock_df = pd.DataFrame(
+            {"Address": ["123 Main St", "456 Oak Ave"], "Name": ["John", "Jane"]}
+        )
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=pd.DataFrame())
@@ -271,9 +277,8 @@ class TestFeatureFlag:
         from app.core.config import settings
 
         # Check if the setting exists (may be in etl or root settings)
-        has_flag = (
-            hasattr(settings, 'use_database_filtering') or
-            (hasattr(settings, 'etl') and hasattr(settings.etl, 'use_database_filtering'))
+        has_flag = hasattr(settings, "use_database_filtering") or (
+            hasattr(settings, "etl") and hasattr(settings.etl, "use_database_filtering")
         )
 
         assert has_flag, "use_database_filtering setting should exist in config"
@@ -282,10 +287,10 @@ class TestFeatureFlag:
         """Feature flag should default to True (optimization enabled)"""
         from app.core.config import settings
 
-        if hasattr(settings, 'use_database_filtering'):
-            assert settings.use_database_filtering == True
-        elif hasattr(settings, 'etl') and hasattr(settings.etl, 'use_database_filtering'):
-            assert settings.etl.use_database_filtering == True
+        if hasattr(settings, "use_database_filtering"):
+            assert settings.use_database_filtering
+        elif hasattr(settings, "etl") and hasattr(settings.etl, "use_database_filtering"):
+            assert settings.etl.use_database_filtering
 
 
 class TestQueryStructure:
@@ -295,9 +300,9 @@ class TestQueryStructure:
         """Should use CTE (Common Table Expression) pattern"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -314,9 +319,9 @@ class TestQueryStructure:
         """Should filter against PERSON_CACHE table"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)
@@ -333,9 +338,9 @@ class TestQueryStructure:
         """Should use UPPER(TRIM()) for address comparison"""
         from app.services.etl.engine import ETLEngine
 
-        mock_df = pd.DataFrame({'Address': ['123 Main St']})
+        mock_df = pd.DataFrame({"Address": ["123 Main St"]})
 
-        with patch.object(ETLEngine, '__init__', lambda x, *args, **kwargs: None):
+        with patch.object(ETLEngine, "__init__", lambda x, *args, **kwargs: None):
             engine = ETLEngine.__new__(ETLEngine)
             engine.snowflake_conn = Mock()
             engine.snowflake_conn.execute_query = Mock(return_value=mock_df)

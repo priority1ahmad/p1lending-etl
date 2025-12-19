@@ -31,7 +31,7 @@ def run_etl_job(
     table_title: Optional[str] = None,
     file_path: Optional[str] = None,
     file_source_id: Optional[str] = None,
-    file_upload_id: Optional[str] = None
+    file_upload_id: Optional[str] = None,
 ):
     """
     Execute ETL job as Celery task (supports both Snowflake and file-based sources)
@@ -50,7 +50,9 @@ def run_etl_job(
     """
     # Initialize stop flag and progress milestone tracker
     job_stop_flags[job_id] = False
-    job_progress_milestones[job_id] = set()  # Track which milestones (20, 40, 60, 80) have been notified
+    job_progress_milestones[job_id] = (
+        set()
+    )  # Track which milestones (20, 40, 60, 80) have been notified
     start_time = time.time()
 
     # Generate table_id if not provided
@@ -59,7 +61,7 @@ def run_etl_job(
         table_id = table_id_service.generate_table_id_sync(
             script_name=script_name,
             row_count=limit_rows or 0,
-            existing_count=0  # Will be calculated properly in async context
+            existing_count=0,  # Will be calculated properly in async context
         )
         etl_logger.info(f"Generated table_id for job {job_id}: {table_id}")
 
@@ -77,16 +79,20 @@ def run_etl_job(
 
     try:
         # Emit job started event
-        emit_job_event(job_id, "job_progress", {
-            "status": "running",
-            "progress": 0,
-            "message": "ETL job started",
-            "current_row": 0,
-            "total_rows": 0,
-            "rows_remaining": 0,
-            "current_batch": 0,
-            "total_batches": 0
-        })
+        emit_job_event(
+            job_id,
+            "job_progress",
+            {
+                "status": "running",
+                "progress": 0,
+                "message": "ETL job started",
+                "current_row": 0,
+                "total_rows": 0,
+                "rows_remaining": 0,
+                "current_batch": 0,
+                "total_batches": 0,
+            },
+        )
 
         # Send NTFY notification for job start
         try:
@@ -94,49 +100,46 @@ def run_etl_job(
                 job_id=job_id,
                 script_name=script_name,
                 user_email="system",  # User email not available in task context
-                row_limit=limit_rows
+                row_limit=limit_rows,
             )
         except Exception as ntfy_error:
             etl_logger.warning(f"Failed to send NTFY job start notification: {ntfy_error}")
-        
+
         # Update job status to RUNNING in database
         try:
             update_job_status(
-                job_id=job_id,
-                status=JobStatus.RUNNING,
-                progress=0,
-                message="ETL job started"
+                job_id=job_id, status=JobStatus.RUNNING, progress=0, message="ETL job started"
             )
         except Exception as db_error:
             etl_logger.warning(f"Failed to update job {job_id} status to RUNNING: {db_error}")
-        
+
         # Create log callback to emit logs via WebSocket
         def log_callback(level: str, message: str):
             """Callback to emit logs via WebSocket"""
-            emit_job_event(job_id, "job_log", {
-                "level": level,
-                "message": message
-            })
-        
+            emit_job_event(job_id, "job_log", {"level": level, "message": message})
+
         # Initialize ETL engine with job_id, log callback, and table_id
         engine = ETLEngine(
-            job_id=job_id,
-            log_callback=log_callback,
-            table_id=table_id,
-            table_title=table_title
+            job_id=job_id, log_callback=log_callback, table_id=table_id, table_title=table_title
         )
-        
+
         # Store row data for row_processed events
-        row_data_cache = {}
 
         # Smart row emission: track if first row has been emitted
         first_row_emitted = False
 
         # Track start time for ETA calculation
-        batch_start_times = {}
 
         # Create progress callback
-        def progress_callback(current_row, total_rows, current_batch, total_batches, percentage, message, row_data=None):
+        def progress_callback(
+            current_row,
+            total_rows,
+            current_batch,
+            total_batches,
+            percentage,
+            message,
+            row_data=None,
+        ):
             """Progress callback that emits events with time estimates"""
             rows_remaining = total_rows - current_row if total_rows > 0 else 0
 
@@ -144,7 +147,9 @@ def run_etl_job(
             elapsed_time = time.time() - start_time
             if current_row > 0 and elapsed_time > 0:
                 rows_per_second = current_row / elapsed_time
-                estimated_remaining_seconds = rows_remaining / rows_per_second if rows_per_second > 0 else 0
+                estimated_remaining_seconds = (
+                    rows_remaining / rows_per_second if rows_per_second > 0 else 0
+                )
 
                 # Format time remaining
                 if estimated_remaining_seconds < 60:
@@ -158,28 +163,36 @@ def run_etl_job(
             else:
                 time_remaining = "Calculating..."
 
-            emit_job_event(job_id, "job_progress", {
-                "status": "running",
-                "progress": percentage,
-                "message": message,
-                "current_row": current_row,
-                "total_rows": total_rows,
-                "rows_remaining": rows_remaining,
-                "current_batch": current_batch,
-                "total_batches": total_batches,
-                "time_remaining": time_remaining,
-                "elapsed_time": int(elapsed_time)
-            })
+            emit_job_event(
+                job_id,
+                "job_progress",
+                {
+                    "status": "running",
+                    "progress": percentage,
+                    "message": message,
+                    "current_row": current_row,
+                    "total_rows": total_rows,
+                    "rows_remaining": rows_remaining,
+                    "current_batch": current_batch,
+                    "total_batches": total_batches,
+                    "time_remaining": time_remaining,
+                    "elapsed_time": int(elapsed_time),
+                },
+            )
 
             # Also emit batch progress event
             if current_batch > 0:
-                emit_job_event(job_id, "batch_progress", {
-                    "current_batch": current_batch,
-                    "total_batches": total_batches,
-                    "batch_start_row": (current_batch - 1) * 200 + 1,
-                    "batch_end_row": min(current_batch * 200, total_rows),
-                    "message": f"Processing batch {current_batch}/{total_batches}"
-                })
+                emit_job_event(
+                    job_id,
+                    "batch_progress",
+                    {
+                        "current_batch": current_batch,
+                        "total_batches": total_batches,
+                        "batch_start_row": (current_batch - 1) * 200 + 1,
+                        "batch_end_row": min(current_batch * 200, total_rows),
+                        "message": f"Processing batch {current_batch}/{total_batches}",
+                    },
+                )
 
             # Smart row emission: first row immediately, then every 5 rows
             if row_data:
@@ -195,17 +208,23 @@ def run_etl_job(
                     should_emit = True
 
                 if should_emit:
-                    emit_job_event(job_id, "row_processed", {
-                        "row_data": row_data,
-                        "row_number": current_row,
-                        "total_rows": total_rows,
-                        "batch": current_batch
-                    })
+                    emit_job_event(
+                        job_id,
+                        "row_processed",
+                        {
+                            "row_data": row_data,
+                            "row_number": current_row,
+                            "total_rows": total_rows,
+                            "batch": current_batch,
+                        },
+                    )
 
             # Send NTFY notification at 20% milestones (20, 40, 60, 80)
             milestones = [20, 40, 60, 80]
             for milestone in milestones:
-                if percentage >= milestone and milestone not in job_progress_milestones.get(job_id, set()):
+                if percentage >= milestone and milestone not in job_progress_milestones.get(
+                    job_id, set()
+                ):
                     job_progress_milestones.setdefault(job_id, set()).add(milestone)
                     try:
                         ntfy_events.notify_job_progress_sync(
@@ -213,11 +232,13 @@ def run_etl_job(
                             progress=milestone,
                             current_row=current_row,
                             total_rows=total_rows,
-                            script_name=script_name
+                            script_name=script_name,
                         )
                     except Exception as ntfy_error:
-                        etl_logger.warning(f"Failed to send NTFY progress notification: {ntfy_error}")
-        
+                        etl_logger.warning(
+                            f"Failed to send NTFY progress notification: {ntfy_error}"
+                        )
+
         # Execute ETL job (either Snowflake-based or file-based)
         if file_path and file_source_id:
             # File-based execution
@@ -228,7 +249,7 @@ def run_etl_job(
                 file_name=script_name,
                 limit_rows=limit_rows,
                 stop_flag=stop_flag,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
             )
         else:
             # Snowflake-based execution
@@ -238,11 +259,11 @@ def run_etl_job(
                 script_name=script_name,
                 limit_rows=limit_rows,
                 stop_flag=stop_flag,
-                progress_callback=progress_callback
+                progress_callback=progress_callback,
             )
-        
+
         # Emit completion event
-        if result.get('success'):
+        if result.get("success"):
             # Update job status to COMPLETED in database
             try:
                 update_job_status(
@@ -250,25 +271,29 @@ def run_etl_job(
                     status=JobStatus.COMPLETED,
                     progress=100,
                     message="ETL job completed successfully",
-                    total_rows_processed=result.get('rows_processed', 0),
-                    litigator_count=result.get('litigator_count', 0),
-                    dnc_count=result.get('dnc_count', 0),
-                    both_count=result.get('both_count', 0),
-                    clean_count=result.get('clean_count', 0)
+                    total_rows_processed=result.get("rows_processed", 0),
+                    litigator_count=result.get("litigator_count", 0),
+                    dnc_count=result.get("dnc_count", 0),
+                    both_count=result.get("both_count", 0),
+                    clean_count=result.get("clean_count", 0),
                 )
             except Exception as db_error:
                 etl_logger.warning(f"Failed to update job {job_id} status to COMPLETED: {db_error}")
-            
-            emit_job_event(job_id, "job_complete", {
-                "status": "completed",
-                "progress": 100,
-                "message": "ETL job completed successfully",
-                "rows_processed": result.get('rows_processed', 0),
-                "litigator_count": result.get('litigator_count', 0),
-                "dnc_count": result.get('dnc_count', 0),
-                "both_count": result.get('both_count', 0),
-                "clean_count": result.get('clean_count', 0),
-            })
+
+            emit_job_event(
+                job_id,
+                "job_complete",
+                {
+                    "status": "completed",
+                    "progress": 100,
+                    "message": "ETL job completed successfully",
+                    "rows_processed": result.get("rows_processed", 0),
+                    "litigator_count": result.get("litigator_count", 0),
+                    "dnc_count": result.get("dnc_count", 0),
+                    "both_count": result.get("both_count", 0),
+                    "clean_count": result.get("clean_count", 0),
+                },
+            )
 
             # Send NTFY notification for job completion
             try:
@@ -276,42 +301,39 @@ def run_etl_job(
                 ntfy_events.notify_job_completed_sync(
                     job_id=job_id,
                     script_name=script_name,
-                    total_rows=result.get('rows_processed', 0),
-                    clean_count=result.get('clean_count', 0),
-                    litigator_count=result.get('litigator_count', 0),
-                    dnc_count=result.get('dnc_count', 0),
+                    total_rows=result.get("rows_processed", 0),
+                    clean_count=result.get("clean_count", 0),
+                    litigator_count=result.get("litigator_count", 0),
+                    dnc_count=result.get("dnc_count", 0),
                     duration_seconds=duration,
-                    both_count=result.get('both_count', 0)
+                    both_count=result.get("both_count", 0),
                 )
             except Exception as ntfy_error:
                 etl_logger.warning(f"Failed to send NTFY job complete notification: {ntfy_error}")
         else:
             # Update job status to FAILED in database
-            error_msg = result.get('error_message', 'Unknown error')
+            error_msg = result.get("error_message", "Unknown error")
             try:
                 update_job_status(
                     job_id=job_id,
                     status=JobStatus.FAILED,
                     error_message=error_msg,
                     progress=0,
-                    message=error_msg
+                    message=error_msg,
                 )
             except Exception as db_error:
                 etl_logger.warning(f"Failed to update job {job_id} status to FAILED: {db_error}")
-            
-            emit_job_event(job_id, "job_error", {
-                "status": "failed",
-                "progress": 0,
-                "message": error_msg,
-                "error": error_msg
-            })
+
+            emit_job_event(
+                job_id,
+                "job_error",
+                {"status": "failed", "progress": 0, "message": error_msg, "error": error_msg},
+            )
 
             # Send NTFY notification for job failure (URGENT)
             try:
                 ntfy_events.notify_job_failed_sync(
-                    job_id=job_id,
-                    script_name=script_name,
-                    error_message=error_msg
+                    job_id=job_id, script_name=script_name, error_message=error_msg
                 )
             except Exception as ntfy_error:
                 etl_logger.warning(f"Failed to send NTFY job failed notification: {ntfy_error}")
@@ -320,9 +342,10 @@ def run_etl_job(
 
     except Exception as e:
         import traceback
+
         error_trace = traceback.format_exc()
         etl_logger.error(f"ETL job {job_id} failed: {e}\n{error_trace}")
-        
+
         # Update job status to FAILED in database
         try:
             update_job_status(
@@ -330,25 +353,27 @@ def run_etl_job(
                 status=JobStatus.FAILED,
                 error_message=str(e),
                 progress=0,
-                message=str(e)
+                message=str(e),
             )
         except Exception as db_error:
             etl_logger.warning(f"Failed to update job {job_id} status to FAILED: {db_error}")
-        
-        emit_job_event(job_id, "job_error", {
-            "status": "failed",
-            "progress": 0,
-            "message": str(e),
-            "error": str(e),
-            "traceback": error_trace
-        })
+
+        emit_job_event(
+            job_id,
+            "job_error",
+            {
+                "status": "failed",
+                "progress": 0,
+                "message": str(e),
+                "error": str(e),
+                "traceback": error_trace,
+            },
+        )
 
         # Send NTFY notification for job failure (URGENT)
         try:
             ntfy_events.notify_job_failed_sync(
-                job_id=job_id,
-                script_name=script_name,
-                error_message=str(e)
+                job_id=job_id, script_name=script_name, error_message=str(e)
             )
         except Exception as ntfy_error:
             etl_logger.warning(f"Failed to send NTFY job failed notification: {ntfy_error}")
@@ -360,6 +385,7 @@ def run_etl_job(
         if file_path:
             try:
                 import os
+
                 if os.path.exists(file_path):
                     os.remove(file_path)
                     etl_logger.info(f"Cleaned up temp file: {file_path}")
@@ -397,10 +423,7 @@ def emit_job_event(job_id: str, event_type: str, data: Dict[str, Any]):
 
         r = redis.from_url(settings.redis_url)
         # Serialize data as JSON
-        message_json = json.dumps({
-            'event_type': event_type,
-            'data': data
-        })
+        message_json = json.dumps({"event_type": event_type, "data": data})
         r.publish(f"job_{job_id}", message_json)
         etl_logger.info(f"Job event: {event_type} for job {job_id}: {data}")
     except Exception as e:
@@ -410,14 +433,13 @@ def emit_job_event(job_id: str, event_type: str, data: Dict[str, Any]):
 def cancel_job(job_id: str):
     """
     Cancel a running ETL job
-    
+
     Args:
         job_id: Job identifier to cancel
     """
     job_stop_flags[job_id] = True
-    emit_job_event(job_id, "job_progress", {
-        "status": "cancelling",
-        "progress": 0,
-        "message": "Job cancellation requested"
-    })
-
+    emit_job_event(
+        job_id,
+        "job_progress",
+        {"status": "cancelling", "progress": 0, "message": "Job cancellation requested"},
+    )

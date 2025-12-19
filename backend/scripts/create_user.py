@@ -25,33 +25,33 @@ async def create_user(
     password: str,
     full_name: str = None,
     is_superuser: bool = False,
-    is_active: bool = True
+    is_active: bool = True,
 ):
     """Create a new user"""
     engine = create_async_engine(settings.database_url, echo=False)
     async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    
+
     async with async_session() as session:
         # Check if user already exists
         result = await session.execute(select(User).where(User.email == email.lower()))
         existing_user = result.scalar_one_or_none()
-        
+
         if existing_user:
             print(f"❌ User with email '{email}' already exists!")
             return False
-        
+
         # Create user
         new_user = User(
             email=email.lower(),
             hashed_password=get_password_hash(password),
             full_name=full_name,
             is_active=is_active,
-            is_superuser=is_superuser
+            is_superuser=is_superuser,
         )
-        
+
         session.add(new_user)
         await session.commit()
-        
+
         print("✅ User created successfully!")
         print(f"   Email: {email.lower()}")
         print(f"   Full Name: {full_name or 'N/A'}")
@@ -59,7 +59,7 @@ async def create_user(
         print(f"   Active: {'Yes' if is_active else 'No'}")
         print(f"   Password: {password}")
         print("\n⚠️  WARNING: Please change the password after first login!")
-        
+
         return True
 
 
@@ -69,14 +69,14 @@ async def interactive_create_user():
     print("Create New User")
     print("=" * 60)
     print()
-    
+
     # Get email
     while True:
         email = input("Email: ").strip()
         if email:
             break
         print("❌ Email is required!")
-    
+
     # Get password
     while True:
         password = input("Password: ").strip()
@@ -84,34 +84,34 @@ async def interactive_create_user():
             if len(password) < 6:
                 print("⚠️  Warning: Password is less than 6 characters")
                 confirm = input("Continue anyway? (y/n): ").strip().lower()
-                if confirm != 'y':
+                if confirm != "y":
                     continue
             break
         print("❌ Password is required!")
-    
+
     # Get full name (optional)
     full_name = input("Full Name (optional): ").strip() or None
-    
+
     # Get superuser status
     is_superuser_input = input("Make this user a superuser? (y/n) [n]: ").strip().lower()
-    is_superuser = is_superuser_input == 'y'
-    
+    is_superuser = is_superuser_input == "y"
+
     # Get active status
     is_active_input = input("Activate this user? (y/n) [y]: ").strip().lower()
-    is_active = is_active_input != 'n'
-    
+    is_active = is_active_input != "n"
+
     print()
     print("Creating user...")
     print()
-    
+
     success = await create_user(
         email=email,
         password=password,
         full_name=full_name,
         is_superuser=is_superuser,
-        is_active=is_active
+        is_active=is_active,
     )
-    
+
     return success
 
 
@@ -122,18 +122,20 @@ def main():
     parser.add_argument("--name", type=str, help="User full name")
     parser.add_argument("--superuser", action="store_true", help="Make user a superuser")
     parser.add_argument("--inactive", action="store_true", help="Create user as inactive")
-    
+
     args = parser.parse_args()
-    
+
     # If email and password provided, use command line mode
     if args.email and args.password:
-        asyncio.run(create_user(
-            email=args.email,
-            password=args.password,
-            full_name=args.name,
-            is_superuser=args.superuser,
-            is_active=not args.inactive
-        ))
+        asyncio.run(
+            create_user(
+                email=args.email,
+                password=args.password,
+                full_name=args.name,
+                is_superuser=args.superuser,
+                is_active=not args.inactive,
+            )
+        )
     else:
         # Otherwise, use interactive mode
         asyncio.run(interactive_create_user())
@@ -141,4 +143,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

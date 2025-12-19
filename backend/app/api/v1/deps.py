@@ -19,25 +19,29 @@ security = HTTPBearer(auto_error=False)
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ) -> User:
     """
     Get current authenticated user from JWT token
     """
     # Check if credentials are provided
     if credentials is None:
-        etl_logger.warning(f"Authentication failed: Missing Authorization header for {request.method} {request.url.path}")
+        etl_logger.warning(
+            f"Authentication failed: Missing Authorization header for {request.method} {request.url.path}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     token = credentials.credentials
     payload = decode_token(token)
 
     if payload is None:
-        etl_logger.warning(f"Authentication failed: Invalid or expired token for {request.method} {request.url.path} (token decode failed)")
+        etl_logger.warning(
+            f"Authentication failed: Invalid or expired token for {request.method} {request.url.path} (token decode failed)"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired authentication token",
@@ -47,55 +51,58 @@ async def get_current_user(
     # Check if token is blacklisted (user logged out)
     jti = payload.get("jti")
     if jti and await token_blacklist.is_blacklisted(jti):
-        etl_logger.warning(f"Authentication failed: Token has been revoked (blacklisted) for {request.method} {request.url.path}")
+        etl_logger.warning(
+            f"Authentication failed: Token has been revoked (blacklisted) for {request.method} {request.url.path}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been revoked",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     user_id: Optional[str] = payload.get("sub")
     if user_id is None:
-        etl_logger.warning(f"Authentication failed: Missing user ID in token payload for {request.method} {request.url.path}")
+        etl_logger.warning(
+            f"Authentication failed: Missing user ID in token payload for {request.method} {request.url.path}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token format: missing user identifier",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    
+
     if user is None:
-        etl_logger.warning(f"Authentication failed: User not found in database (user_id: {user_id}) for {request.method} {request.url.path}")
+        etl_logger.warning(
+            f"Authentication failed: User not found in database (user_id: {user_id}) for {request.method} {request.url.path}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not user.is_active:
-        etl_logger.warning(f"Authentication failed: Inactive user (user_id: {user_id}, email: {user.email}) for {request.method} {request.url.path}")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
+        etl_logger.warning(
+            f"Authentication failed: Inactive user (user_id: {user_id}, email: {user.email}) for {request.method} {request.url.path}"
         )
-    
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="User account is inactive"
+        )
+
     return user
 
 
-async def get_current_active_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
+async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Get current active user (alias for get_current_user)
     """
     return current_user
 
 
-async def require_superuser(
-    current_user: User = Depends(get_current_user)
-) -> User:
+async def require_superuser(current_user: User = Depends(get_current_user)) -> User:
     """
     Require superuser privileges for the endpoint.
 
@@ -105,10 +112,11 @@ async def require_superuser(
     - Administrative actions
     """
     if not current_user.is_superuser:
-        etl_logger.warning(f"Authorization failed: User {current_user.email} attempted superuser action")
+        etl_logger.warning(
+            f"Authorization failed: User {current_user.email} attempted superuser action"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Superuser privileges required for this action"
+            detail="Superuser privileges required for this action",
         )
     return current_user
-

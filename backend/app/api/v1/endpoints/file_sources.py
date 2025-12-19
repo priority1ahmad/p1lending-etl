@@ -7,7 +7,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from uuid import UUID
-import os
 import uuid as uuid_lib
 from pathlib import Path
 import logging
@@ -17,7 +16,6 @@ from app.db.models.file_source import FileSource, FileSourceStatus
 from app.db.models.file_upload import FileUpload
 from app.db.models.user import User
 from app.schemas.file_source import (
-    FileSourceCreate,
     FileSourceUpdate,
     FileSourceResponse,
     FileSourceDetail,
@@ -25,7 +23,6 @@ from app.schemas.file_source import (
     PreviewRequest,
     PreviewResponse,
     ColumnInfoResponse,
-    ColumnInfo,
 )
 from app.api.v1.deps import get_current_user
 from app.services.file_processor import FileProcessor
@@ -51,10 +48,7 @@ async def list_file_sources(
 ):
     """List all file sources with pagination"""
     result = await db.execute(
-        select(FileSource)
-        .order_by(FileSource.created_at.desc())
-        .offset(skip)
-        .limit(limit)
+        select(FileSource).order_by(FileSource.created_at.desc()).offset(skip).limit(limit)
     )
     file_sources = result.scalars().all()
     return file_sources
@@ -78,7 +72,9 @@ async def get_file_source(
 
     # Get upload count
     upload_count_result = await db.execute(
-        select(func.count()).select_from(FileUpload).where(FileUpload.file_source_id == file_source_id)
+        select(func.count())
+        .select_from(FileUpload)
+        .where(FileUpload.file_source_id == file_source_id)
     )
     upload_count = upload_count_result.scalar() or 0
 

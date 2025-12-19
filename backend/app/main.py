@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.logger import etl_logger
 from app.websockets.job_events import socketio_app, start_redis_subscriber
+from app.api.v1.router import api_router
 import asyncio
 from typing import List
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -49,6 +50,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Background task for Redis subscriber
 _redis_task = None
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup/shutdown"""
@@ -71,12 +73,13 @@ async def lifespan(app: FastAPI):
             pass
         etl_logger.info("Redis subscriber task stopped")
 
+
 # Initialize FastAPI app
 app = FastAPI(
     title="P1Lending ETL API",
     description="ETL system for mortgage lead data enrichment",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state and exception handler
@@ -116,8 +119,8 @@ async def validate_host(request: Request, call_next):
             status_code=403,
             content={
                 "detail": "Direct IP access not allowed. Please use the domain name.",
-                "host": host
-            }
+                "host": host,
+            },
         )
 
     return await call_next(request)
@@ -135,20 +138,22 @@ app.add_middleware(
 # Mount Socket.io app
 app.mount("/socket.io", socketio_app)
 
+
 # Health check endpoint
 @app.get("/")
 async def root():
     return {"message": "P1Lending ETL API", "version": "1.0.0"}
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
 
+
 # Include routers
-from app.api.v1.router import api_router
 app.include_router(api_router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 
+    uvicorn.run(app, host="0.0.0.0", port=8000)

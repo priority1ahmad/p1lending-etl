@@ -90,7 +90,7 @@ export function JobStatusCard({
               <Grid container spacing={2}>
                 {job.total_rows !== undefined && (
                   <>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
                     <Grid item xs={12} sm={6} md={3}>
                       <Typography variant="body2" sx={{ color: textColors.secondary, mb: 0.5 }}>
                         Rows Processed
@@ -99,7 +99,7 @@ export function JobStatusCard({
                         {job.current_row || 0} / {job.total_rows}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
                     <Grid item xs={12} sm={6} md={3}>
                       <Typography variant="body2" sx={{ color: textColors.secondary, mb: 0.5 }}>
                         Rows Remaining
@@ -108,7 +108,7 @@ export function JobStatusCard({
                         {job.rows_remaining || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
                     <Grid item xs={12} sm={6} md={3}>
                       <Typography variant="body2" sx={{ color: textColors.secondary, mb: 0.5 }}>
                         Percentage
@@ -117,7 +117,7 @@ export function JobStatusCard({
                         {job.progress}%
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
                     <Grid item xs={12} sm={6} md={3}>
                       <Typography variant="body2" sx={{ color: textColors.secondary, mb: 0.5 }}>
                         Batch

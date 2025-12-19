@@ -12,6 +12,7 @@ from app.db.base import Base
 
 class SQLScript(Base):
     """SQL Script model"""
+
     __tablename__ = "sql_scripts"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -20,7 +21,9 @@ class SQLScript(Base):
     content = Column(Text, nullable=False)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
 
     # Relationships
     creator = relationship("User", foreign_keys=[created_by])
@@ -28,4 +31,3 @@ class SQLScript(Base):
 
     def __repr__(self):
         return f"<SQLScript(id={self.id}, name={self.name})>"
-

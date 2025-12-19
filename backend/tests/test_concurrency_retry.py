@@ -8,7 +8,7 @@ Run with: pytest tests/test_concurrency_retry.py -v
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 import time
 import threading
 import requests
@@ -18,6 +18,7 @@ import requests
 # Tests for concurrency.py
 # ============================================
 
+
 class TestCalculateOptimalWorkers:
     """Tests for calculate_optimal_workers() function"""
 
@@ -26,11 +27,7 @@ class TestCalculateOptimalWorkers:
         from app.core.concurrency import calculate_optimal_workers
 
         result = calculate_optimal_workers(
-            workload_size=50,
-            batch_size=50,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=50, batch_size=50, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         # 50/50 = 1 batch * 1.5 = 1.5, rounded and min-capped to 2
@@ -41,11 +38,7 @@ class TestCalculateOptimalWorkers:
         from app.core.concurrency import calculate_optimal_workers
 
         result = calculate_optimal_workers(
-            workload_size=300,
-            batch_size=50,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=300, batch_size=50, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         # 300/50 = 6 batches * 1.5 = 9 workers
@@ -56,11 +49,7 @@ class TestCalculateOptimalWorkers:
         from app.core.concurrency import calculate_optimal_workers
 
         result = calculate_optimal_workers(
-            workload_size=1200,
-            batch_size=50,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=1200, batch_size=50, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         # 1200/50 = 24 batches * 1.5 = 36, capped at 16
@@ -71,11 +60,7 @@ class TestCalculateOptimalWorkers:
         from app.core.concurrency import calculate_optimal_workers
 
         result = calculate_optimal_workers(
-            workload_size=0,
-            batch_size=50,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=0, batch_size=50, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         assert result == 2
@@ -85,11 +70,7 @@ class TestCalculateOptimalWorkers:
         from app.core.concurrency import calculate_optimal_workers
 
         result = calculate_optimal_workers(
-            workload_size=-100,
-            batch_size=50,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=-100, batch_size=50, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         assert result == 2
@@ -100,11 +81,7 @@ class TestCalculateOptimalWorkers:
 
         # Should not raise ZeroDivisionError
         result = calculate_optimal_workers(
-            workload_size=100,
-            batch_size=0,
-            min_workers=2,
-            max_workers=16,
-            workers_per_batch=1.5
+            workload_size=100, batch_size=0, min_workers=2, max_workers=16, workers_per_batch=1.5
         )
 
         assert result >= 2  # Should return at least min_workers
@@ -118,7 +95,7 @@ class TestCalculateOptimalWorkers:
             batch_size=50,
             min_workers=2,
             max_workers=20,
-            workers_per_batch=2.0  # Higher multiplier
+            workers_per_batch=2.0,  # Higher multiplier
         )
 
         # 200/50 = 4 batches * 2.0 = 8 workers
@@ -133,7 +110,7 @@ class TestCalculateOptimalWorkers:
             batch_size=1,  # Individual API calls
             min_workers=10,
             max_workers=200,
-            workers_per_batch=1.0
+            workers_per_batch=1.0,
         )
 
         # 150/1 = 150 batches * 1.0 = 150 workers
@@ -155,7 +132,7 @@ class TestLogWorkerDecision:
             workload_size=600,
             batch_size=50,
             calculated_workers=12,
-            reason="CCC litigator check"
+            reason="CCC litigator check",
         )
 
         mock_logger.info.assert_called_once()
@@ -177,8 +154,8 @@ class TestThreadingMetrics:
         metrics.log_worker_decision(600, 50, 12, "CCC")
 
         assert len(metrics.decisions) == 1
-        assert metrics.decisions[0]['workload_size'] == 600
-        assert metrics.decisions[0]['workers_chosen'] == 12
+        assert metrics.decisions[0]["workload_size"] == 600
+        assert metrics.decisions[0]["workers_chosen"] == 12
 
     def test_logs_rate_limit_event(self):
         """Should track rate limit events"""
@@ -188,8 +165,8 @@ class TestThreadingMetrics:
         metrics.log_rate_limit_event("CCC", 2, 4.5)
 
         assert len(metrics.rate_limit_events) == 1
-        assert metrics.rate_limit_events[0]['service'] == "CCC"
-        assert metrics.rate_limit_events[0]['delay'] == 4.5
+        assert metrics.rate_limit_events[0]["service"] == "CCC"
+        assert metrics.rate_limit_events[0]["delay"] == 4.5
 
     def test_logs_circuit_breaker_event(self):
         """Should track circuit breaker events"""
@@ -199,7 +176,7 @@ class TestThreadingMetrics:
         metrics.log_circuit_breaker_event("idiCORE", "OPEN", 5)
 
         assert len(metrics.circuit_breaker_events) == 1
-        assert metrics.circuit_breaker_events[0]['state'] == "OPEN"
+        assert metrics.circuit_breaker_events[0]["state"] == "OPEN"
 
     def test_get_summary(self):
         """Should return correct summary"""
@@ -213,14 +190,15 @@ class TestThreadingMetrics:
 
         summary = metrics.get_summary()
 
-        assert summary['total_worker_decisions'] == 2
-        assert summary['rate_limit_hits'] == 1
-        assert summary['circuit_breaker_opens'] == 1
+        assert summary["total_worker_decisions"] == 2
+        assert summary["rate_limit_hits"] == 1
+        assert summary["circuit_breaker_opens"] == 1
 
 
 # ============================================
 # Tests for retry.py
 # ============================================
+
 
 class TestExponentialBackoffRetry:
     """Tests for exponential_backoff_retry decorator"""
@@ -244,9 +222,7 @@ class TestExponentialBackoffRetry:
         call_count = 0
 
         @exponential_backoff_retry(
-            max_retries=3,
-            base_delay=0.01,  # Fast for testing
-            retry_on=(ValueError,)
+            max_retries=3, base_delay=0.01, retry_on=(ValueError,)  # Fast for testing
         )
         def flaky_func():
             nonlocal call_count
@@ -264,11 +240,7 @@ class TestExponentialBackoffRetry:
         """Should raise exception after max retries exceeded"""
         from app.core.retry import exponential_backoff_retry
 
-        @exponential_backoff_retry(
-            max_retries=2,
-            base_delay=0.01,
-            retry_on=(ValueError,)
-        )
+        @exponential_backoff_retry(max_retries=2, base_delay=0.01, retry_on=(ValueError,))
         def always_fails():
             raise ValueError("Always fails")
 
@@ -280,13 +252,12 @@ class TestExponentialBackoffRetry:
         from app.core.retry import exponential_backoff_retry
 
         delays = []
-        original_sleep = time.sleep
 
         def mock_sleep(seconds):
             delays.append(seconds)
             # Don't actually sleep
 
-        with patch('time.sleep', mock_sleep):
+        with patch("time.sleep", mock_sleep):
             call_count = 0
 
             @exponential_backoff_retry(
@@ -294,7 +265,7 @@ class TestExponentialBackoffRetry:
                 base_delay=1.0,
                 max_delay=30.0,
                 jitter=False,  # Disable jitter for predictable testing
-                retry_on=(ValueError,)
+                retry_on=(ValueError,),
             )
             def failing_func():
                 nonlocal call_count
@@ -305,7 +276,7 @@ class TestExponentialBackoffRetry:
 
             try:
                 failing_func()
-            except:
+            except Exception:
                 pass
 
             # Should have delays: 1, 2, 4 (exponential)
@@ -323,20 +294,17 @@ class TestExponentialBackoffRetry:
         def mock_sleep(seconds):
             delays.append(seconds)
 
-        with patch('time.sleep', mock_sleep):
+        with patch("time.sleep", mock_sleep):
+
             @exponential_backoff_retry(
-                max_retries=5,
-                base_delay=10.0,
-                max_delay=15.0,
-                jitter=False,
-                retry_on=(ValueError,)
+                max_retries=5, base_delay=10.0, max_delay=15.0, jitter=False, retry_on=(ValueError,)
             )
             def failing_func():
                 raise ValueError("Fail")
 
             try:
                 failing_func()
-            except:
+            except Exception:
                 pass
 
             # All delays should be <= max_delay
@@ -350,8 +318,7 @@ class TestExponentialBackoffRetry:
         call_count = 0
 
         @exponential_backoff_retry(
-            max_retries=3,
-            retry_on=(ValueError,)  # Only retry on ValueError
+            max_retries=3, retry_on=(ValueError,)  # Only retry on ValueError
         )
         def raises_type_error():
             nonlocal call_count
@@ -380,9 +347,7 @@ class TestRateLimitExceeded:
         mock_error.response = mock_response
 
         @exponential_backoff_retry(
-            max_retries=2,
-            base_delay=0.01,
-            retry_on=(requests.exceptions.HTTPError,)
+            max_retries=2, base_delay=0.01, retry_on=(requests.exceptions.HTTPError,)
         )
         def rate_limited_func():
             raise mock_error
@@ -414,7 +379,7 @@ class TestCircuitBreaker:
         for _ in range(3):
             try:
                 cb.call(failing_func)
-            except:
+            except Exception:
                 pass
 
         assert cb._state == "OPEN"
@@ -434,7 +399,7 @@ class TestCircuitBreaker:
                 cb.call(failing_func)
             except CircuitBreakerOpen:
                 pass
-            except:
+            except Exception:
                 pass
 
         # Next call should be blocked
@@ -445,10 +410,7 @@ class TestCircuitBreaker:
         """Should transition to HALF_OPEN after recovery timeout"""
         from app.core.retry import CircuitBreaker
 
-        cb = CircuitBreaker(
-            failure_threshold=2,
-            recovery_timeout=0.1  # 100ms for fast testing
-        )
+        cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.1)  # 100ms for fast testing
 
         def failing_func():
             raise Exception("Failure")
@@ -457,7 +419,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             try:
                 cb.call(failing_func)
-            except:
+            except Exception:
                 pass
 
         assert cb._state == "OPEN"
@@ -468,7 +430,7 @@ class TestCircuitBreaker:
         # Try a call - should transition to HALF_OPEN
         try:
             cb.call(lambda: "success")
-        except:
+        except Exception:
             pass
 
         # State should be HALF_OPEN or CLOSED (if success)
@@ -478,11 +440,7 @@ class TestCircuitBreaker:
         """Should close after success threshold met in HALF_OPEN"""
         from app.core.retry import CircuitBreaker
 
-        cb = CircuitBreaker(
-            failure_threshold=2,
-            recovery_timeout=0.05,
-            success_threshold=2
-        )
+        cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.05, success_threshold=2)
 
         def failing_func():
             raise Exception("Failure")
@@ -491,7 +449,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             try:
                 cb.call(failing_func)
-            except:
+            except Exception:
                 pass
 
         # Wait for recovery
@@ -507,11 +465,7 @@ class TestCircuitBreaker:
         """Should reopen on failure while in HALF_OPEN"""
         from app.core.retry import CircuitBreaker
 
-        cb = CircuitBreaker(
-            failure_threshold=2,
-            recovery_timeout=0.05,
-            success_threshold=3
-        )
+        cb = CircuitBreaker(failure_threshold=2, recovery_timeout=0.05, success_threshold=3)
 
         def failing_func():
             raise Exception("Failure")
@@ -520,7 +474,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             try:
                 cb.call(failing_func)
-            except:
+            except Exception:
                 pass
 
         # Wait for recovery
@@ -532,7 +486,7 @@ class TestCircuitBreaker:
         # Failure should reopen circuit
         try:
             cb.call(failing_func)
-        except:
+        except Exception:
             pass
 
         assert cb._state == "OPEN"
@@ -550,7 +504,7 @@ class TestCircuitBreaker:
         for _ in range(2):
             try:
                 cb.call(failing_func)
-            except:
+            except Exception:
                 pass
 
         assert cb._failure_count == 2
@@ -572,7 +526,7 @@ class TestCircuitBreaker:
                 try:
                     result = cb.call(lambda: "success")
                     results.append(result)
-                except:
+                except Exception:
                     pass
 
         threads = [threading.Thread(target=thread_func) for _ in range(10)]

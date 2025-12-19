@@ -146,7 +146,7 @@ function ProcessingStatusSection({ item }: { item: PreviewItem }) {
         Processing Status
       </Typography>
       <Grid container spacing={2}>
-        {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+        {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
         <Grid item xs={12} sm={6}>
           <Typography variant="body2" sx={{ color: textColors.secondary }}>
             Already Processed
@@ -155,7 +155,7 @@ function ProcessingStatusSection({ item }: { item: PreviewItem }) {
             {(item.already_processed ?? 0).toLocaleString()}
           </Typography>
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop works at runtime */}
+        {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
         <Grid item xs={12} sm={6}>
           <Typography variant="body2" sx={{ color: textColors.secondary }}>
             New to Process

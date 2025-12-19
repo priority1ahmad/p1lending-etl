@@ -814,7 +814,7 @@ export const Dashboard: React.FC = () => {
                       <Grid container spacing={2}>
                         {currentJob.total_rows !== undefined && (
                           <>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Processed
@@ -823,7 +823,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.current_row || 0} / {currentJob.total_rows}
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Remaining
@@ -832,7 +832,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.rows_remaining || 0}
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Percentage
@@ -841,7 +841,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.progress}%
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Batch
@@ -963,14 +963,14 @@ export const Dashboard: React.FC = () => {
                 </Button>
               </Box>
               <Grid container spacing={2}>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Total Processed
                   </Typography>
                   <Typography variant="h5">{currentJob.total_rows_processed}</Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Litigator Count
@@ -979,7 +979,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.litigator_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     DNC Count
@@ -988,7 +988,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.dnc_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Both Count
@@ -997,7 +997,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.both_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Clean Count
@@ -1460,7 +1460,7 @@ export const Dashboard: React.FC = () => {
                     Processing Status
                   </Typography>
                   <Grid container spacing={2}>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body2" color="text.secondary">
                         Already Processed
@@ -1469,7 +1469,7 @@ export const Dashboard: React.FC = () => {
                         {(item.already_processed ?? 0).toLocaleString()}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body2" color="text.secondary">
                         New to Process
@@ -1498,14 +1498,14 @@ export const Dashboard: React.FC = () => {
                     Statistics
                   </Typography>
                   <Grid container spacing={2}>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Total Processed
                       </Typography>
                       <Typography variant="h5">{currentJob.total_rows_processed || 0}</Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Litigator Count
@@ -1514,7 +1514,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.litigator_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         DNC Count
@@ -1523,7 +1523,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.dnc_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Both Count
@@ -1532,7 +1532,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.both_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Clean Count

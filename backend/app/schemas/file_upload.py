@@ -10,16 +10,19 @@ from uuid import UUID
 
 class FileUploadBase(BaseModel):
     """Base file upload schema"""
+
     file_source_id: UUID
 
 
 class FileUploadCreate(FileUploadBase):
     """File upload creation schema"""
+
     pass
 
 
 class FileUploadResponse(FileUploadBase):
     """File upload response schema"""
+
     id: UUID
     job_id: Optional[UUID] = None
     rows_uploaded: int
@@ -36,6 +39,7 @@ class FileUploadResponse(FileUploadBase):
 
 class ProcessFileRequest(BaseModel):
     """Request schema for processing uploaded file"""
+
     file_source_id: UUID
     column_mapping: Dict[str, str] = Field(..., description="Column mapping to apply")
     row_limit: Optional[int] = Field(None, ge=1, description="Optional limit on rows to process")
@@ -44,6 +48,7 @@ class ProcessFileRequest(BaseModel):
 
 class ProcessFileResponse(BaseModel):
     """Response schema for file processing"""
+
     upload_id: UUID
     job_id: Optional[UUID] = None
     rows_uploaded: int

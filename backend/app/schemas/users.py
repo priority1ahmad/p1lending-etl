@@ -10,6 +10,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 class UserListResponse(BaseModel):
     """Response schema for user list items"""
+
     id: UUID
     email: str
     first_name: Optional[str] = None
@@ -25,12 +26,13 @@ class UserListResponse(BaseModel):
 
 class UserCreateRequest(BaseModel):
     """Request schema for creating a new user"""
+
     email: EmailStr
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
     is_superuser: bool = False
 
-    @field_validator('email')
+    @field_validator("email")
     @classmethod
     def email_lowercase(cls, v: str) -> str:
         return v.lower()
@@ -38,24 +40,27 @@ class UserCreateRequest(BaseModel):
 
 class UserCreateResponse(BaseModel):
     """Response schema for user creation (includes temporary password)"""
+
     user: UserListResponse
     temporary_password: str
 
 
 class PasswordResetRequest(BaseModel):
     """Request schema for admin password reset"""
+
     new_password: str = Field(..., min_length=8)
 
-    @field_validator('new_password')
+    @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
         if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
+            raise ValueError("Password must be at least 8 characters")
         return v
 
 
 class AuditLogResponse(BaseModel):
     """Response schema for audit log entries"""
+
     id: UUID
     user_id: Optional[UUID] = None
     email: str
@@ -70,6 +75,7 @@ class AuditLogResponse(BaseModel):
 
 class AuditLogListResponse(BaseModel):
     """Response schema for paginated audit logs"""
+
     logs: List[AuditLogResponse]
     total: int
     page: int
@@ -78,5 +84,6 @@ class AuditLogListResponse(BaseModel):
 
 class UsersListResponse(BaseModel):
     """Response schema for paginated users list"""
+
     users: List[UserListResponse]
     total: int

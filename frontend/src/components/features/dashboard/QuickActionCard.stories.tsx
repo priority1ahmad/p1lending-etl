@@ -120,7 +120,7 @@ export const QuickActionsGrid: Story = {
         Quick Actions
       </Typography>
       <Grid container spacing={3}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="Start New Job"
@@ -130,7 +130,7 @@ export const QuickActionsGrid: Story = {
             onClick={() => console.log('Start Job')}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="View Results"
@@ -140,7 +140,7 @@ export const QuickActionsGrid: Story = {
             onClick={() => console.log('View Results')}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="Manage Scripts"
@@ -163,7 +163,7 @@ export const TwoColumnLayout: Story = {
         Quick Actions (2-Column)
       </Typography>
       <Grid container spacing={2}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6}>
           <QuickActionCard
             title="Start Job"
@@ -173,7 +173,7 @@ export const TwoColumnLayout: Story = {
             onClick={() => {}}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6}>
           <QuickActionCard
             title="View Data"
@@ -196,7 +196,7 @@ export const ColorVariations: Story = {
         Color Variations
       </Typography>
       <Grid container spacing={2}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="Primary Action"
@@ -206,7 +206,7 @@ export const ColorVariations: Story = {
             onClick={() => {}}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="Accent Action"
@@ -216,7 +216,7 @@ export const ColorVariations: Story = {
             onClick={() => {}}
           />
         </Grid>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
+        {/* @ts-expect-error - MUI v7 Grid item prop */}
         <Grid item xs={12} sm={6} md={4}>
           <QuickActionCard
             title="Success Action"
