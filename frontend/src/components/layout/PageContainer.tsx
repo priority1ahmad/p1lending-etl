@@ -20,10 +20,10 @@ export interface PageContainerProps {
 }
 
 const maxWidthMap = {
-  sm: 640,
-  md: 768,
-  lg: 1024,
-  xl: 1280,
+  sm: '40rem',    // 640px
+  md: '48rem',    // 768px
+  lg: '64rem',    // 1024px
+  xl: '80rem',    // 1280px
   full: '100%',
 };
 
@@ -37,7 +37,7 @@ const Container = styled(Box, {
   width: '100%',
   maxWidth: maxWidthMap[customMaxWidth],
   margin: '0 auto',
-  padding: noPadding ? 0 : '24px',
+  padding: noPadding ? 0 : '1.5rem',
   minHeight: '100%',
   backgroundColor: backgrounds.secondary,
 }));

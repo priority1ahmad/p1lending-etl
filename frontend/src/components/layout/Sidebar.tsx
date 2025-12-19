@@ -63,15 +63,15 @@ const StyledDrawer = styled(Drawer)({
 const BrandSection = styled(Box)({
   display: 'flex',
   alignItems: 'center',
-  gap: 12,
-  padding: '20px 20px',
-  minHeight: 64,
+  gap: '0.75rem',
+  padding: '1.25rem',
+  minHeight: '4rem',
 });
 
 const BrandLogo = styled(Box)({
-  width: 40,
-  height: 40,
-  borderRadius: 8,
+  width: '2.5rem',
+  height: '2.5rem',
+  borderRadius: '0.5rem',
   backgroundColor: palette.accent[500],
   display: 'flex',
   alignItems: 'center',
@@ -88,20 +88,20 @@ const SectionLabel = styled(Typography)({
   color: 'rgba(255, 255, 255, 0.4)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
-  padding: '0 20px',
-  marginBottom: 8,
-  marginTop: 24,
+  padding: '0 1.25rem',
+  marginBottom: '0.5rem',
+  marginTop: '1.5rem',
 });
 
 const NavItemButton = styled(ListItemButton, {
   shouldForwardProp: (prop) => prop !== 'active',
 })<{ active?: boolean }>(({ active }) => ({
-  borderRadius: 8,
-  padding: '10px 12px',
-  marginBottom: 2,
+  borderRadius: '0.5rem',
+  padding: '0.625rem 0.75rem',
+  marginBottom: '0.125rem',
   backgroundColor: active ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-  borderLeft: active ? `3px solid ${palette.accent[500]}` : '3px solid transparent',
-  marginLeft: -3,
+  borderLeft: active ? `0.1875rem solid ${palette.accent[500]}` : '0.1875rem solid transparent',
+  marginLeft: '-0.1875rem',
   '&:hover': {
     backgroundColor: active
       ? 'rgba(59, 130, 246, 0.2)'
@@ -111,19 +111,19 @@ const NavItemButton = styled(ListItemButton, {
 }));
 
 const HealthPanel = styled(Box)({
-  margin: '8px 16px 0',
-  padding: 12,
+  margin: '0.5rem 1rem 0',
+  padding: '0.75rem',
   backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  borderRadius: 8,
-  border: '1px solid rgba(255, 255, 255, 0.06)',
+  borderRadius: '0.5rem',
+  border: '0.0625rem solid rgba(255, 255, 255, 0.06)',
 });
 
 const UserSection = styled(Box)({
-  padding: '16px 20px',
+  padding: '1rem 1.25rem',
   display: 'flex',
   alignItems: 'center',
-  gap: 12,
-  borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+  gap: '0.75rem',
+  borderTop: '0.0625rem solid rgba(255, 255, 255, 0.08)',
 });
 
 // ═══════════════════════════════════════════════════════════════
@@ -239,12 +239,12 @@ export const Sidebar: React.FC = () => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected':
-        return <CheckCircleIcon sx={{ fontSize: 14, color: palette.success[400] }} />;
+        return <CheckCircleIcon sx={{ fontSize: '0.875rem', color: palette.success[400] }} />;
       case 'error':
       case 'disconnected':
-        return <ErrorIcon sx={{ fontSize: 14, color: palette.error[400] }} />;
+        return <ErrorIcon sx={{ fontSize: '0.875rem', color: palette.error[400] }} />;
       default:
-        return <WarningIcon sx={{ fontSize: 14, color: palette.warning[400] }} />;
+        return <WarningIcon sx={{ fontSize: '0.875rem', color: palette.warning[400] }} />;
     }
   };
 
@@ -255,13 +255,13 @@ export const Sidebar: React.FC = () => {
     const total = statuses.length;
 
     return (
-      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
         {Array.from({ length: total }).map((_, i) => (
           <Box
             key={i}
             sx={{
-              width: 5,
-              height: 5,
+              width: '0.3125rem',
+              height: '0.3125rem',
               borderRadius: '50%',
               backgroundColor:
                 i < connected ? palette.success[400] : palette.error[400],
@@ -326,10 +326,10 @@ export const Sidebar: React.FC = () => {
         </Box>
       </BrandSection>
 
-      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)', mx: 2.5 }} />
+      <Divider sx={{ borderColor: 'rgba(255, 255, 255, 0.08)', mx: '1.25rem' }} />
 
       {/* Navigation Items */}
-      <List sx={{ px: 2, py: 1.5, flex: 1 }}>
+      <List sx={{ px: '1rem', py: '0.75rem', flex: 1 }}>
         {navItems.map((item) => (
           <ListItem key={item.path} disablePadding>
             <NavItemButton
@@ -338,7 +338,7 @@ export const Sidebar: React.FC = () => {
             >
               <ListItemIcon
                 sx={{
-                  minWidth: 36,
+                  minWidth: '2.25rem',
                   color: isActive(item.path)
                     ? palette.accent[400]
                     : 'rgba(255, 255, 255, 0.6)',
@@ -372,7 +372,7 @@ export const Sidebar: React.FC = () => {
                 >
                   <ListItemIcon
                     sx={{
-                      minWidth: 36,
+                      minWidth: '2.25rem',
                       color: isActive(item.path)
                         ? palette.accent[400]
                         : 'rgba(255, 255, 255, 0.6)',
@@ -403,7 +403,7 @@ export const Sidebar: React.FC = () => {
             <NavItemButton onClick={() => setHealthExpanded(!healthExpanded)}>
               <ListItemIcon
                 sx={{
-                  minWidth: 36,
+                  minWidth: '2.25rem',
                   color: 'rgba(255, 255, 255, 0.6)',
                 }}
               >
@@ -417,15 +417,15 @@ export const Sidebar: React.FC = () => {
                   color: 'rgba(255, 255, 255, 0.75)',
                 }}
               />
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {healthData && getOverallHealthDots()}
                 {healthExpanded ? (
                   <ExpandLessIcon
-                    sx={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.4)' }}
+                    sx={{ fontSize: '1.125rem', color: 'rgba(255, 255, 255, 0.4)' }}
                   />
                 ) : (
                   <ExpandMoreIcon
-                    sx={{ fontSize: 18, color: 'rgba(255, 255, 255, 0.4)' }}
+                    sx={{ fontSize: '1.125rem', color: 'rgba(255, 255, 255, 0.4)' }}
                   />
                 )}
               </Box>
@@ -436,9 +436,9 @@ export const Sidebar: React.FC = () => {
           <Collapse in={healthExpanded} timeout="auto" unmountOnExit>
             <HealthPanel>
               {healthLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: '1rem' }}>
                   <CircularProgress
-                    size={20}
+                    size="1.25rem"
                     sx={{ color: palette.accent[400] }}
                   />
                 </Box>
@@ -452,7 +452,7 @@ export const Sidebar: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          py: 0.5,
+                          py: '0.25rem',
                         }}
                       >
                         <Typography
@@ -480,9 +480,9 @@ export const Sidebar: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      mt: 1,
-                      pt: 1,
-                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      mt: '0.5rem',
+                      pt: '0.5rem',
+                      borderTop: '0.0625rem solid rgba(255, 255, 255, 0.06)',
                     }}
                   >
                     <Typography
@@ -502,14 +502,14 @@ export const Sidebar: React.FC = () => {
                         size="small"
                         sx={{
                           color: 'rgba(255, 255, 255, 0.35)',
-                          p: 0.5,
+                          p: '0.25rem',
                           '&:hover': {
                             color: 'rgba(255, 255, 255, 0.6)',
                             backgroundColor: 'rgba(255, 255, 255, 0.06)',
                           },
                         }}
                       >
-                        <RefreshIcon sx={{ fontSize: 14 }} />
+                        <RefreshIcon sx={{ fontSize: '0.875rem' }} />
                       </IconButton>
                     </Tooltip>
                   </Box>
@@ -526,8 +526,8 @@ export const Sidebar: React.FC = () => {
           <Avatar
             onClick={() => navigate('/profile')}
             sx={{
-              width: 36,
-              height: 36,
+              width: '2.25rem',
+              height: '2.25rem',
               bgcolor: palette.accent[500],
               fontSize: '0.875rem',
               fontWeight: 600,

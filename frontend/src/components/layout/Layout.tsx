@@ -8,7 +8,6 @@ import type { ReactNode } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Sidebar } from './Sidebar';
-import { SIDEBAR_WIDTH } from './sidebarConstants';
 import { backgrounds } from '../../theme';
 
 interface LayoutProps {
@@ -19,14 +18,13 @@ const MainContent = styled(Box)({
   flexGrow: 1,
   backgroundColor: backgrounds.secondary,
   minHeight: '100vh',
-  marginLeft: SIDEBAR_WIDTH,
   display: 'flex',
   flexDirection: 'column',
 });
 
 const ContentWrapper = styled(Box)({
   flex: 1,
-  padding: 24,
+  padding: '1.5rem',
   width: '100%',
 });
 

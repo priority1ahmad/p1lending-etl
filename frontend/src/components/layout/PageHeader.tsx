@@ -34,36 +34,36 @@ const HeaderContainer = styled(Box, {
 })<{ bordered?: boolean }>(({ bordered }) => ({
   display: 'flex',
   flexDirection: 'column',
-  gap: 8,
-  marginBottom: 24,
-  paddingBottom: bordered ? 20 : 0,
-  borderBottom: bordered ? `1px solid ${borderColors.default}` : 'none',
+  gap: '0.5rem',
+  marginBottom: '1.5rem',
+  paddingBottom: bordered ? '1.25rem' : 0,
+  borderBottom: bordered ? `0.0625rem solid ${borderColors.default}` : 'none',
 }));
 
 const TopRow = styled(Box)({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  gap: 16,
+  gap: '1rem',
   flexWrap: 'wrap',
 });
 
 const TitleSection = styled(Box)({
   display: 'flex',
   flexDirection: 'column',
-  gap: 4,
+  gap: '0.25rem',
 });
 
 const ActionsSection = styled(Box)({
   display: 'flex',
   alignItems: 'center',
-  gap: 8,
+  gap: '0.5rem',
   flexShrink: 0,
 });
 
 const StyledBreadcrumbs = styled(Breadcrumbs)({
   '& .MuiBreadcrumbs-separator': {
-    margin: '0 4px',
+    margin: '0 0.25rem',
   },
   '& .MuiBreadcrumbs-li': {
     fontSize: '0.8125rem',
