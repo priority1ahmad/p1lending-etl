@@ -179,10 +179,11 @@ export function FileSourceEditor() {
         return name.trim().length > 0;
       case 1: // File Upload
         return uploadData !== null && !uploadMutation.isPending;
-      case 2: // Column Mapping
+      case 2: { // Column Mapping
         const requiredFields = ['first_name', 'last_name', 'phone'];
         const mappedTargets = new Set(Object.values(columnMapping));
         return requiredFields.every((field) => mappedTargets.has(field));
+      }
       case 3: // Review
         return true;
       default:

@@ -221,67 +221,68 @@ export const MinimalColumns: Story = {
 /**
  * Interactive demo with state management
  */
-export const Interactive: Story = {
-  render: () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [excludeLitigators, setExcludeLitigators] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-    const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
+const InteractiveRender = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [excludeLitigators, setExcludeLitigators] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
 
-    const handleExport = () => {
-      setIsExporting(true);
-      console.log('Starting export...');
-      setTimeout(() => {
-        setIsExporting(false);
-        alert('Export complete!');
-      }, 2000);
-    };
+  const handleExport = () => {
+    setIsExporting(true);
+    console.log('Starting export...');
+    setTimeout(() => {
+      setIsExporting(false);
+      alert('Export complete!');
+    }, 2000);
+  };
 
-    return (
-      <Box>
-        <ResultsTableToolbar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          excludeLitigators={excludeLitigators}
-          onToggleExclude={setExcludeLitigators}
-          onExport={handleExport}
-          isExporting={isExporting}
-          columnVisibility={columnVisibility}
-          onColumnVisibilityChange={setColumnVisibility}
-        />
+  return (
+    <Box>
+      <ResultsTableToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        excludeLitigators={excludeLitigators}
+        onToggleExclude={setExcludeLitigators}
+        onExport={handleExport}
+        isExporting={isExporting}
+        columnVisibility={columnVisibility}
+        onColumnVisibilityChange={setColumnVisibility}
+      />
 
-        <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            <strong>Current State:</strong>
-          </Typography>
-          <Typography variant="caption" component="pre" sx={{ display: 'block', fontFamily: 'monospace' }}>
-            {JSON.stringify(
-              {
-                searchQuery,
-                excludeLitigators,
-                isExporting,
-                columnVisibility,
-              },
-              null,
-              2
-            )}
-          </Typography>
-        </Box>
+      <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 2 }}>
+        <Typography variant="body2" sx={{ mb: 1 }}>
+          <strong>Current State:</strong>
+        </Typography>
+        <Typography variant="caption" component="pre" sx={{ display: 'block', fontFamily: 'monospace' }}>
+          {JSON.stringify(
+            {
+              searchQuery,
+              excludeLitigators,
+              isExporting,
+              columnVisibility,
+            },
+            null,
+            2
+          )}
+        </Typography>
       </Box>
-    );
-  },
+    </Box>
+  );
+};
+
+export const Interactive: Story = {
+  render: () => <InteractiveRender />,
 };
 
 /**
  * Component in results page context
  */
-export const InResultsPageContext: Story = {
-  render: () => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [excludeLitigators, setExcludeLitigators] = useState(false);
-    const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
+const InResultsPageContextRender = () => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [excludeLitigators, setExcludeLitigators] = useState(false);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultColumnVisibility);
 
-    return (
+  return (
       <Box sx={{ maxWidth: 1400, mx: 'auto', p: 3 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" gutterBottom sx={{ mb: 1, fontWeight: 600 }}>
@@ -318,6 +319,9 @@ export const InResultsPageContext: Story = {
           </Typography>
         </Box>
       </Box>
-    );
-  },
+  );
+};
+
+export const InResultsPageContext: Story = {
+  render: () => <InResultsPageContextRender />,
 };

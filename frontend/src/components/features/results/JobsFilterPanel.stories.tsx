@@ -283,18 +283,17 @@ export const SearchWithClearIcon: Story = {
 /**
  * All sort options demonstration
  */
-export const AllSortOptions: Story = {
-  render: () => {
-    const sortOptions: SortOption[] = [
-      'newest_first',
-      'oldest_first',
-      'most_records',
-      'most_litigators',
-    ];
+const AllSortOptionsRender = () => {
+  const sortOptions: SortOption[] = [
+    'newest_first',
+    'oldest_first',
+    'most_records',
+    'most_litigators',
+  ];
 
-    const [currentSort, setCurrentSort] = useState<SortOption>('newest_first');
+  const [currentSort, setCurrentSort] = useState<SortOption>('newest_first');
 
-    return (
+  return (
       <Box>
         <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
           All Sort Options
@@ -330,8 +329,11 @@ export const AllSortOptions: Story = {
           ))}
         </Paper>
       </Box>
-    );
-  },
+  );
+};
+
+export const AllSortOptions: Story = {
+  render: () => <AllSortOptionsRender />,
 };
 
 /**
