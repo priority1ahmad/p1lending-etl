@@ -31,7 +31,7 @@ class FileUpload(Base):
 
     # Relationships
     file_source = relationship("FileSource", back_populates="uploads")
-    job = relationship("ETLJob")
+    job = relationship("ETLJob", foreign_keys=[job_id])
     user = relationship("User", foreign_keys=[uploaded_by])
 
     def __repr__(self):
