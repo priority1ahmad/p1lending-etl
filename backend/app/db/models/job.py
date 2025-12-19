@@ -118,6 +118,8 @@ class ETLJob(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     job_type = Column(EnumValueType(JobType, 'jobtype'), nullable=False)
     script_id = Column(UUID(as_uuid=True), ForeignKey("sql_scripts.id"), nullable=True)
+    file_source_id = Column(UUID(as_uuid=True), ForeignKey("file_sources.id"), nullable=True)
+    file_upload_id = Column(UUID(as_uuid=True), ForeignKey("file_uploads.id"), nullable=True)
     status = Column(EnumValueType(JobStatus, 'jobstatus'), nullable=False, default=JobStatus.PENDING)
     progress = Column(Integer, default=0, nullable=False)
     message = Column(Text, nullable=True)
@@ -140,6 +142,8 @@ class ETLJob(Base):
 
     # Relationships
     script = relationship("SQLScript", back_populates="jobs")
+    file_source = relationship("FileSource", foreign_keys=[file_source_id])
+    file_upload = relationship("FileUpload", foreign_keys=[file_upload_id])
     logs = relationship("JobLog", back_populates="job", cascade="all, delete-orphan")
     user = relationship("User", foreign_keys=[started_by])
 

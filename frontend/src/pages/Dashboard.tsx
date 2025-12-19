@@ -27,9 +27,11 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Pagination,
 } from '@mui/material';
 import { Grid } from '@mui/material';
-import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear, ExpandMore, ExpandLess } from '@mui/icons-material';
+import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear, ExpandMore, ExpandLess, Assessment } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
@@ -38,6 +40,7 @@ import { io, Socket } from 'socket.io-client';
 
 export const Dashboard: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedScriptId, setSelectedScriptId] = useState<string>('');
   const [rowLimit, setRowLimit] = useState<string>('');
   const [currentJob, setCurrentJob] = useState<ETLJob | null>(null);
@@ -45,6 +48,8 @@ export const Dashboard: React.FC = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<Array<JobPreview>>([]);
   const [previewLoadingMessage, setPreviewLoadingMessage] = useState<string>('Initializing preview...');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const jobsPerPage = 5;
   interface ProcessedRow {
     row_number: number;
     first_name: string;
@@ -108,6 +113,16 @@ export const Dashboard: React.FC = () => {
   
   const jobHistory = jobHistoryResponse?.jobs || [];
   const jobHistoryMessage = jobHistoryResponse?.message;
+
+  // Pagination calculations
+  const totalPages = Math.ceil(jobHistory.length / jobsPerPage);
+  const startIndex = (currentPage - 1) * jobsPerPage;
+  const endIndex = startIndex + jobsPerPage;
+  const paginatedJobs = jobHistory.slice(startIndex, endIndex);
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+  };
 
   useEffect(() => {
     if (latestJob) {
@@ -609,24 +624,25 @@ export const Dashboard: React.FC = () => {
                 </Typography>
               </Box>
             ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Type</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Script</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Status</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Processed</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Litigator</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>DNC</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Both</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Clean</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Started</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
+              <>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Type</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Script</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Status</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Processed</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Litigator</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>DNC</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Both</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Clean</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Started</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
                   <TableBody>
-                    {jobHistory?.map((job) => {
+                    {paginatedJobs?.map((job) => {
                       const script = scripts?.find(s => s.id === job.script_id);
                       const isPreview = job.job_type === 'preview';
                       const formatDate = (dateString?: string) => {
@@ -638,7 +654,7 @@ export const Dashboard: React.FC = () => {
                           minute: '2-digit',
                         });
                       };
-                      
+
                       return (
                         <TableRow key={job.id} hover>
                           <TableCell>
@@ -671,7 +687,7 @@ export const Dashboard: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell sx={{ fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif', color: '#4A5568' }}>
-                            {job.row_limit 
+                            {job.row_limit
                               ? `${job.total_rows_processed?.toLocaleString() || '0'}/${job.row_limit.toLocaleString()}`
                               : job.total_rows_processed?.toLocaleString() || '0'
                             }
@@ -692,30 +708,15 @@ export const Dashboard: React.FC = () => {
                             {formatDate(job.started_at || job.created_at)}
                           </TableCell>
                           <TableCell>
-                            {isPreview && job.status === 'completed' && (
+                            {!isPreview && job.status === 'completed' && (
                               <Button
                                 size="small"
-                                startIcon={<Visibility />}
+                                startIcon={<Assessment />}
                                 onClick={() => {
-                                  // Fetch preview data for this job
-                                  if (job.script_id) {
-                                    setPreviewDialogOpen(true);
-                                    setPreviewLoadingMessage('Loading preview data...');
-                                    previewMutation.mutate(
-                                      { 
-                                        scriptIds: [job.script_id], 
-                                        rowLimit: job.row_limit 
-                                      },
-                                      {
-                                        onSuccess: () => {
-                                          setPreviewLoadingMessage('');
-                                        }
-                                      }
-                                    );
-                                  }
+                                  navigate(`/results?job_id=${job.id}`);
                                 }}
                                 sx={{
-                                  color: '#4A90D9',
+                                  color: '#1E3A5F',
                                   fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
                                   fontWeight: 500,
                                   textTransform: 'none',
@@ -724,7 +725,7 @@ export const Dashboard: React.FC = () => {
                                   },
                                 }}
                               >
-                                View
+                                View Results
                               </Button>
                             )}
                           </TableCell>
@@ -734,6 +735,36 @@ export const Dashboard: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+                {jobHistory.length > jobsPerPage && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={totalPages}
+                      page={currentPage}
+                      onChange={handlePageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                          fontWeight: 600,
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        ml: 3,
+                        alignSelf: 'center',
+                        color: '#718096',
+                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      }}
+                    >
+                      Page {currentPage} of {totalPages} ({jobHistory.length} total jobs)
+                    </Typography>
+                  </Box>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

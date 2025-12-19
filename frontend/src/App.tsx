@@ -14,6 +14,7 @@ import { ETLResults } from './pages/ETLResults';
 import { Rescrub } from './pages/Rescrub';
 import { UserProfile } from './pages/UserProfile';
 import { UserManagement } from './pages/UserManagement';
+// import { FileSourceEditor } from './pages/FileSourceEditor';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,6 +108,18 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              {/* File Sources feature disabled - uncomment to re-enable
+              <Route
+                path="/file-sources"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <FileSourceEditor />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </BrowserRouter>

@@ -24,23 +24,29 @@ def run_etl_job(
     self,
     job_id: str,
     script_id: Optional[str],
-    script_content: str,
-    script_name: str,
+    script_content: Optional[str] = None,
+    script_name: Optional[str] = None,
     limit_rows: Optional[int] = None,
     table_id: Optional[str] = None,
-    table_title: Optional[str] = None
+    table_title: Optional[str] = None,
+    file_path: Optional[str] = None,
+    file_source_id: Optional[str] = None,
+    file_upload_id: Optional[str] = None
 ):
     """
-    Execute ETL job as Celery task
+    Execute ETL job as Celery task (supports both Snowflake and file-based sources)
 
     Args:
         job_id: Unique job identifier
-        script_id: SQL script ID (optional)
-        script_content: SQL script content
-        script_name: SQL script name
+        script_id: SQL script ID (optional, for Snowflake jobs)
+        script_content: SQL script content (optional, for Snowflake jobs)
+        script_name: SQL script name or file name
         limit_rows: Row limit (optional)
         table_id: Optional table ID (generated if not provided)
         table_title: Optional custom title for results
+        file_path: Path to uploaded file (optional, for file-based jobs)
+        file_source_id: FileSource UUID (optional, for file-based jobs)
+        file_upload_id: FileUpload UUID (optional, for file-based jobs)
     """
     # Initialize stop flag and progress milestone tracker
     job_stop_flags[job_id] = False
@@ -126,10 +132,32 @@ def run_etl_job(
         # Smart row emission: track if first row has been emitted
         first_row_emitted = False
 
+        # Track start time for ETA calculation
+        batch_start_times = {}
+
         # Create progress callback
         def progress_callback(current_row, total_rows, current_batch, total_batches, percentage, message, row_data=None):
-            """Progress callback that emits events"""
+            """Progress callback that emits events with time estimates"""
             rows_remaining = total_rows - current_row if total_rows > 0 else 0
+
+            # Calculate time estimates
+            elapsed_time = time.time() - start_time
+            if current_row > 0 and elapsed_time > 0:
+                rows_per_second = current_row / elapsed_time
+                estimated_remaining_seconds = rows_remaining / rows_per_second if rows_per_second > 0 else 0
+
+                # Format time remaining
+                if estimated_remaining_seconds < 60:
+                    time_remaining = f"{int(estimated_remaining_seconds)}s"
+                elif estimated_remaining_seconds < 3600:
+                    time_remaining = f"{int(estimated_remaining_seconds / 60)}m {int(estimated_remaining_seconds % 60)}s"
+                else:
+                    hours = int(estimated_remaining_seconds / 3600)
+                    minutes = int((estimated_remaining_seconds % 3600) / 60)
+                    time_remaining = f"{hours}h {minutes}m"
+            else:
+                time_remaining = "Calculating..."
+
             emit_job_event(job_id, "job_progress", {
                 "status": "running",
                 "progress": percentage,
@@ -138,7 +166,9 @@ def run_etl_job(
                 "total_rows": total_rows,
                 "rows_remaining": rows_remaining,
                 "current_batch": current_batch,
-                "total_batches": total_batches
+                "total_batches": total_batches,
+                "time_remaining": time_remaining,
+                "elapsed_time": int(elapsed_time)
             })
 
             # Also emit batch progress event
@@ -188,14 +218,28 @@ def run_etl_job(
                     except Exception as ntfy_error:
                         etl_logger.warning(f"Failed to send NTFY progress notification: {ntfy_error}")
         
-        # Execute script with progress callback
-        result = engine.execute_single_script(
-            script_content=script_content,
-            script_name=script_name,
-            limit_rows=limit_rows,
-            stop_flag=stop_flag,
-            progress_callback=progress_callback
-        )
+        # Execute ETL job (either Snowflake-based or file-based)
+        if file_path and file_source_id:
+            # File-based execution
+            etl_logger.info(f"Executing file-based ETL job {job_id} with file: {file_path}")
+            result = engine.execute_with_file_source(
+                file_path=file_path,
+                file_source_id=file_source_id,
+                file_name=script_name,
+                limit_rows=limit_rows,
+                stop_flag=stop_flag,
+                progress_callback=progress_callback
+            )
+        else:
+            # Snowflake-based execution
+            etl_logger.info(f"Executing Snowflake-based ETL job {job_id}")
+            result = engine.execute_single_script(
+                script_content=script_content,
+                script_name=script_name,
+                limit_rows=limit_rows,
+                stop_flag=stop_flag,
+                progress_callback=progress_callback
+            )
         
         # Emit completion event
         if result.get('success'):
@@ -312,6 +356,16 @@ def run_etl_job(
         raise
 
     finally:
+        # Clean up temp file if this was a file-based job
+        if file_path:
+            try:
+                import os
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+                    etl_logger.info(f"Cleaned up temp file: {file_path}")
+            except Exception as cleanup_error:
+                etl_logger.warning(f"Failed to clean up temp file {file_path}: {cleanup_error}")
+
         # Clean up stop flag and progress milestone tracker
         if job_id in job_stop_flags:
             del job_stop_flags[job_id]

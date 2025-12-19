@@ -3,7 +3,7 @@
  * Displays recent ETL jobs and preview history in a data table
  */
 
-import { Box, Typography, Chip } from '@mui/material';
+import { Box, Typography, Chip, Pagination } from '@mui/material';
 import {
   Table,
   TableBody,
@@ -12,7 +12,9 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import { History, Visibility } from '@mui/icons-material';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { History, Visibility, Assessment } from '@mui/icons-material';
 import { Card } from '../../ui/Card/Card';
 import { Button } from '../../ui/Button/Button';
 import { StatusBadge } from '../../ui/Badge/StatusBadge';
@@ -80,6 +82,20 @@ export function JobHistoryTable({
   message,
   onViewPreview,
 }: JobHistoryTableProps) {
+  const navigate = useNavigate();
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const jobsPerPage = 5;
+
+  // Pagination calculations
+  const totalPages = Math.ceil(jobs.length / jobsPerPage);
+  const startIndex = (currentPage - 1) * jobsPerPage;
+  const endIndex = startIndex + jobsPerPage;
+  const paginatedJobs = jobs.slice(startIndex, endIndex);
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+  };
+
   const getScriptName = (scriptId?: string) => {
     if (!scriptId) return 'Unknown Script';
     const script = scripts.find((s) => s.id === scriptId);
@@ -152,7 +168,7 @@ export function JobHistoryTable({
               </TableRow>
             </TableHead>
             <TableBody>
-              {jobs.map((job) => {
+              {paginatedJobs.map((job) => {
                 const isPreview = job.job_type === 'preview';
                 const isCompleted = job.status === 'completed';
 
@@ -214,6 +230,18 @@ export function JobHistoryTable({
                           View
                         </Button>
                       )}
+                      {!isPreview && isCompleted && (
+                        <Button
+                          variant="ghost"
+                          size="small"
+                          startIcon={<Assessment />}
+                          onClick={() => navigate(`/results?job_id=${job.id}`)}
+                          sx={{ color: palette.accent[500] }}
+                          aria-label={`View results for ${getScriptName(job.script_id)}`}
+                        >
+                          View Results
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -221,6 +249,47 @@ export function JobHistoryTable({
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {jobs.length > jobsPerPage && (
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            mt: 3,
+            pt: 2,
+            borderTop: `1px solid ${borderColors.default}`,
+          }}
+        >
+          <Pagination
+            count={totalPages}
+            page={currentPage}
+            onChange={handlePageChange}
+            color="primary"
+            showFirstButton
+            showLastButton
+            sx={{
+              '& .MuiPaginationItem-root': {
+                color: textColors.secondary,
+              },
+              '& .Mui-selected': {
+                backgroundColor: `${palette.primary[800]} !important`,
+                color: '#FFFFFF',
+              },
+            }}
+          />
+          <Typography
+            variant="body2"
+            sx={{
+              color: textColors.secondary,
+              fontSize: '0.875rem',
+            }}
+          >
+            Page {currentPage} of {totalPages} ({jobs.length} total jobs)
+          </Typography>
+        </Box>
       )}
     </Card>
   );

@@ -22,6 +22,7 @@ ALLOWED_HOSTS: List[str] = [
     "etl.p1lending.io",
     "localhost",
     "127.0.0.1",
+    "173.255.232.167",  # Development server public IP
 ]
 
 

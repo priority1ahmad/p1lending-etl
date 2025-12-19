@@ -26,9 +26,7 @@ const MainContent = styled(Box)({
 const ContentWrapper = styled(Box)({
   flex: 1,
   padding: 24,
-  maxWidth: 1400,
   width: '100%',
-  margin: '0 auto',
 });
 
 export const Layout = ({ children }: LayoutProps) => {

@@ -454,28 +454,6 @@ class SnowflakeCacheService:
             self.logger.error("Failed to connect to Snowflake")
             raise Exception("Cannot connect to Snowflake")
 
-        # NEW: Create index for optimized filtering
-        self._ensure_address_index()
-
-    def _ensure_address_index(self):
-        """
-        Create index on PERSON_CACHE address for fast NOT EXISTS filtering.
-        Performance improvement: O(n) → O(log n) lookups.
-        """
-        try:
-            index_sql = """
-            CREATE INDEX IF NOT EXISTS idx_person_cache_address_normalized
-            ON PROCESSED_DATA_DB.PUBLIC.PERSON_CACHE (UPPER(TRIM("address")))
-            """
-
-            self.logger.info("Creating index on PERSON_CACHE.address...")
-            self.snowflake_conn.execute_query(index_sql)
-            self.logger.info("✅ Index created/verified: idx_person_cache_address_normalized")
-
-        except Exception as e:
-            # Non-fatal - may already exist or insufficient privileges
-            self.logger.warning(f"Could not create index on PERSON_CACHE: {e}")
-    
     def check_person_in_cache(self, first_name: str, last_name: str, address: str = "", 
                             city: str = "", state: str = "", zip_code: str = "") -> Optional[Dict]:
         """Check if person exists in Snowflake person cache"""

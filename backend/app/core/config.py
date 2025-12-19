@@ -201,7 +201,10 @@ class Settings(BaseSettings):
     
     # Redis
     redis_url: str = Field(default="redis://localhost:6379/0", alias="REDIS_URL")
-    
+
+    # File uploads
+    file_upload_dir: str = Field(default="/tmp/uploads", alias="FILE_UPLOAD_DIR")
+
     # CORS
     cors_origins: List[str] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost:5173"],

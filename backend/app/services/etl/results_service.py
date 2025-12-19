@@ -61,20 +61,57 @@ class ETLResultsService:
             "table_title" VARCHAR,
             "processed_at" TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP(),
 
+            -- Lead Information
+            "lead_number" VARCHAR,
+            "campaign_date" VARCHAR,
+            "lead_campaign" VARCHAR,
+            "lead_source" VARCHAR,
+            "ref_id" VARCHAR,
+
             -- Person Data
             "first_name" VARCHAR,
             "last_name" VARCHAR,
+            "co_borrower_full_name" VARCHAR,
             "address" VARCHAR,
             "city" VARCHAR,
             "state" VARCHAR,
-            "zip_code" VARCHAR,
+            "zip" VARCHAR,
 
-            -- Phone Data
+            -- Property Data
+            "total_units" VARCHAR,
+            "owner_occupied" VARCHAR,
+            "annual_tax_amount" VARCHAR,
+            "assessed_value" VARCHAR,
+            "estimated_value" VARCHAR,
+
+            -- Loan Data - First Mortgage
+            "ltv" VARCHAR,
+            "loan_type" VARCHAR,
+            "first_mortgage_type" VARCHAR,
+            "first_mortgage_amount" VARCHAR,
+            "first_mortgage_balance" VARCHAR,
+            "term" VARCHAR,
+            "estimated_new_payment" VARCHAR,
+
+            -- Loan Data - Second Mortgage
+            "second_mortgage_type" VARCHAR,
+            "second_mortgage_term" VARCHAR,
+            "second_mortgage_balance" VARCHAR,
+            "has_second_mortgage" VARCHAR,
+
+            -- Current Loan Details
+            "current_interest_rate" VARCHAR,
+            "current_lender" VARCHAR,
+            "arm_index_type" VARCHAR,
+            "origination_date" VARCHAR,
+            "rate_adjustment_date" VARCHAR,
+
+            -- Phone Data (enriched via idiCORE)
             "phone_1" VARCHAR,
             "phone_2" VARCHAR,
             "phone_3" VARCHAR,
 
-            -- Email Data
+            -- Email Data (enriched via idiCORE)
             "email_1" VARCHAR,
             "email_2" VARCHAR,
             "email_3" VARCHAR,
@@ -84,9 +121,6 @@ class ETLResultsService:
             "phone_1_in_dnc" VARCHAR DEFAULT 'No',
             "phone_2_in_dnc" VARCHAR DEFAULT 'No',
             "phone_3_in_dnc" VARCHAR DEFAULT 'No',
-
-            -- Additional Data (JSON for flexibility)
-            "additional_data" VARIANT,
 
             PRIMARY KEY ("record_id")
         )
@@ -163,12 +197,50 @@ class ETLResultsService:
                 record_id = str(uuid.uuid4())
 
                 # Extract core fields
+                # Lead Information
+                lead_number = self._escape_string(row.get('Lead Number', ''))
+                campaign_date = self._escape_string(row.get('Campaign Date', ''))
+                lead_campaign = self._escape_string(row.get('Lead Campaign', ''))
+                lead_source = self._escape_string(row.get('Lead Source', ''))
+                ref_id = self._escape_string(row.get('Ref ID', ''))
+
+                # Person Data
                 first_name = self._escape_string(row.get('First Name', row.get('first_name', '')))
                 last_name = self._escape_string(row.get('Last Name', row.get('last_name', '')))
+                co_borrower = self._escape_string(row.get('Co Borrower Full Name', ''))
                 address = self._escape_string(row.get('Address', row.get('address', '')))
                 city = self._escape_string(row.get('City', row.get('city', '')))
                 state = self._escape_string(row.get('State', row.get('state', '')))
                 zip_code = self._escape_string(row.get('Zip', row.get('zip_code', row.get('Zip Code', ''))))
+
+                # Property Data
+                total_units = self._escape_string(row.get('Total Units', ''))
+                owner_occupied = self._escape_string(row.get('Owner Occupied', ''))
+                annual_tax = self._escape_string(row.get('Annual Tax Amount', ''))
+                assessed_value = self._escape_string(row.get('Assessed Value', ''))
+                estimated_value = self._escape_string(row.get('Estimated Value', ''))
+
+                # Loan Data - First Mortgage
+                ltv = self._escape_string(row.get('LTV', ''))
+                loan_type = self._escape_string(row.get('Loan Type', ''))
+                first_mortgage_type = self._escape_string(row.get('First Mortgage Type', ''))
+                first_mortgage_amt = self._escape_string(row.get('First Mortgage Amount', ''))
+                first_mortgage_bal = self._escape_string(row.get('First Mortgage Balance', ''))
+                term = self._escape_string(row.get('Term', ''))
+                estimated_payment = self._escape_string(row.get('Estimated New Payment', ''))
+
+                # Loan Data - Second Mortgage
+                second_mortgage_type = self._escape_string(row.get('Second Mortgage Type', ''))
+                second_mortgage_term = self._escape_string(row.get('Second Mortgage Term', ''))
+                second_mortgage_bal = self._escape_string(row.get('Second Mortgage Balance', ''))
+                has_second = self._escape_string(row.get('Has Second Mortgage', ''))
+
+                # Current Loan Details
+                current_rate = self._escape_string(row.get('Current Interest Rate', ''))
+                current_lender = self._escape_string(row.get('Current Lender', ''))
+                arm_index = self._escape_string(row.get('ARM Index Type', ''))
+                origination_date = self._escape_string(row.get('Origination Date', ''))
+                rate_adj_date = self._escape_string(row.get('Rate Adjustment Date', ''))
 
                 # Extract phone fields
                 phone_1 = self._escape_string(row.get('Phone 1', ''))
@@ -191,7 +263,16 @@ class ETLResultsService:
                     'First Name', 'Last Name', 'Address', 'City', 'State', 'Zip', 'Zip Code',
                     'first_name', 'last_name', 'address', 'city', 'state', 'zip_code',
                     'Phone 1', 'Phone 2', 'Phone 3', 'Email 1', 'Email 2', 'Email 3',
-                    'In Litigator List', 'Phone 1 In DNC List', 'Phone 2 In DNC List', 'Phone 3 In DNC List'
+                    'In Litigator List', 'Phone 1 In DNC List', 'Phone 2 In DNC List', 'Phone 3 In DNC List',
+                    # Mortgage fields
+                    'Lead Number', 'Campaign Date', 'Lead Campaign', 'Lead Source', 'Ref ID',
+                    'Co Borrower Full Name',
+                    'Total Units', 'Owner Occupied', 'Annual Tax Amount', 'Assessed Value', 'Estimated Value',
+                    'LTV', 'Loan Type', 'First Mortgage Type', 'First Mortgage Amount', 'First Mortgage Balance',
+                    'Term', 'Estimated New Payment',
+                    'Second Mortgage Type', 'Second Mortgage Term', 'Second Mortgage Balance', 'Has Second Mortgage',
+                    'Current Interest Rate', 'Current Lender', 'ARM Index Type', 'Origination Date',
+                    'Rate Adjustment Date'
                 }
                 additional_data = {}
                 for col in row.index:
@@ -212,11 +293,15 @@ class ETLResultsService:
                 select_parts.append(
                     f"SELECT '{record_id}', '{job_id}', {self._escape_string(job_name)}, "
                     f"{escaped_table_id}, {escaped_table_title}, CURRENT_TIMESTAMP(), "
-                    f"{first_name}, {last_name}, {address}, {city}, {state}, {zip_code}, "
+                    f"{lead_number}, {campaign_date}, {lead_campaign}, {lead_source}, {ref_id}, "
+                    f"{first_name}, {last_name}, {co_borrower}, {address}, {city}, {state}, {zip_code}, "
+                    f"{total_units}, {owner_occupied}, {annual_tax}, {assessed_value}, {estimated_value}, "
+                    f"{ltv}, {loan_type}, {first_mortgage_type}, {first_mortgage_amt}, {first_mortgage_bal}, {term}, {estimated_payment}, "
+                    f"{second_mortgage_type}, {second_mortgage_term}, {second_mortgage_bal}, {has_second}, "
+                    f"{current_rate}, {current_lender}, {arm_index}, {origination_date}, {rate_adj_date}, "
                     f"{phone_1}, {phone_2}, {phone_3}, "
                     f"{email_1}, {email_2}, {email_3}, "
-                    f"{in_litigator}, {phone_1_dnc}, {phone_2_dnc}, {phone_3_dnc}, "
-                    f"PARSE_JSON('{additional_json}')"
+                    f"{in_litigator}, {phone_1_dnc}, {phone_2_dnc}, {phone_3_dnc}"
                 )
 
             # Build INSERT with UNION ALL of SELECT statements
@@ -225,11 +310,15 @@ class ETLResultsService:
             insert_sql = f"""
             INSERT INTO {self.database}.{self.schema}.{self.table}
             ("record_id", "job_id", "job_name", "table_id", "table_title", "processed_at",
-             "first_name", "last_name", "address", "city", "state", "zip_code",
+             "lead_number", "campaign_date", "lead_campaign", "lead_source", "ref_id",
+             "first_name", "last_name", "co_borrower_full_name", "address", "city", "state", "zip",
+             "total_units", "owner_occupied", "annual_tax_amount", "assessed_value", "estimated_value",
+             "ltv", "loan_type", "first_mortgage_type", "first_mortgage_amount", "first_mortgage_balance", "term", "estimated_new_payment",
+             "second_mortgage_type", "second_mortgage_term", "second_mortgage_balance", "has_second_mortgage",
+             "current_interest_rate", "current_lender", "arm_index_type", "origination_date", "rate_adjustment_date",
              "phone_1", "phone_2", "phone_3",
              "email_1", "email_2", "email_3",
-             "in_litigator_list", "phone_1_in_dnc", "phone_2_in_dnc", "phone_3_in_dnc",
-             "additional_data")
+             "in_litigator_list", "phone_1_in_dnc", "phone_2_in_dnc", "phone_3_in_dnc")
             {union_sql}
             """
 
@@ -305,7 +394,29 @@ class ETLResultsService:
         records = []
         if result_df is not None and not result_df.empty:
             result_df = self._normalize_columns(result_df)
-            records = result_df.to_dict('records')
+            raw_records = result_df.to_dict('records')
+
+            # Expand additional_data JSON into separate columns
+            for record in raw_records:
+                additional_data = record.get('additional_data', {})
+
+                # Parse additional_data if it's a string (JSON)
+                if isinstance(additional_data, str):
+                    try:
+                        import json
+                        additional_data = json.loads(additional_data)
+                    except Exception as e:
+                        self.logger.warning(f"Failed to parse additional_data JSON: {e}")
+                        additional_data = {}
+
+                # Merge additional_data fields into main record
+                if isinstance(additional_data, dict):
+                    for key, value in additional_data.items():
+                        # Only add if not already present
+                        if key not in record:
+                            record[key] = value
+
+                records.append(record)
 
         return {
             'records': records,
@@ -371,6 +482,7 @@ class ETLResultsService:
     ) -> Optional[pd.DataFrame]:
         """
         Export job results to DataFrame for CSV download.
+        Matches Google Sheets column format exactly.
 
         Args:
             job_id: Filter by job ID
@@ -394,32 +506,91 @@ class ETLResultsService:
 
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
 
+        # Get all data including additional_data
         query_sql = f"""
-        SELECT
-            "first_name" as "First Name",
-            "last_name" as "Last Name",
-            "address" as "Address",
-            "city" as "City",
-            "state" as "State",
-            "zip_code" as "Zip",
-            "phone_1" as "Phone 1",
-            "phone_2" as "Phone 2",
-            "phone_3" as "Phone 3",
-            "email_1" as "Email 1",
-            "email_2" as "Email 2",
-            "email_3" as "Email 3",
-            "in_litigator_list" as "In Litigator List",
-            "phone_1_in_dnc" as "Phone 1 In DNC List",
-            "phone_2_in_dnc" as "Phone 2 In DNC List",
-            "phone_3_in_dnc" as "Phone 3 In DNC List",
-            "job_name" as "Job Name",
-            "processed_at" as "Processed At"
+        SELECT *
         FROM {self.database}.{self.schema}.{self.table}
         {where_clause}
         ORDER BY "processed_at" DESC
         """
 
-        return self.snowflake_conn.execute_query(query_sql)
+        result_df = self.snowflake_conn.execute_query(query_sql)
+
+        if result_df is None or result_df.empty:
+            return None
+
+        # Normalize column names to lowercase
+        result_df = self._normalize_columns(result_df)
+
+        # Expand additional_data JSON into separate columns
+        expanded_records = []
+        for _, row in result_df.iterrows():
+            record = row.to_dict()
+            additional_data = record.get('additional_data', {})
+
+            # Parse additional_data if it's a string
+            if isinstance(additional_data, str):
+                try:
+                    import json
+                    additional_data = json.loads(additional_data)
+                except Exception:
+                    additional_data = {}
+
+            # Merge additional_data into record
+            if isinstance(additional_data, dict):
+                record.update(additional_data)
+
+            expanded_records.append(record)
+
+        # Create DataFrame from expanded records
+        expanded_df = pd.DataFrame(expanded_records)
+
+        # Define Google Sheets column order (exact match)
+        google_sheets_columns = [
+            "Lead Number", "Campaign Date", "Lead Campaign", "Lead Source", "Ref ID",
+            "First Name", "Last Name", "Co Borrower Full Name",
+            "Address", "City", "State", "Zip",
+            "Total Units", "Owner Occupied", "Annual Tax Amount", "LTV", "Loan Type",
+            "Assessed Value", "Estimated Value",
+            "First Mortgage Amount", "First Mortgage Balance", "Term",
+            "Second Mortgage Amount", "Has Second Mortgage", "Estimated New Payment",
+            "Second Mortgage Type", "Second Mortgage Term",
+            "Current Interest Rate", "Current Lender", "ARM Index Type",
+            "Origination Date", "First Mortgage Type", "Rate Adjustment Date",
+            "Phone 1", "Phone 2", "Phone 3",
+            "Email 1", "Email 2", "Email 3",
+            "Phone 1 In DNC List", "Phone 2 In DNC List", "Phone 3 In DNC List",
+            "In Litigator List"
+        ]
+
+        # Map database columns to Google Sheets format
+        column_mapping = {
+            'first_name': 'First Name',
+            'last_name': 'Last Name',
+            'address': 'Address',
+            'city': 'City',
+            'state': 'State',
+            'zip_code': 'Zip',
+            'phone_1': 'Phone 1',
+            'phone_2': 'Phone 2',
+            'phone_3': 'Phone 3',
+            'email_1': 'Email 1',
+            'email_2': 'Email 2',
+            'email_3': 'Email 3',
+            'in_litigator_list': 'In Litigator List',
+            'phone_1_in_dnc': 'Phone 1 In DNC List',
+            'phone_2_in_dnc': 'Phone 2 In DNC List',
+            'phone_3_in_dnc': 'Phone 3 In DNC List',
+        }
+
+        # Rename columns
+        expanded_df = expanded_df.rename(columns=column_mapping)
+
+        # Select only Google Sheets columns that exist in the data
+        available_columns = [col for col in google_sheets_columns if col in expanded_df.columns]
+        export_df = expanded_df[available_columns]
+
+        return export_df
 
     def delete_job_results(self, job_id: str) -> bool:
         """Delete all results for a specific job"""

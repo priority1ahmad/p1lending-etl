@@ -807,28 +807,17 @@ class ETLEngine:
                     self.idicore_service.person_cache.save_cache()
                 if hasattr(self.ccc_api, 'phone_cache'):
                     self.ccc_api.phone_cache.save_cache()
-                
-                # Upload this batch to Snowflake MASTER_PROCESSED_DB immediately
-                batch_df = df.iloc[batch_dataframe_indices].copy()
-                self.logger.log_step("Batch Upload", f"Uploading batch {batch_num + 1}/{total_batches} to MASTER_PROCESSED_DB ({len(batch_df)} records)")
-                records_stored = self.results_service.store_batch_results(
-                    job_id=self.logger.job_id or "unknown",
-                    job_name=script_name,
-                    records=batch_df,
-                    table_id=self.table_id,
-                    table_title=self.table_title
-                )
-                if records_stored:
-                    self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} stored in Snowflake: {records_stored} records")
+
+                # Note: Batch results are NOT uploaded here - accumulated for final upload
             
             # Use len(people_data) to reflect actual records processed (not just returned from SQL)
             result['rows_processed'] = len(people_data)
             result['rows_returned'] = len(df)  # Original count from SQL for debugging
             result['rows_filtered'] = len(df) - len(people_data)  # How many dropped in validation
-            
+
             # Calculate statistics
             litigator_count = len(df[df['In Litigator List'] == 'Yes']) if 'In Litigator List' in df.columns else 0
-            
+
             dnc_condition = False
             for dnc_col in dnc_columns:
                 if dnc_col in df.columns:
@@ -836,24 +825,47 @@ class ETLEngine:
                         dnc_condition = (df[dnc_col] == 'Yes')
                     else:
                         dnc_condition = dnc_condition | (df[dnc_col] == 'Yes')
-            
+
             dnc_count = len(df[dnc_condition]) if dnc_condition is not False else 0
             both_condition = (df['In Litigator List'] == 'Yes') & dnc_condition if 'In Litigator List' in df.columns and dnc_condition is not False else False
             both_count = len(df[both_condition]) if both_condition is not False else 0
             filtered_condition = (df['In Litigator List'] == 'Yes') | dnc_condition if 'In Litigator List' in df.columns and dnc_condition is not False else (df['In Litigator List'] == 'Yes' if 'In Litigator List' in df.columns else False)
             filtered_records = len(df[filtered_condition]) if filtered_condition is not False else 0
             clean_count = len(df) - filtered_records
-            
+
             result['litigator_count'] = litigator_count
             result['dnc_count'] = dnc_count
             result['both_count'] = both_count
             result['clean_count'] = clean_count
 
-            # Removed: Using only MASTER_PROCESSED_DB, not UNIQUE_CONSOLIDATED_DATA
-            # self.consolidated_data.append(df)
-
             result['success'] = True
             self.logger.log_step("Statistics", f"Total: {len(df)}, Litigator: {litigator_count}, DNC: {dnc_count}, Both: {both_count}, Clean: {clean_count}")
+
+            # ========== FINAL UPLOAD: Store all results to Snowflake at END of job ==========
+            if progress_callback:
+                progress_callback(
+                    len(people_data), len(people_data), total_batches, total_batches, 95,
+                    "Uploading all results to Snowflake...", None
+                )
+
+            self.logger.log_step("Final Upload", f"Uploading ALL {len(df)} processed records to MASTER_PROCESSED_DB")
+            records_stored = self.results_service.store_batch_results(
+                job_id=self.logger.job_id or "unknown",
+                job_name=script_name,
+                records=df,
+                table_id=self.table_id,
+                table_title=self.table_title
+            )
+
+            if records_stored:
+                self.logger.log_step("Upload Complete", f"Successfully stored {records_stored} records in Snowflake")
+                if progress_callback:
+                    progress_callback(
+                        len(people_data), len(people_data), total_batches, total_batches, 100,
+                        f"Upload complete: {records_stored} records stored", None
+                    )
+            else:
+                self.logger.log_step("Upload Warning", "Upload may have failed - check Snowflake logs")
             
         except Exception as e:
             result['error_message'] = str(e)
@@ -1004,4 +1016,386 @@ class ETLEngine:
         finally:
             # Disconnect
             self.snowflake_conn.disconnect()
+
+    def _convert_to_etl_schema(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert standard schema column names to ETL engine's expected format.
+
+        Maps:
+        - first_name → 'First Name'
+        - last_name → 'Last Name'
+        - address → 'Address'
+        - city → 'City'
+        - state → 'State'
+        - zip_code → 'Zip'
+        - etc.
+
+        Args:
+            df: DataFrame with standard schema columns
+
+        Returns:
+            DataFrame with ETL schema column names
+        """
+        column_mapping = {
+            'first_name': 'First Name',
+            'last_name': 'Last Name',
+            'address': 'Address',
+            'city': 'City',
+            'state': 'State',
+            'zip_code': 'Zip',
+            'county': 'County',
+            'phone_1': 'Phone 1',
+            'phone_2': 'Phone 2',
+            'phone_3': 'Phone 3',
+            'email': 'Email 1',
+            'email_1': 'Email 1',
+            'email_2': 'Email 2',
+            'email_3': 'Email 3',
+            'property_type': 'Property Type',
+            'property_value': 'Property Value',
+            'mortgage_balance': 'Mortgage Balance',
+            'estimated_equity': 'Estimated Equity',
+            'loan_type': 'Loan Type',
+            'interest_rate': 'Interest Rate',
+            'credit_score': 'Credit Score',
+            'annual_income': 'Annual Income',
+            'debt_to_income': 'Debt to Income',
+            'cash_out_amount': 'Cash Out Amount',
+            'loan_purpose': 'Loan Purpose',
+            'property_use': 'Property Use',
+            'years_in_home': 'Years in Home',
+            'employment_status': 'Employment Status',
+            'bankruptcies': 'Bankruptcies',
+            'foreclosures': 'Foreclosures',
+            'tax_liens': 'Tax Liens',
+            'lead_source': 'Lead Source',
+            'lead_date': 'Lead Date',
+            'lead_id': 'Lead ID',
+            'campaign_id': 'Campaign ID',
+            'offer_code': 'Offer Code',
+            'utm_source': 'UTM Source',
+            'utm_medium': 'UTM Medium',
+            'utm_campaign': 'UTM Campaign',
+            'notes': 'Notes',
+            'custom_field_1': 'Custom Field 1',
+            'custom_field_2': 'Custom Field 2',
+            'custom_field_3': 'Custom Field 3',
+        }
+
+        # Create new DataFrame with mapped columns
+        result_df = pd.DataFrame()
+
+        for std_col, etl_col in column_mapping.items():
+            if std_col in df.columns:
+                result_df[etl_col] = df[std_col]
+
+        # Ensure required columns exist (even if empty)
+        required_columns = ['First Name', 'Last Name', 'Address', 'City', 'State', 'Zip']
+        for col in required_columns:
+            if col not in result_df.columns:
+                result_df[col] = ''
+
+        return result_df
+
+    def execute_with_file_source(
+        self,
+        file_path: str,
+        file_source_id: str,
+        file_name: str,
+        limit_rows: Optional[int] = None,
+        stop_flag: Optional[Callable] = None,
+        progress_callback: Optional[Callable] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute ETL job using an uploaded file instead of Snowflake query.
+
+        Args:
+            file_path: Path to uploaded CSV/Excel file
+            file_source_id: UUID of FileSource (contains column mapping)
+            file_name: Original filename for logging
+            limit_rows: Optional row limit
+            stop_flag: Optional function to check if job should stop
+            progress_callback: Optional callback for progress updates
+
+        Returns:
+            Dict with execution results (same format as execute_single_script)
+        """
+        self.logger.start_job()
+
+        # Clear consolidated data for new job
+        self.consolidated_data = []
+
+        result = {
+            'script_name': file_name,
+            'success': False,
+            'started_at': datetime.now(),
+            'rows_processed': 0,
+            'error_message': None
+        }
+
+        try:
+            from app.db.session import sync_session_factory
+            from app.db.models.file_source import FileSource
+            from app.services.file_processor import FileProcessor
+
+            # Load blacklisted phones before processing
+            self._load_blacklisted_phones()
+
+            # Fetch FileSource to get column mapping
+            self.logger.log_step("File Source", f"Loading file source configuration")
+            with sync_session_factory() as db_session:
+                file_source = db_session.query(FileSource).filter(FileSource.id == file_source_id).first()
+                if not file_source:
+                    raise Exception(f"FileSource {file_source_id} not found")
+                if not file_source.column_mapping:
+                    raise Exception(f"FileSource {file_source_id} has no column mapping configured")
+
+                column_mapping = file_source.column_mapping
+
+            # Read and process file
+            self.logger.log_step("File Processing", f"Reading file: {file_name}")
+            file_processor = FileProcessor()
+
+            # Read file (CSV or Excel)
+            raw_df = file_processor.read_file(file_path, max_rows=limit_rows)
+            if raw_df is None or raw_df.empty:
+                raise Exception("File is empty or could not be read")
+
+            self.logger.log_step("File Processing", f"Read {len(raw_df)} rows from file")
+
+            # Apply column mapping (source columns → standard schema)
+            self.logger.log_step("Column Mapping", "Applying saved column mapping")
+            mapped_df = file_processor.apply_mapping(raw_df, column_mapping)
+
+            # Normalize data (names, phones, emails)
+            self.logger.log_step("Data Normalization", "Normalizing names, phones, and emails")
+            normalized_df, validation_errors = file_processor.normalize_data(mapped_df)
+
+            if normalized_df.empty:
+                raise Exception("No valid records after normalization and validation")
+
+            if validation_errors:
+                self.logger.logger.warning(f"Found {len(validation_errors)} validation errors (continuing with valid records)")
+
+            # Convert standard schema to ETL schema (first_name → 'First Name', etc.)
+            self.logger.log_step("Schema Conversion", "Converting to ETL schema format")
+            df = self._convert_to_etl_schema(normalized_df)
+
+            total_rows_to_process = len(df)
+            self.logger.log_step("Data Ready", f"Processing {total_rows_to_process} valid records")
+
+            # === FROM HERE, USE THE SAME PIPELINE AS SNOWFLAKE-BASED JOBS ===
+
+            # Emit initial progress
+            if progress_callback:
+                progress_callback(0, total_rows_to_process, 0, 0, 0, f"Starting to process {total_rows_to_process} rows")
+
+            # Comprehensive NaN handling (same as Snowflake path)
+            df = df.fillna('')
+            df = df.replace([pd.NA, pd.NaT, None, 'nan', 'None', 'NaN', 'NAN'], '')
+
+            # Clean numeric formatting (same helper function)
+            def clean_numeric_value(value):
+                if value is None or pd.isna(value) or value == '' or value == 'nan' or value == 'None':
+                    return ''
+                elif isinstance(value, (int, float)):
+                    if isinstance(value, float) and value.is_integer():
+                        return int(value)
+                    else:
+                        return value
+                elif isinstance(value, str):
+                    try:
+                        float_val = float(value)
+                        if float_val.is_integer():
+                            return int(float_val)
+                        else:
+                            return float_val
+                    except (ValueError, TypeError):
+                        return value
+                else:
+                    return value
+
+            for col in df.columns:
+                df[col] = df[col].apply(clean_numeric_value)
+
+            # Get real phone numbers and emails from idiCORE API
+            self.logger.log_step("Data Processing", "Getting real phone numbers and emails from idiCORE API")
+
+            # Prepare person data for idiCORE lookup
+            people_data = []
+            dataframe_indices = []
+
+            for i, (_, row) in enumerate(df.iterrows()):
+                first_name = str(row.get('First Name', '')).strip()
+                last_name = str(row.get('Last Name', '')).strip()
+                address = str(row.get('Address', '')).strip()
+                city = str(row.get('City', '')).strip()
+                state = str(row.get('State', '')).strip()
+                zip_code = str(row.get('Zip', '')).strip()
+
+                # Clean up literal strings
+                if state.lower() in ['state', 'st']:
+                    state = ''
+                if zip_code.lower() in ['zip', 'zipcode']:
+                    zip_code = ''
+
+                has_valid_name = (first_name and last_name and
+                                len(first_name) >= 1 and len(last_name) >= 1)
+
+                if has_valid_name:
+                    person_data = {
+                        'first_name': first_name,
+                        'last_name': last_name,
+                        'address': address,
+                        'city': city,
+                        'state': state,
+                        'zip_code': zip_code
+                    }
+                    people_data.append(person_data)
+                    dataframe_indices.append(i)
+
+            # Log if any records were filtered
+            if len(df) > len(people_data):
+                filtered_count = len(df) - len(people_data)
+                self.logger.log_step("Data Validation",
+                    f"Filtered {filtered_count} records with missing names "
+                    f"({len(people_data)} valid of {len(df)} total)")
+
+            if not people_data:
+                self.logger.log_step("Data Processing", "No valid person data found for idiCORE lookup")
+                result['error_message'] = "No valid person data found"
+                return result
+
+            # Process data in batches (SAME BATCH PROCESSING LOGIC)
+            batch_size = settings.etl.batch_size
+            total_records = len(people_data)
+            total_batches = (total_records + batch_size - 1) // batch_size
+
+            self.logger.log_step("Batch Processing", f"Processing {total_records} records in {total_batches} batches of {batch_size}")
+
+            # Initialize columns
+            phone_columns = ['Phone 1', 'Phone 2', 'Phone 3']
+            email_columns = ['Email 1', 'Email 2', 'Email 3']
+            dnc_columns = ['Phone 1 In DNC List', 'Phone 2 In DNC List', 'Phone 3 In DNC List']
+
+            for col in phone_columns + email_columns + dnc_columns:
+                df[col] = ''
+            df['In Litigator List'] = 'No'
+
+            # Process each batch (SAME LOOP AS SNOWFLAKE PATH)
+            for batch_num in range(total_batches):
+                if stop_flag and stop_flag():
+                    raise Exception("ETL job stopped by user")
+
+                start_idx = batch_num * batch_size
+                end_idx = min((batch_num + 1) * batch_size, total_records)
+                batch_people = people_data[start_idx:end_idx]
+                batch_dataframe_indices = dataframe_indices[start_idx:end_idx]
+
+                # Calculate progress
+                current_row = end_idx
+                rows_remaining = total_rows_to_process - current_row
+                percentage = int((current_row / total_rows_to_process * 100)) if total_rows_to_process > 0 else 0
+
+                # Emit batch progress
+                if progress_callback:
+                    progress_callback(
+                        current_row,
+                        total_rows_to_process,
+                        batch_num + 1,
+                        total_batches,
+                        percentage,
+                        f"Processing batch {batch_num + 1}/{total_batches} - Records {start_idx + 1} to {end_idx}"
+                    )
+
+                self.logger.log_step("Batch Processing", f"Processing batch {batch_num + 1}/{total_batches} - Records {start_idx + 1} to {end_idx}")
+
+                # Get phones and emails from idiCORE for this batch
+                idiCORE_results = self.idicore_service.lookup_multiple_people_phones_and_emails_batch(batch_people)
+
+                # Create row event callback
+                def row_event_callback(row_data):
+                    if progress_callback:
+                        try:
+                            progress_callback(
+                                row_data.get('row_number', start_idx + len(batch_dataframe_indices)),
+                                total_rows_to_process,
+                                batch_num + 1,
+                                total_batches,
+                                int((row_data.get('row_number', 0) / total_rows_to_process * 100)) if total_rows_to_process > 0 else 0,
+                                f"Processing row {row_data.get('row_number', 0)}/{total_rows_to_process}",
+                                row_data
+                            )
+                        except TypeError:
+                            progress_callback(
+                                row_data.get('row_number', start_idx + len(batch_dataframe_indices)),
+                                total_rows_to_process,
+                                batch_num + 1,
+                                total_batches,
+                                int((row_data.get('row_number', 0) / total_rows_to_process * 100)) if total_rows_to_process > 0 else 0,
+                                f"Processing row {row_data.get('row_number', 0)}/{total_rows_to_process}"
+                            )
+
+                # Process this batch's results (REUSE EXISTING METHOD)
+                self._process_batch_results(df, idiCORE_results, batch_dataframe_indices, stop_flag, progress_callback, row_event_callback, start_idx + 1, total_rows_to_process, batch_num + 1, total_batches)
+
+                # Save caches after each batch
+                if hasattr(self.idicore_service, 'person_cache'):
+                    self.idicore_service.person_cache.save_cache()
+                if hasattr(self.ccc_api, 'phone_cache'):
+                    self.ccc_api.phone_cache.save_cache()
+
+                # Upload this batch to Snowflake MASTER_PROCESSED_DB immediately
+                batch_df = df.iloc[batch_dataframe_indices].copy()
+                self.logger.log_step("Batch Upload", f"Uploading batch {batch_num + 1}/{total_batches} to MASTER_PROCESSED_DB ({len(batch_df)} records)")
+                records_stored = self.results_service.store_batch_results(
+                    job_id=self.logger.job_id or "unknown",
+                    job_name=file_name,
+                    records=batch_df,
+                    table_id=self.table_id,
+                    table_title=self.table_title
+                )
+                if records_stored:
+                    self.logger.log_step("Batch Upload Complete", f"Batch {batch_num + 1} stored in Snowflake: {records_stored} records")
+
+            # Calculate final statistics (SAME AS SNOWFLAKE PATH)
+            result['rows_processed'] = len(people_data)
+            result['rows_returned'] = len(df)
+            result['rows_filtered'] = len(df) - len(people_data)
+
+            litigator_count = len(df[df['In Litigator List'] == 'Yes']) if 'In Litigator List' in df.columns else 0
+
+            dnc_condition = False
+            for dnc_col in dnc_columns:
+                if dnc_col in df.columns:
+                    if dnc_condition is False:
+                        dnc_condition = (df[dnc_col] == 'Yes')
+                    else:
+                        dnc_condition = dnc_condition | (df[dnc_col] == 'Yes')
+
+            dnc_count = len(df[dnc_condition]) if dnc_condition is not False else 0
+            both_condition = (df['In Litigator List'] == 'Yes') & dnc_condition if 'In Litigator List' in df.columns and dnc_condition is not False else False
+            both_count = len(df[both_condition]) if both_condition is not False else 0
+            filtered_condition = (df['In Litigator List'] == 'Yes') | dnc_condition if 'In Litigator List' in df.columns and dnc_condition is not False else (df['In Litigator List'] == 'Yes' if 'In Litigator List' in df.columns else False)
+            filtered_records = len(df[filtered_condition]) if filtered_condition is not False else 0
+            clean_count = len(df) - filtered_records
+
+            result['litigator_count'] = litigator_count
+            result['dnc_count'] = dnc_count
+            result['both_count'] = both_count
+            result['clean_count'] = clean_count
+
+            result['success'] = True
+            result['completed_at'] = datetime.now()
+
+            self.logger.end_job(True)
+            return result
+
+        except Exception as e:
+            self.logger.log_error(e, "File-based ETL execution")
+            self.logger.end_job(False)
+            return {
+                'success': False,
+                'error_message': str(e)
+            }
 

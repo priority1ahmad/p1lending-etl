@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Box, Grid, IconButton, Tooltip, Collapse } from '@mui/material';
 import { Refresh, Folder, Dataset, CheckCircle, Warning } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -36,6 +37,7 @@ import { EmptyState } from '../components/ui/Feedback/EmptyState';
 import { TableChart } from '@mui/icons-material';
 
 export function ETLResults() {
+  const [searchParams] = useSearchParams();
   const [selectedJobId, setSelectedJobId] = useState('');
   const [selectedJobName, setSelectedJobName] = useState('');
   const [excludeLitigators, setExcludeLitigators] = useState(false);
@@ -46,6 +48,7 @@ export function ETLResults() {
     search: '',
     sortBy: 'newest_first',
   });
+  const [hasLoadedFromUrl, setHasLoadedFromUrl] = useState(false);
 
   // Fetch jobs list
   const {
@@ -98,6 +101,36 @@ export function ETLResults() {
     mutationFn: ({ jobId, exclude }: { jobId: string; exclude: boolean }) =>
       resultsApi.exportJobResults(jobId, exclude),
   });
+
+  // Auto-select job from URL query parameter
+  useEffect(() => {
+    // Only run once on mount and when jobs data changes
+    if (hasLoadedFromUrl || !jobsData?.jobs) {
+      return;
+    }
+
+    const jobIdFromUrl = searchParams.get('job_id');
+    if (!jobIdFromUrl) {
+      setHasLoadedFromUrl(true);
+      return;
+    }
+
+    // Find matching job in the jobs list
+    const matchingJob = jobsData.jobs.find(
+      (job: ETLJob) => job.job_id === jobIdFromUrl
+    );
+
+    if (matchingJob) {
+      setSelectedJobId(jobIdFromUrl);
+      setSelectedJobName(matchingJob.job_name || 'ETL Job');
+      setCurrentPage(1);
+      console.log('[ETLResults] Auto-selected job from URL:', jobIdFromUrl);
+    } else {
+      console.warn('[ETLResults] Job ID from URL not found in jobs list:', jobIdFromUrl);
+    }
+
+    setHasLoadedFromUrl(true);
+  }, [searchParams, jobsData?.jobs, hasLoadedFromUrl]);
 
   // WebSocket connection for real-time updates
   useEffect(() => {

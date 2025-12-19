@@ -4,6 +4,8 @@ export interface ETLJob {
   id: string;
   job_type: 'single_script' | 'all_scripts' | 'preview';
   script_id?: string;
+  file_source_id?: string;
+  file_upload_id?: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress: number;
   message?: string;
@@ -68,6 +70,15 @@ export const jobsApi = {
 
   create: async (data: JobCreate): Promise<ETLJob> => {
     const response = await apiClient.post<ETLJob>('/jobs', data);
+    return response.data;
+  },
+
+  createWithFile: async (formData: FormData): Promise<ETLJob> => {
+    const response = await apiClient.post<ETLJob>('/jobs', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

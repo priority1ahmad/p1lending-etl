@@ -14,6 +14,8 @@ class JobCreate(BaseModel):
     script_id: Optional[UUID] = None
     script_content: Optional[str] = None
     script_name: Optional[str] = None
+    file_source_id: Optional[UUID] = None
+    file_upload_id: Optional[UUID] = None
     job_type: JobType
     row_limit: Optional[int] = None
 
@@ -23,6 +25,8 @@ class JobResponse(BaseModel):
     id: UUID
     job_type: JobType
     script_id: Optional[UUID] = None
+    file_source_id: Optional[UUID] = None
+    file_upload_id: Optional[UUID] = None
     status: JobStatus
     progress: int
     message: Optional[str] = None
