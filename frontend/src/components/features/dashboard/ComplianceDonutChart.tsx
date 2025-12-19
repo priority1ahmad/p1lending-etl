@@ -159,7 +159,7 @@ export function ComplianceDonutChart({
               verticalAlign="bottom"
               height={36}
               iconType="circle"
-              formatter={(value, entry: any) => {
+              formatter={(value, entry: { payload: { value: number } }) => {
                 const percentage = ((entry.payload.value / total) * 100).toFixed(1);
                 return `${value}: ${entry.payload.value.toLocaleString()} (${percentage}%)`;
               }}

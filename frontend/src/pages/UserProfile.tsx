@@ -41,7 +41,9 @@ export function UserProfile() {
   // Initialize form with user data
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing form state from props is intentional
       setFirstName(user.first_name || '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing form state from props is intentional
       setLastName(user.last_name || '');
     }
   }, [user]);

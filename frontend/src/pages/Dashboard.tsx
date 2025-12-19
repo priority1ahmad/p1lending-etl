@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Container,
   Typography,
   Box,
   Card,
@@ -37,6 +36,7 @@ import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
 import type { ETLJob, JobCreate, JobPreview } from '../services/api/jobs';
 import { io, Socket } from 'socket.io-client';
+import type { JobProgressData, BatchProgressData, RowProcessedData, JobLogData, JobCompleteData, JobErrorData } from '../types/socket';
 
 export const Dashboard: React.FC = () => {
   const queryClient = useQueryClient();
@@ -124,13 +124,15 @@ export const Dashboard: React.FC = () => {
     setCurrentPage(page);
   };
 
+  // Use latestJob directly instead of syncing to state
   useEffect(() => {
-    if (latestJob) {
+    if (latestJob && latestJob.id !== currentJob?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external data to local state is intentional
       setCurrentJob(latestJob);
     }
-  }, [latestJob]);
+  }, [latestJob, currentJob?.id]);
 
-  // Fetch initial logs when job starts
+  // Fetch initial logs when job starts and clear when stopped
   useEffect(() => {
     if (currentJob && currentJob.status === 'running' && currentJob.id) {
       // Fetch initial logs from API
@@ -142,12 +144,15 @@ export const Dashboard: React.FC = () => {
             timestamp: log.created_at || new Date().toISOString(),
           })));
         }
-      }).catch(err => console.error('Failed to fetch initial logs:', err));
+      }).catch(_err => console.error('Failed to fetch initial logs'));
     } else if (!currentJob || currentJob.status !== 'running') {
-      // Clear logs when job stops
-      setLogs([]);
+      // Clear logs when job stops - safe because this is driven by external state change
+      if (logs.length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Clearing logs when job stops is intentional
+        setLogs([]);
+      }
     }
-  }, [currentJob?.id, currentJob?.status]);
+  }, [currentJob?.id, currentJob?.status, currentJob, logs.length]);
 
   // Socket.io connection for real-time updates
   useEffect(() => {
@@ -182,7 +187,7 @@ export const Dashboard: React.FC = () => {
         console.log('WebSocket disconnected:', reason);
       });
 
-      socket.on('job_progress', (data: any) => {
+      socket.on('job_progress', (data: JobProgressData) => {
         setCurrentJob((prev) => (prev ? { 
           ...prev, 
           progress: data.progress || prev.progress, 
@@ -195,7 +200,7 @@ export const Dashboard: React.FC = () => {
         } : null));
       });
 
-      socket.on('batch_progress', (data: any) => {
+      socket.on('batch_progress', (data: BatchProgressData) => {
         setCurrentJob((prev) => (prev ? { 
           ...prev, 
           current_batch: data.current_batch,
@@ -204,7 +209,7 @@ export const Dashboard: React.FC = () => {
         } : null));
       });
 
-      socket.on('row_processed', (data: any) => {
+      socket.on('row_processed', (data: RowProcessedData) => {
         if (data.row_data) {
           setProcessedRows((prev) => {
             const newRows: ProcessedRow[] = [...prev, {
@@ -234,7 +239,7 @@ export const Dashboard: React.FC = () => {
         }
       });
 
-      socket.on('job_log', (data: any) => {
+      socket.on('job_log', (data: JobLogData) => {
         setLogs((prev) => [
           ...prev,
           {
@@ -245,12 +250,12 @@ export const Dashboard: React.FC = () => {
         ]);
       });
 
-      socket.on('job_complete', (data: any) => {
+      socket.on('job_complete', (data: JobCompleteData) => {
         setCurrentJob((prev) => (prev ? { ...prev, status: 'completed', progress: 100, ...data } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
 
-      socket.on('job_error', (data: any) => {
+      socket.on('job_error', (data: JobErrorData) => {
         setCurrentJob((prev) => (prev ? { ...prev, status: 'failed', error_message: data.error } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
@@ -262,7 +267,7 @@ export const Dashboard: React.FC = () => {
         socket.disconnect();
       };
     }
-  }, [currentJob?.id, currentJob?.status, queryClient]);
+  }, [currentJob?.id, currentJob?.status, currentJob, queryClient]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -400,7 +405,7 @@ export const Dashboard: React.FC = () => {
               setPreviewLoadingMessage(latestPreviewJob.message);
             }
           }
-        } catch (error) {
+        } catch {
           // Silently fail - don't interrupt the preview
         }
       }

@@ -7,7 +7,8 @@
 import type { ReactNode } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { Sidebar, SIDEBAR_WIDTH } from './Sidebar';
+import { Sidebar } from './Sidebar';
+import { SIDEBAR_WIDTH } from './sidebarConstants';
 import { backgrounds } from '../../theme';
 
 interface LayoutProps {

@@ -10,6 +10,7 @@ import { Box } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { jobsApi } from '../../services/api/jobs';
 import type { ETLJob } from '../../services/api/jobs';
+import type { JobProgressData, BatchProgressData, RowProcessedData, LogData } from './useJobSocket';
 
 // Layout components
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -80,6 +81,7 @@ export function Dashboard() {
   // Sync latest job to current job
   useEffect(() => {
     if (latestJob) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external data to local state is intentional
       setCurrentJob(latestJob);
     }
   }, [latestJob]);
@@ -99,12 +101,13 @@ export function Dashboard() {
         }
       }).catch((err) => console.error('Failed to fetch initial logs:', err));
     } else if (!currentJob || currentJob.status !== 'running') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Clearing logs when job stops is intentional
       setLogs([]);
     }
   }, [currentJob?.id, currentJob?.status]);
 
   // Socket callbacks
-  const handleProgress = useCallback((data: any) => {
+  const handleProgress = useCallback((data: JobProgressData) => {
     setCurrentJob((prev) =>
       prev
         ? {
@@ -121,7 +124,7 @@ export function Dashboard() {
     );
   }, []);
 
-  const handleBatchProgress = useCallback((data: any) => {
+  const handleBatchProgress = useCallback((data: BatchProgressData) => {
     setCurrentJob((prev) =>
       prev
         ? {
@@ -134,7 +137,7 @@ export function Dashboard() {
     );
   }, []);
 
-  const handleRowProcessed = useCallback((data: any) => {
+  const handleRowProcessed = useCallback((data: RowProcessedData) => {
     if (data.row_data) {
       setProcessedRows((prev) => {
         const newRow = toProcessedRow(data, prev.length);
@@ -143,7 +146,7 @@ export function Dashboard() {
     }
   }, []);
 
-  const handleLog = useCallback((data: any) => {
+  const handleLog = useCallback((data: LogData) => {
     setLogs((prev) => [
       ...prev,
       {
@@ -154,12 +157,12 @@ export function Dashboard() {
     ]);
   }, []);
 
-  const handleComplete = useCallback((data: any) => {
+  const handleComplete = useCallback((data: Partial<ETLJob>) => {
     setCurrentJob((prev) => (prev ? { ...prev, status: 'completed', progress: 100, ...data } : null));
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
   }, [queryClient]);
 
-  const handleError = useCallback((data: any) => {
+  const handleError = useCallback((data: { error: string }) => {
     setCurrentJob((prev) => (prev ? { ...prev, status: 'failed', error_message: data.error } : null));
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
   }, [queryClient]);

@@ -36,6 +36,7 @@ export function SqlEditor() {
 
   useEffect(() => {
     if (script) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing form state from fetched data is intentional
       setName(script.name);
       setDescription(script.description || '');
       setContent(script.content);

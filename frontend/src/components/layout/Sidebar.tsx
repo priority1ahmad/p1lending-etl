@@ -41,8 +41,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { authApi } from '../../services/api/auth';
 import { palette, textColors } from '../../theme';
 import api from '../../utils/api';
-
-const SIDEBAR_WIDTH = 260;
+import { SIDEBAR_WIDTH } from './sidebarConstants';
 
 // ═══════════════════════════════════════════════════════════════
 // Styled Components
@@ -602,7 +601,3 @@ export const Sidebar: React.FC = () => {
     </StyledDrawer>
   );
 };
-
-export { SIDEBAR_WIDTH };
-export const DRAWER_WIDTH = SIDEBAR_WIDTH;
-export const DRAWER_WIDTH_COLLAPSED = SIDEBAR_WIDTH; // No collapse, same width

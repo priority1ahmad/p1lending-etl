@@ -99,6 +99,7 @@ export const ResultsDataTable = memo(function ResultsDataTable({
   };
 
   // Virtualization setup
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual is properly memoized
   const rowVirtualizer = useVirtualizer({
     count: records.length,
     getScrollElement: () => parentRef.current,

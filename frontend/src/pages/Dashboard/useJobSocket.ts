@@ -151,7 +151,7 @@ export function useJobSocket({
       socket.emit('leave_job', { job_id: job.id });
       socket.disconnect();
     };
-  }, [job?.id, job?.status, onProgress, onBatchProgress, onRowProcessed, onLog, onComplete, onError]);
+  }, [job, onProgress, onBatchProgress, onRowProcessed, onLog, onComplete, onError]);
 }
 
 /**
