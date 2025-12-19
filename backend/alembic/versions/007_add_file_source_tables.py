@@ -20,6 +20,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Check if tables already exist
+    connection = op.get_bind()
+    inspector = sa.inspect(connection)
+    existing_tables = inspector.get_table_names()
+
     # Create filesourcestatus enum type if it doesn't exist (idempotent)
     op.execute("""
         DO $$
@@ -30,46 +35,50 @@ def upgrade() -> None:
         END $$;
     """)
 
-    # Create file_sources table
-    op.create_table(
-        'file_sources',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True),
-        sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('description', sa.String(1000), nullable=True),
-        sa.Column('original_filename', sa.String(255), nullable=False),
-        sa.Column('file_path', sa.String(500), nullable=False),
-        sa.Column('file_size', sa.Integer, nullable=False),
-        sa.Column('file_type', sa.String(20), nullable=False),
-        sa.Column('status', postgresql.ENUM('uploaded', 'processing', 'completed', 'failed', name='filesourcestatus', create_type=False), nullable=False, server_default='uploaded'),
-        sa.Column('column_mapping', JSONB, nullable=True),
-        sa.Column('total_rows', sa.Integer, nullable=True),
-        sa.Column('valid_rows', sa.Integer, nullable=True),
-        sa.Column('error_rows', sa.Integer, nullable=True),
-        sa.Column('uploaded_by', UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column('processed_at', sa.DateTime(timezone=True), nullable=True)
-    )
-    op.create_index('ix_file_sources_name', 'file_sources', ['name'])
-    op.create_index('ix_file_sources_status', 'file_sources', ['status'])
-    op.create_index('ix_file_sources_uploaded_by', 'file_sources', ['uploaded_by'])
+    # Create file_sources table only if it doesn't exist
+    if 'file_sources' not in existing_tables:
+        op.execute("""
+            CREATE TABLE file_sources (
+                id UUID PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                description VARCHAR(1000),
+                original_filename VARCHAR(255) NOT NULL,
+                file_path VARCHAR(500) NOT NULL,
+                file_size INTEGER NOT NULL,
+                file_type VARCHAR(20) NOT NULL,
+                status filesourcestatus NOT NULL DEFAULT 'uploaded',
+                column_mapping JSONB,
+                total_rows INTEGER,
+                valid_rows INTEGER,
+                error_rows INTEGER,
+                uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                processed_at TIMESTAMP WITH TIME ZONE
+            )
+        """)
+        op.create_index('ix_file_sources_name', 'file_sources', ['name'])
+        op.create_index('ix_file_sources_status', 'file_sources', ['status'])
+        op.create_index('ix_file_sources_uploaded_by', 'file_sources', ['uploaded_by'])
 
-    # Create file_uploads table
-    op.create_table(
-        'file_uploads',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True),
-        sa.Column('file_source_id', UUID(as_uuid=True), sa.ForeignKey('file_sources.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('job_id', UUID(as_uuid=True), sa.ForeignKey('etl_jobs.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('rows_uploaded', sa.Integer, nullable=False, server_default='0'),
-        sa.Column('rows_skipped', sa.Integer, nullable=False, server_default='0'),
-        sa.Column('error_message', sa.Text, nullable=True),
-        sa.Column('validation_errors', JSONB, nullable=True),
-        sa.Column('uploaded_by', UUID(as_uuid=True), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True)
-    )
-    op.create_index('ix_file_uploads_file_source_id', 'file_uploads', ['file_source_id'])
-    op.create_index('ix_file_uploads_job_id', 'file_uploads', ['job_id'])
+    # Create file_uploads table only if it doesn't exist
+    if 'file_uploads' not in existing_tables:
+        op.execute("""
+            CREATE TABLE file_uploads (
+                id UUID PRIMARY KEY,
+                file_source_id UUID NOT NULL REFERENCES file_sources(id) ON DELETE CASCADE,
+                job_id UUID REFERENCES etl_jobs(id) ON DELETE SET NULL,
+                rows_uploaded INTEGER NOT NULL DEFAULT 0,
+                rows_skipped INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                validation_errors JSONB,
+                uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                completed_at TIMESTAMP WITH TIME ZONE
+            )
+        """)
+        op.create_index('ix_file_uploads_file_source_id', 'file_uploads', ['file_source_id'])
+        op.create_index('ix_file_uploads_job_id', 'file_uploads', ['job_id'])
 
 
 def downgrade() -> None:
