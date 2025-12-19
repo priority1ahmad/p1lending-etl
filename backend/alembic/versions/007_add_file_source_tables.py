@@ -8,6 +8,7 @@ Create Date: 2025-12-16
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 
@@ -19,8 +20,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create filesourcestatus enum type (use IF NOT EXISTS for safety)
-    op.execute("DO $$ BEGIN CREATE TYPE filesourcestatus AS ENUM ('uploaded', 'processing', 'completed', 'failed'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    # Create filesourcestatus enum type if it doesn't exist
+    filesourcestatus_enum = postgresql.ENUM(
+        'uploaded', 'processing', 'completed', 'failed',
+        name='filesourcestatus',
+        create_type=False
+    )
+
+    # Check if enum exists, create if not
+    connection = op.get_bind()
+    if connection.dialect.name == 'postgresql':
+        result = connection.execute(
+            sa.text("SELECT 1 FROM pg_type WHERE typname = 'filesourcestatus'")
+        ).fetchone()
+        if not result:
+            filesourcestatus_enum.create(connection, checkfirst=True)
 
     # Create file_sources table
     op.create_table(
@@ -32,7 +46,7 @@ def upgrade() -> None:
         sa.Column('file_path', sa.String(500), nullable=False),
         sa.Column('file_size', sa.Integer, nullable=False),
         sa.Column('file_type', sa.String(20), nullable=False),
-        sa.Column('status', sa.Enum('uploaded', 'processing', 'completed', 'failed', name='filesourcestatus', create_type=False), nullable=False, server_default='uploaded'),
+        sa.Column('status', filesourcestatus_enum, nullable=False, server_default='uploaded'),
         sa.Column('column_mapping', JSONB, nullable=True),
         sa.Column('total_rows', sa.Integer, nullable=True),
         sa.Column('valid_rows', sa.Integer, nullable=True),
@@ -76,5 +90,5 @@ def downgrade() -> None:
     op.drop_index('ix_file_sources_name')
     op.drop_table('file_sources')
 
-    # Drop filesourcestatus enum type
-    op.execute("DROP TYPE filesourcestatus")
+    # Drop filesourcestatus enum type if it exists
+    op.execute("DROP TYPE IF EXISTS filesourcestatus")
