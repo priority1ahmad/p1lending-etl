@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { Box, Typography, Grid } from '@mui/material';
+import { Box, Typography, GridLegacy as Grid } from '@mui/material';
 import { JobsListCard } from './JobsListCard';
 import type { JobItem } from './JobsListCard';
 import { palette } from '../../../theme';
@@ -382,7 +382,6 @@ export const InResultsPageContext: Story = {
       </Box>
 
       <Grid container spacing={3}>
-        {/* @ts-ignore - MUI v7 Grid item prop */}
         <Grid item xs={12} md={4}>
           <JobsListCard
             jobs={mixedJobs}
@@ -396,7 +395,6 @@ export const InResultsPageContext: Story = {
           />
         </Grid>
 
-        {/* @ts-ignore - MUI v7 Grid item prop */}
         <Grid item xs={12} md={8}>
           <Box
             sx={{

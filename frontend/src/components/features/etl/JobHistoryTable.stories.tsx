@@ -1,10 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { MemoryRouter } from 'react-router-dom';
-import { Box, Typography, Grid } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { JobHistoryTable } from './JobHistoryTable';
 import type { JobHistoryItem, Script } from './JobHistoryTable';
-import { History } from '@mui/icons-material';
-import { palette } from '../../../theme';
 
 // ============================================
 // MOCK DATA

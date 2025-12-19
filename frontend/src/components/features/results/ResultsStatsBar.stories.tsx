@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { Box, Typography, Grid } from '@mui/material';
+import { Box, Typography, GridLegacy as Grid } from '@mui/material';
 import { ResultsStatsBar } from './ResultsStatsBar';
 import type { ResultsStats } from './ResultsStatsBar';
 

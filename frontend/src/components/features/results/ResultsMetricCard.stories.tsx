@@ -6,13 +6,12 @@ import {
   Warning,
   Block,
   TrendingUp,
-  TrendingDown,
   Schedule,
   Speed,
   Group,
   Assessment,
 } from '@mui/icons-material';
-import { Box, Grid, Typography } from '@mui/material';
+import { Box, Typography, GridLegacy as Grid } from '@mui/material';
 import { palette } from '../../../theme';
 
 const meta: Meta<typeof ResultsMetricCard> = {
