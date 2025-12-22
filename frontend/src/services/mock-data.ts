@@ -26,8 +26,8 @@ export interface EnrichmentResult {
 }
 
 // Import fixture data directly for Vite bundling
-import sourceDataFixture from '../../../tests/fixtures/source_data.json';
-import enrichmentResultsFixture from '../../../tests/fixtures/enrichment_results.json';
+import sourceDataFixture from '../fixtures/source_data.json';
+import enrichmentResultsFixture from '../fixtures/enrichment_results.json';
 
 export function getSourceData(): SourceRecord[] {
   if (!isDevelopment()) {
