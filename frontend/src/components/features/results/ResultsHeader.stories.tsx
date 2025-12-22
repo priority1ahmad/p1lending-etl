@@ -2,7 +2,7 @@
  * ResultsHeader Stories
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ResultsHeader } from './ResultsHeader';
 
 const meta: Meta<typeof ResultsHeader> = {

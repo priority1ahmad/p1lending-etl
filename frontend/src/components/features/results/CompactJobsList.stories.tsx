@@ -3,7 +3,7 @@
  * Storybook stories for the CompactJobsList component
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { CompactJobsList } from './CompactJobsList';
 import { Box } from '@mui/material';
 

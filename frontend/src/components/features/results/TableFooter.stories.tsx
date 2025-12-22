@@ -2,7 +2,7 @@
  * TableFooter Stories
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { TableFooter } from './TableFooter';
 
 const meta: Meta<typeof TableFooter> = {

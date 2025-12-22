@@ -2,7 +2,7 @@
  * AirtableTable Stories
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AirtableTable } from './AirtableTable';
 import { Box } from '@mui/material';
 

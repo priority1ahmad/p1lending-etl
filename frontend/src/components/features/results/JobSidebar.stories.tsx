@@ -2,7 +2,7 @@
  * JobSidebar Stories
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { JobSidebar } from './JobSidebar';
 import { Box } from '@mui/material';
 

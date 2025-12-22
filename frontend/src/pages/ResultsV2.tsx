@@ -14,8 +14,6 @@ import { EmptyState } from '../components/ui/Feedback/EmptyState';
 import { resultsApi } from '../services/api/results';
 import { textColors } from '../theme';
 
-const RECORDS_PER_PAGE_OPTIONS = [50, 100, 200, 500];
-
 export function ResultsV2() {
   // State
   const [selectedJob, setSelectedJob] = useState<CompactJob | null>(null);

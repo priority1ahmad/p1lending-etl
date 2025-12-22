@@ -2,7 +2,7 @@
  * JobCard Stories
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { JobCard } from './JobCard';
 import { Box } from '@mui/material';
 
