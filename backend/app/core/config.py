@@ -42,6 +42,37 @@ class SnowflakeConfig(BaseSettings):
     login_timeout: int = Field(default=60, alias="SNOWFLAKE_LOGIN_TIMEOUT")
     network_timeout: int = Field(default=60, alias="SNOWFLAKE_NETWORK_TIMEOUT")
 
+    # Connection pooling settings
+    pool_size: int = Field(
+        default=3,
+        alias="SNOWFLAKE_POOL_SIZE",
+        description="Number of connections to maintain in the pool",
+    )
+    pool_timeout: int = Field(
+        default=30,
+        alias="SNOWFLAKE_POOL_TIMEOUT",
+        description="Timeout in seconds when waiting for a connection from the pool",
+    )
+
+    # Streaming settings
+    stream_threshold: int = Field(
+        default=10000,
+        alias="SNOWFLAKE_STREAM_THRESHOLD",
+        description="Row count threshold above which to use streaming (memory optimization)",
+    )
+    stream_chunk_size: int = Field(
+        default=1000,
+        alias="SNOWFLAKE_STREAM_CHUNK_SIZE",
+        description="Number of rows to fetch per chunk when streaming",
+    )
+
+    # Bulk upload settings
+    use_bulk_upload: bool = Field(
+        default=True,
+        alias="SNOWFLAKE_USE_BULK_UPLOAD",
+        description="Use COPY INTO for bulk uploads (10x faster than INSERT)",
+    )
+
     model_config = SettingsConfigDict(env_prefix="SNOWFLAKE_", case_sensitive=False, extra="ignore")
 
 
@@ -154,6 +185,18 @@ class ETLConfig(BaseSettings):
         default=True,
         alias="ETL_USE_DATABASE_FILTERING",
         description="Use Snowflake database-side filtering (10-15x faster)",
+    )
+
+    # Cache LRU settings
+    cache_lru_max_size: int = Field(
+        default=50000,
+        alias="ETL_CACHE_LRU_MAX_SIZE",
+        description="Maximum entries in LRU cache before eviction (memory control)",
+    )
+    cache_lru_enabled: bool = Field(
+        default=True,
+        alias="ETL_CACHE_LRU_ENABLED",
+        description="Enable LRU eviction for in-memory cache",
     )
 
     model_config = SettingsConfigDict(env_prefix="ETL_", case_sensitive=False, extra="ignore")

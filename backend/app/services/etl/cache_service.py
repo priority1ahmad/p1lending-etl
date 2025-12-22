@@ -1,27 +1,174 @@
 """
 Cache service for person and phone lookups (CSV + Snowflake dual-layer)
+
+Performance Optimizations:
+- LRU eviction for in-memory cache (prevents unbounded memory growth)
+- Feature flags: ETL_CACHE_LRU_ENABLED, ETL_CACHE_LRU_MAX_SIZE
 """
 
 import os
 import json
 import hashlib
+import threading
+from collections import OrderedDict
 from typing import Dict, Optional, List, Any
 from datetime import datetime
 import pandas as pd
 
+from app.core.config import settings
 from app.core.logger import etl_logger
 from app.services.etl.snowflake_service import SnowflakeConnection
 
 
+class LRUCache:
+    """
+    Thread-safe LRU (Least Recently Used) cache with configurable max size.
+
+    When the cache exceeds max_size, the least recently used entries are evicted.
+    This prevents unbounded memory growth in long-running processes.
+
+    Thread-safe: Uses a lock to protect concurrent access.
+    """
+
+    def __init__(self, max_size: int = None, name: str = "LRUCache"):
+        self.max_size = max_size or settings.etl.cache_lru_max_size
+        self.name = name
+        self._cache: OrderedDict = OrderedDict()
+        self._lock = threading.RLock()
+        self._hits = 0
+        self._misses = 0
+        self._evictions = 0
+        self.logger = etl_logger.logger.getChild(f"LRUCache.{name}")
+
+    def get(self, key: str) -> Optional[Any]:
+        """
+        Get value from cache, moving it to end (most recently used).
+
+        Returns None if key not found.
+        """
+        with self._lock:
+            if key in self._cache:
+                # Move to end (most recently used)
+                self._cache.move_to_end(key)
+                self._hits += 1
+                return self._cache[key]
+            self._misses += 1
+            return None
+
+    def set(self, key: str, value: Any):
+        """
+        Set value in cache, evicting oldest entries if over max size.
+        """
+        with self._lock:
+            # If key exists, update and move to end
+            if key in self._cache:
+                self._cache[key] = value
+                self._cache.move_to_end(key)
+                return
+
+            # Add new entry
+            self._cache[key] = value
+
+            # Evict oldest entries if over max size
+            while len(self._cache) > self.max_size:
+                oldest_key = next(iter(self._cache))
+                del self._cache[oldest_key]
+                self._evictions += 1
+
+    def __contains__(self, key: str) -> bool:
+        """Check if key exists in cache (does not update LRU order)"""
+        with self._lock:
+            return key in self._cache
+
+    def __len__(self) -> int:
+        """Return number of items in cache"""
+        return len(self._cache)
+
+    def items(self):
+        """Return cache items (for iteration/serialization)"""
+        with self._lock:
+            return list(self._cache.items())
+
+    def clear(self):
+        """Clear all entries from cache"""
+        with self._lock:
+            self._cache.clear()
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get cache statistics"""
+        with self._lock:
+            total_requests = self._hits + self._misses
+            hit_rate = (self._hits / total_requests * 100) if total_requests > 0 else 0
+            return {
+                "name": self.name,
+                "size": len(self._cache),
+                "max_size": self.max_size,
+                "hits": self._hits,
+                "misses": self._misses,
+                "hit_rate_percent": round(hit_rate, 2),
+                "evictions": self._evictions,
+                "utilization_percent": round(len(self._cache) / self.max_size * 100, 2),
+            }
+
+    def log_stats(self):
+        """Log cache statistics"""
+        stats = self.get_stats()
+        self.logger.info(
+            f"Cache stats: {stats['size']}/{stats['max_size']} entries, "
+            f"{stats['hit_rate_percent']}% hit rate, {stats['evictions']} evictions"
+        )
+
+
 class PersonCache:
-    """Cache for idiCORE person lookup results (CSV + Snowflake)"""
+    """Cache for idiCORE person lookup results (CSV + Snowflake)
+
+    Uses LRU eviction when ETL_CACHE_LRU_ENABLED=true (default) to prevent
+    unbounded memory growth in long-running processes.
+    """
 
     def __init__(self, cache_file: str = "person_cache.csv"):
         self.cache_file = cache_file
         self.logger = etl_logger.logger.getChild("PersonCache")
-        self.cache_data = {}
         self.snowflake_cache = None
+
+        # Use LRU cache if enabled (default: True)
+        if settings.etl.cache_lru_enabled:
+            self._lru_cache = LRUCache(max_size=settings.etl.cache_lru_max_size, name="PersonCache")
+            self.cache_data = None  # Not used when LRU is enabled
+            self.logger.info(
+                f"PersonCache using LRU eviction (max_size={settings.etl.cache_lru_max_size})"
+            )
+        else:
+            self._lru_cache = None
+            self.cache_data = {}
+            self.logger.info("PersonCache using unbounded dict (LRU disabled)")
+
         self._load_cache()
+
+    def _get_cache_value(self, key: str) -> Optional[Dict]:
+        """Get value from cache (abstracts LRU vs dict)"""
+        if self._lru_cache is not None:
+            return self._lru_cache.get(key)
+        return self.cache_data.get(key)
+
+    def _set_cache_value(self, key: str, value: Dict):
+        """Set value in cache (abstracts LRU vs dict)"""
+        if self._lru_cache is not None:
+            self._lru_cache.set(key, value)
+        else:
+            self.cache_data[key] = value
+
+    def _get_all_cache_items(self):
+        """Get all items from cache for serialization"""
+        if self._lru_cache is not None:
+            return self._lru_cache.items()
+        return self.cache_data.items()
+
+    def _get_cache_size(self) -> int:
+        """Get current cache size"""
+        if self._lru_cache is not None:
+            return len(self._lru_cache)
+        return len(self.cache_data)
 
     def _generate_person_key(
         self,
@@ -49,9 +196,10 @@ class PersonCache:
         try:
             if os.path.exists(self.cache_file):
                 df = pd.read_csv(self.cache_file)
+                loaded_count = 0
                 for _, row in df.iterrows():
                     person_key = str(row["person_key"])
-                    self.cache_data[person_key] = {
+                    cache_entry = {
                         "first_name": row["first_name"],
                         "last_name": row["last_name"],
                         "address": row["address"],
@@ -63,19 +211,26 @@ class PersonCache:
                         "checked_at": row["checked_at"],
                         "status": row["status"],
                     }
-                self.logger.info(f"Loaded {len(self.cache_data)} cached person lookups from CSV")
+                    self._set_cache_value(person_key, cache_entry)
+                    loaded_count += 1
+                self.logger.info(f"Loaded {loaded_count} cached person lookups from CSV")
             else:
                 self.logger.info("No person cache file found, starting fresh")
         except Exception as e:
             self.logger.error(f"Error loading person cache: {e}")
-            self.cache_data = {}
+            # Reset cache on error
+            if self._lru_cache is not None:
+                self._lru_cache.clear()
+            else:
+                self.cache_data = {}
 
     def _save_cache(self):
         """Save cache to CSV file"""
         try:
-            if self.cache_data:
+            cache_items = list(self._get_all_cache_items())
+            if cache_items:
                 data = []
-                for person_key, result in self.cache_data.items():
+                for person_key, result in cache_items:
                     data.append(
                         {
                             "person_key": person_key,
@@ -94,7 +249,11 @@ class PersonCache:
 
                 df = pd.DataFrame(data)
                 df.to_csv(self.cache_file, index=False)
-                self.logger.info(f"Saved {len(self.cache_data)} person lookups to CSV cache")
+                self.logger.info(f"Saved {len(cache_items)} person lookups to CSV cache")
+
+                # Log LRU stats if enabled
+                if self._lru_cache is not None:
+                    self._lru_cache.log_stats()
         except Exception as e:
             self.logger.error(f"Error saving person cache: {e}")
 
@@ -107,18 +266,18 @@ class PersonCache:
         state: str = "",
         zip_code: str = "",
     ) -> Optional[Dict]:
-        """Get cached result - check CSV first, then Snowflake"""
+        """Get cached result - check L1 (memory) first, then L2 (Snowflake)"""
         person_key = self._generate_person_key(
             first_name, last_name, address, city, state, zip_code
         )
 
-        # Check CSV cache first
-        cached_result = self.cache_data.get(person_key)
+        # Check L1 cache first (in-memory LRU or dict)
+        cached_result = self._get_cache_value(person_key)
         if cached_result:
-            self.logger.debug(f"Cache hit (CSV) for {first_name} {last_name}")
+            self.logger.debug(f"Cache hit (L1) for {first_name} {last_name}")
             return cached_result
 
-        # Check Snowflake cache
+        # Check L2 cache (Snowflake)
         try:
             if self.snowflake_cache is None:
                 self.snowflake_cache = SnowflakeCacheService()
@@ -128,9 +287,9 @@ class PersonCache:
             )
 
             if snowflake_result:
-                # Add to CSV cache for faster future lookups
-                self.cache_data[person_key] = snowflake_result
-                self.logger.debug(f"Cache hit (Snowflake) for {first_name} {last_name}")
+                # Promote to L1 cache for faster future lookups
+                self._set_cache_value(person_key, snowflake_result)
+                self.logger.debug(f"Cache hit (L2 Snowflake) for {first_name} {last_name}")
                 return snowflake_result
         except Exception as e:
             self.logger.warning(f"Error checking Snowflake cache: {e}")
@@ -140,7 +299,7 @@ class PersonCache:
 
     def get_cached_results_batch(self, people_data: List[Dict]) -> Dict[str, Dict]:
         """
-        Batch get cached results for multiple people - check CSV first, then Snowflake in batch.
+        Batch get cached results for multiple people - check L1 first, then L2 (Snowflake) in batch.
 
         Args:
             people_data: List of dicts with keys: first_name, last_name, address, city, state, zip_code
@@ -154,7 +313,7 @@ class PersonCache:
         results = {}
         uncached_for_snowflake = []
 
-        # Step 1: Check CSV cache for all people
+        # Step 1: Check L1 cache (in-memory) for all people
         for person in people_data:
             person_key = self._generate_person_key(
                 person.get("first_name", ""),
@@ -164,15 +323,15 @@ class PersonCache:
                 person.get("state", ""),
                 person.get("zip_code", ""),
             )
-            cached_result = self.cache_data.get(person_key)
+            cached_result = self._get_cache_value(person_key)
             if cached_result:
                 results[person_key] = cached_result
             else:
                 uncached_for_snowflake.append(person)
 
-        csv_hits = len(results)
+        l1_hits = len(results)
 
-        # Step 2: Batch check Snowflake for uncached people
+        # Step 2: Batch check L2 (Snowflake) for uncached people
         if uncached_for_snowflake:
             try:
                 if self.snowflake_cache is None:
@@ -182,17 +341,17 @@ class PersonCache:
                     uncached_for_snowflake
                 )
 
-                # Add Snowflake hits to results and CSV cache
+                # Promote L2 hits to L1 cache
                 for person_key, cached_result in snowflake_results.items():
                     results[person_key] = cached_result
-                    self.cache_data[person_key] = cached_result  # Add to CSV cache
+                    self._set_cache_value(person_key, cached_result)
 
             except Exception as e:
                 self.logger.warning(f"Error batch checking Snowflake cache: {e}")
 
-        snowflake_hits = len(results) - csv_hits
+        l2_hits = len(results) - l1_hits
         self.logger.info(
-            f"Batch cache lookup: {len(people_data)} people, {csv_hits} CSV hits, {snowflake_hits} Snowflake hits"
+            f"Batch cache lookup: {len(people_data)} people, {l1_hits} L1 hits, {l2_hits} L2 hits"
         )
 
         return results
@@ -207,13 +366,13 @@ class PersonCache:
         zip_code: str,
         result: Dict,
     ):
-        """Cache a person lookup result in both CSV and Snowflake"""
+        """Cache a person lookup result in both L1 (memory) and L2 (Snowflake)"""
         person_key = self._generate_person_key(
             first_name, last_name, address, city, state, zip_code
         )
 
-        # Cache in memory/CSV
-        self.cache_data[person_key] = {
+        # Cache in L1 (in-memory LRU or dict)
+        cache_entry = {
             "first_name": first_name,
             "last_name": last_name,
             "address": address,
@@ -225,8 +384,9 @@ class PersonCache:
             "checked_at": datetime.now().isoformat(),
             "status": result.get("status", "success"),
         }
+        self._set_cache_value(person_key, cache_entry)
 
-        # Cache in Snowflake
+        # Cache in L2 (Snowflake)
         try:
             if self.snowflake_cache is None:
                 self.snowflake_cache = SnowflakeCacheService()
@@ -265,14 +425,61 @@ class PersonCache:
 
 
 class PhoneCache:
-    """Cache for phone number litigator check results (CSV + Snowflake)"""
+    """Cache for phone number litigator check results (CSV + Snowflake)
+
+    Uses LRU eviction when ETL_CACHE_LRU_ENABLED=true (default) to prevent
+    unbounded memory growth in long-running processes.
+    """
 
     def __init__(self, cache_file: str = "phone_cache.csv"):
         self.cache_file = cache_file
         self.logger = etl_logger.logger.getChild("PhoneCache")
-        self.cache_data = {}
         self.snowflake_cache = None
+
+        # Use LRU cache if enabled (default: True)
+        if settings.etl.cache_lru_enabled:
+            self._lru_cache = LRUCache(max_size=settings.etl.cache_lru_max_size, name="PhoneCache")
+            self.cache_data = None  # Not used when LRU is enabled
+            self.logger.info(
+                f"PhoneCache using LRU eviction (max_size={settings.etl.cache_lru_max_size})"
+            )
+        else:
+            self._lru_cache = None
+            self.cache_data = {}
+            self.logger.info("PhoneCache using unbounded dict (LRU disabled)")
+
         self._load_cache()
+
+    def _get_cache_value(self, key: str) -> Optional[Dict]:
+        """Get value from cache (abstracts LRU vs dict)"""
+        if self._lru_cache is not None:
+            return self._lru_cache.get(key)
+        return self.cache_data.get(key)
+
+    def _set_cache_value(self, key: str, value: Dict):
+        """Set value in cache (abstracts LRU vs dict)"""
+        if self._lru_cache is not None:
+            self._lru_cache.set(key, value)
+        else:
+            self.cache_data[key] = value
+
+    def _get_all_cache_items(self):
+        """Get all items from cache for serialization"""
+        if self._lru_cache is not None:
+            return self._lru_cache.items()
+        return self.cache_data.items()
+
+    def _get_cache_size(self) -> int:
+        """Get current cache size"""
+        if self._lru_cache is not None:
+            return len(self._lru_cache)
+        return len(self.cache_data)
+
+    def _key_in_cache(self, key: str) -> bool:
+        """Check if key exists in cache"""
+        if self._lru_cache is not None:
+            return key in self._lru_cache
+        return key in self.cache_data
 
     def _normalize_phone_key(self, phone: Any) -> str:
         """
@@ -339,27 +546,35 @@ class PhoneCache:
         try:
             if os.path.exists(self.cache_file):
                 df = pd.read_csv(self.cache_file)
+                loaded_count = 0
                 for _, row in df.iterrows():
                     phone = str(row["phone"])
-                    self.cache_data[phone] = {
+                    cache_entry = {
                         "in_litigator_list": row["in_litigator_list"],
                         "confidence": row["confidence"],
                         "checked_at": row["checked_at"],
                         "status": row["status"],
                     }
-                self.logger.info(f"Loaded {len(self.cache_data)} cached phone numbers from CSV")
+                    self._set_cache_value(phone, cache_entry)
+                    loaded_count += 1
+                self.logger.info(f"Loaded {loaded_count} cached phone numbers from CSV")
             else:
                 self.logger.info("No phone cache file found, starting fresh")
         except Exception as e:
             self.logger.error(f"Error loading phone cache: {e}")
-            self.cache_data = {}
+            # Reset cache on error
+            if self._lru_cache is not None:
+                self._lru_cache.clear()
+            else:
+                self.cache_data = {}
 
     def _save_cache(self):
         """Save cache to CSV file"""
         try:
-            if self.cache_data:
+            cache_items = list(self._get_all_cache_items())
+            if cache_items:
                 data = []
-                for phone, result in self.cache_data.items():
+                for phone, result in cache_items:
                     data.append(
                         {
                             "phone": phone,
@@ -372,25 +587,29 @@ class PhoneCache:
 
                 df = pd.DataFrame(data)
                 df.to_csv(self.cache_file, index=False)
-                self.logger.info(f"Saved {len(self.cache_data)} phone numbers to CSV cache")
+                self.logger.info(f"Saved {len(cache_items)} phone numbers to CSV cache")
+
+                # Log LRU stats if enabled
+                if self._lru_cache is not None:
+                    self._lru_cache.log_stats()
         except Exception as e:
             self.logger.error(f"Error saving phone cache: {e}")
 
     def get_cached_result(self, phone: Any) -> Optional[Dict]:
-        """Get cached result - check CSV first, then Snowflake"""
+        """Get cached result - check L1 (memory) first, then L2 (Snowflake)"""
         # Normalize phone to string before using as dictionary key
         phone_key = self._normalize_phone_key(phone)
         if not phone_key:
             self.logger.warning(f"Invalid phone value for cache lookup: {phone}")
             return None
 
-        # Check CSV cache first
-        cached_result = self.cache_data.get(phone_key)
+        # Check L1 cache first (in-memory LRU or dict)
+        cached_result = self._get_cache_value(phone_key)
         if cached_result:
-            self.logger.debug(f"Cache hit (CSV) for phone {phone_key}")
+            self.logger.debug(f"Cache hit (L1) for phone {phone_key}")
             return cached_result
 
-        # Check Snowflake cache
+        # Check L2 cache (Snowflake)
         try:
             if self.snowflake_cache is None:
                 self.snowflake_cache = SnowflakeCacheService()
@@ -398,9 +617,9 @@ class PhoneCache:
             snowflake_result = self.snowflake_cache.check_phone_in_cache(phone_key)
 
             if snowflake_result:
-                # Add to CSV cache
-                self.cache_data[phone_key] = snowflake_result
-                self.logger.debug(f"Cache hit (Snowflake) for phone {phone_key}")
+                # Promote to L1 cache
+                self._set_cache_value(phone_key, snowflake_result)
+                self.logger.debug(f"Cache hit (L2 Snowflake) for phone {phone_key}")
                 return snowflake_result
         except Exception as e:
             self.logger.warning(f"Error checking Snowflake cache: {e}")
@@ -409,22 +628,23 @@ class PhoneCache:
         return None
 
     def cache_result(self, phone: Any, result: Dict):
-        """Cache a phone number check result in both CSV and Snowflake"""
+        """Cache a phone number check result in both L1 (memory) and L2 (Snowflake)"""
         # Normalize phone to string before using as dictionary key
         phone_key = self._normalize_phone_key(phone)
         if not phone_key:
             self.logger.warning(f"Invalid phone value for cache storage: {phone}")
             return
 
-        # Cache in memory/CSV
-        self.cache_data[phone_key] = {
+        # Cache in L1 (in-memory LRU or dict)
+        cache_entry = {
             "in_litigator_list": result.get("in_litigator_list", False),
             "confidence": result.get("confidence", 0.0),
             "checked_at": datetime.now().isoformat(),
             "status": result.get("status", "unknown"),
         }
+        self._set_cache_value(phone_key, cache_entry)
 
-        # Cache in Snowflake
+        # Cache in L2 (Snowflake)
         try:
             if self.snowflake_cache is None:
                 self.snowflake_cache = SnowflakeCacheService()
@@ -442,7 +662,7 @@ class PhoneCache:
         uncached = []
         for phone in phones:
             phone_key = self._normalize_phone_key(phone)
-            if phone_key and phone_key not in self.cache_data:
+            if phone_key and not self._key_in_cache(phone_key):
                 uncached.append(phone_key)
         return uncached
 
