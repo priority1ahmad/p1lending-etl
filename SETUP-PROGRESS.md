@@ -11,7 +11,7 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 | 3. Hooks & Commands | Complete | 2024-12-22 | 4 hooks, 6 commands |
 | 4. GitHub & CI/CD | Complete | 2024-12-22 | Workflows + templates |
 | 5. Storybook | Pending | | |
-| 6. Environments | Pending | | |
+| 6. Environments | Complete | 2024-12-22 | Mock dev, staging/prod Snowflake |
 
 ## Current Session Notes
 
@@ -146,3 +146,31 @@ This is an existing ETL project with:
 - `.github/workflows/` - CI/CD pipelines
 
 The project uses a different structure than the template (backend/frontend instead of src/) but the principles apply.
+
+---
+
+## Phase 6: Environments & Test Data
+
+**Date**: 2024-12-22
+**Status**: Complete
+
+### Environment Strategy
+- **Development**: Mock data from JSON fixtures (no Snowflake)
+- **Staging**: Production Snowflake (CL36377) for integration testing
+- **Production**: Live system with production Snowflake
+
+### Files Created
+- [x] `frontend/src/config/environments.ts` - Environment configuration with helpers
+- [x] `frontend/src/services/mock-data.ts` - Mock data service for development
+- [x] `frontend/src/services/data-service.ts` - Unified data service with env switching
+- [x] `tests/fixtures/source_data.json` - Sample source records
+- [x] `tests/fixtures/enrichment_results.json` - Sample enrichment results
+- [x] `scripts/generate-test-data.py` - Test data generator script
+- [x] `docs/environments.md` - Environment strategy documentation
+
+### Notes
+- `.env.development` and `.env.staging` are protected by hooks
+- Environment controlled by `VITE_APP_ENV` (frontend) and `APP_ENV` (backend)
+- Dev environment uses mock data (no external API calls)
+- Uses Vite's `import.meta.env` for frontend env vars
+- JSON fixtures imported directly for Vite bundling
