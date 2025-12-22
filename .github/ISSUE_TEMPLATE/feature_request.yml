@@ -1,0 +1,88 @@
+name: Feature Request
+description: Suggest a new feature for P1Lending ETL
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature for P1Lending ETL!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear description of what you want to happen
+      placeholder: I would like to be able to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem it solves
+      description: What problem or pain point does this feature address?
+      placeholder: Currently, I have to manually...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this feature working?
+      placeholder: |
+        1. User navigates to...
+        2. System performs...
+        3. Results are displayed...
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or workarounds you've considered?
+      placeholder: I considered using...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area of the application does this affect?
+      options:
+        - Frontend / UI
+        - ETL Pipeline
+        - API / Backend
+        - Snowflake Integration
+        - idiCORE Enrichment
+        - DNC / Compliance
+        - Results / Export
+        - Authentication / Security
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to your workflow?
+      options:
+        - Nice to have - Would improve UX
+        - Important - Frequently needed
+        - Critical - Blocking current workflow
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or mockups about the feature request
+      placeholder: Screenshots, links, or additional details...
+    validations:
+      required: false

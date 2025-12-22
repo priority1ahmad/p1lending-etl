@@ -9,7 +9,7 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 | 1. Foundation | Complete | 2024-12-22 | Existing project adapted |
 | 2. MCP Servers | Complete | 2024-12-22 | All 4 servers installed |
 | 3. Hooks & Commands | Complete | 2024-12-22 | 4 hooks, 6 commands |
-| 4. GitHub & CI/CD | Pending | | |
+| 4. GitHub & CI/CD | Complete | 2024-12-22 | Workflows + templates |
 | 5. Storybook | Pending | | |
 | 6. Environments | Pending | | |
 
@@ -96,6 +96,44 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 - Existing hooks preserved (auto-format.sh, protect-secrets.py)
 - Added production/destructive command blocking
 - Storybook enforcement via warnings (non-blocking)
+
+---
+
+## Phase 4: GitHub & CI/CD
+
+**Date**: 2024-12-22
+**Status**: Complete
+
+### Workflows Created
+- [x] `ci.yml` - Already existed (lint, test, security scan)
+- [x] `deploy-staging.yml` - Deploy on push to staging branch
+- [x] `release.yml` - Create GitHub releases on version tags
+- [x] `deploy-production.yml` - Deploy on release publish
+
+### Templates Created
+- [x] `.github/ISSUE_TEMPLATE/feature_request.yml` - Feature request form
+- [x] `.github/ISSUE_TEMPLATE/bug_report.yml` - Bug report form
+- [x] `.github/pull_request_template.md` - PR checklist
+
+### Manual Setup Required
+After pushing, configure in GitHub Settings:
+1. **Environments**:
+   - Create `staging` environment
+   - Create `production` environment with required reviewers
+2. **Secrets** (optional for automated deploy):
+   - `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY`
+   - `PRODUCTION_HOST`, `PRODUCTION_USER`, `PRODUCTION_SSH_KEY`
+3. **Variables**:
+   - `STAGING_API_URL` - e.g., https://staging.p1lending.com/api
+   - `PRODUCTION_API_URL` - e.g., https://p1lending.com/api
+4. **Branch Protection** (optional):
+   - Require PR reviews for main
+   - Require status checks to pass
+
+### Notes
+- Deployment workflows have SSH deploy sections (commented out)
+- Uncomment SSH action sections when ready for automated deployment
+- Existing CI workflow preserved
 
 ---
 

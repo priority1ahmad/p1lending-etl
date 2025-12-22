@@ -1,0 +1,124 @@
+name: Bug Report
+description: Report a bug in P1Lending ETL
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this bug! Please fill out the form below to help us investigate.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of the bug
+      placeholder: When I do X, Y happens instead of Z...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      placeholder: |
+        1. Go to the Dashboard page
+        2. Click on 'Start ETL Job'
+        3. Select a SQL script
+        4. Click 'Run'
+        5. See error in console/UI
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen?
+      placeholder: The ETL job should start and show progress...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happens?
+      placeholder: The job fails immediately with error...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which area of the application is affected?
+      options:
+        - Frontend / UI
+        - ETL Pipeline
+        - API / Backend
+        - Snowflake Integration
+        - idiCORE Enrichment
+        - DNC / Compliance
+        - Results Page
+        - Authentication / Login
+        - WebSocket / Real-time Updates
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How severe is this bug?
+      options:
+        - Low - Minor inconvenience, workaround exists
+        - Medium - Affects functionality but not blocking
+        - High - Major feature broken
+        - Critical - System unusable, data loss possible
+    validations:
+      required: true
+
+  - type: textarea
+    id: error-messages
+    attributes:
+      label: Error Messages
+      description: Any error messages from console, logs, or UI?
+      render: shell
+      placeholder: |
+        Paste error messages, stack traces, or log output here...
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, OS, and any relevant environment info
+      placeholder: |
+        - Browser: Chrome 120
+        - OS: Windows 11 / macOS 14 / Ubuntu 22.04
+        - Environment: Staging / Production
+        - Job ID (if applicable): abc-123
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem
+      placeholder: Drag and drop images here or paste links...
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information about the problem?
+      placeholder: This started happening after...
+    validations:
+      required: false
