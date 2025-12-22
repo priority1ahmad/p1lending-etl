@@ -8,7 +8,7 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 |-------|--------|-----------|-------|
 | 1. Foundation | Complete | 2024-12-22 | Existing project adapted |
 | 2. MCP Servers | Complete | 2024-12-22 | All 4 servers installed |
-| 3. Hooks & Commands | Pending | | |
+| 3. Hooks & Commands | Complete | 2024-12-22 | 4 hooks, 6 commands |
 | 4. GitHub & CI/CD | Pending | | |
 | 5. Storybook | Pending | | |
 | 6. Environments | Pending | | |
@@ -63,6 +63,41 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 
 ### Issues/Blockers
 (none yet)
+
+---
+
+## Phase 3: Hooks & Commands
+
+**Date**: 2024-12-22
+**Status**: Complete
+
+### Hook Scripts Created
+- [x] `pre-tool.sh` - Pre-tool validation (blocks production/dangerous ops)
+- [x] `post-edit.sh` - Auto-format after file edits (prettier, black, ruff)
+- [x] `check-storybook.sh` - Warns when components lack stories
+- [x] `on-stop.sh` - Session end summary with git status
+
+### Slash Commands Created
+- [x] `feature.md` - End-to-end feature development workflow
+- [x] `fix-issue.md` - GitHub issue fixing workflow
+- [x] `etl-test.md` - ETL pipeline testing (full/extract/transform/load/api)
+- [x] `storybook-component.md` - Create component with Storybook story
+- [x] `release.md` - Version release with changelog
+- [x] `weekly-maintenance.md` - Weekly maintenance tasks
+
+### Scripts Created
+- [x] `update-changelog.sh` - Generate changelog from git commits
+
+### Configuration
+- [x] `settings.json` updated with hooks configuration
+- [x] All scripts made executable
+
+### Notes
+- Existing hooks preserved (auto-format.sh, protect-secrets.py)
+- Added production/destructive command blocking
+- Storybook enforcement via warnings (non-blocking)
+
+---
 
 ## Project Structure
 
