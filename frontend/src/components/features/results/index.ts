@@ -28,3 +28,22 @@ export type { ColumnVisibility } from './ResultsTableToolbar';
 
 export { QuickStatsWidget } from './QuickStatsWidget';
 export type { QuickStatsWidgetProps } from './QuickStatsWidget';
+
+export { CompactJobsList } from './CompactJobsList';
+export type { CompactJobsListProps, CompactJob } from './CompactJobsList';
+
+// V3 Airtable-inspired components
+export { JobCard } from './JobCard';
+export type { JobCardProps } from './JobCard';
+
+export { JobSidebar } from './JobSidebar';
+export type { JobSidebarProps, SidebarJob } from './JobSidebar';
+
+export { ResultsHeader } from './ResultsHeader';
+export type { ResultsHeaderProps } from './ResultsHeader';
+
+export { AirtableTable } from './AirtableTable';
+export type { AirtableTableProps, TableRecord } from './AirtableTable';
+
+export { TableFooter } from './TableFooter';
+export type { TableFooterProps } from './TableFooter';

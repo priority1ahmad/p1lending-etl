@@ -11,6 +11,8 @@ import { Dashboard } from './pages/Dashboard';
 import { SqlFiles } from './pages/SqlFiles';
 import { SqlEditor } from './pages/SqlEditor';
 import { ETLResults } from './pages/ETLResults';
+import { ResultsV2 } from './pages/ResultsV2';
+import { ResultsPageV3 } from './pages/ResultsPageV3';
 import { Rescrub } from './pages/Rescrub';
 import { UserProfile } from './pages/UserProfile';
 import { UserManagement } from './pages/UserManagement';
@@ -73,7 +75,38 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
+                      <ResultsPageV3 />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Old results page - kept for reference */}
+              <Route
+                path="/results-old"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
                       <ETLResults />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/results-v2"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ResultsV2 />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/results-v3"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <ResultsPageV3 />
                     </Layout>
                   </ProtectedRoute>
                 }
