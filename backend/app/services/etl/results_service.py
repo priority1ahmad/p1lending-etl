@@ -657,13 +657,14 @@ class ETLResultsService:
         )
 
         # Get paginated records
+        # Snowflake requires LIMIT before OFFSET
         query_sql = f"""
         SELECT *
         FROM {self.database}.{self.schema}.{self.table}
         {where_clause}
         ORDER BY "processed_at" DESC
-        OFFSET {offset}
         LIMIT {limit}
+        OFFSET {offset}
         """
 
         result_df = self.snowflake_conn.execute_query(query_sql)
