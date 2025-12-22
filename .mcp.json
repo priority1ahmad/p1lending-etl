@@ -8,6 +8,17 @@
         "@playwright/mcp@latest"
       ],
       "env": {}
+    },
+    "storybook": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "storybook-mcp-server",
+        "--url",
+        "http://localhost:6006"
+      ],
+      "env": {}
     }
   }
 }
