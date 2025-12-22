@@ -7,7 +7,7 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 | Phase | Status | Completed | Notes |
 |-------|--------|-----------|-------|
 | 1. Foundation | Complete | 2024-12-22 | Existing project adapted |
-| 2. MCP Servers | Pending | | |
+| 2. MCP Servers | Complete | 2024-12-22 | All 4 servers installed |
 | 3. Hooks & Commands | Pending | | |
 | 4. GitHub & CI/CD | Pending | | |
 | 5. Storybook | Pending | | |
@@ -32,8 +32,34 @@ This file tracks the progress of Claude Code SDLC setup across sessions.
 - [x] Phase 1 commit made (6a8d834)
 
 ### Next Steps
-- Complete Phase 1 tasks
-- Continue to Phase 2: MCP Servers
+- Continue to Phase 3: Hooks & Commands
+
+---
+
+## Phase 2: MCP Servers
+
+**Date**: 2024-12-22
+**Status**: Complete
+
+### Installed Servers
+- [x] GitHub MCP (`github`) - user scope
+- [x] Sequential Thinking MCP (`sequential-thinking`) - user scope
+- [x] Context7 MCP (`context7`) - user scope, HTTP transport
+- [x] Playwright MCP (`playwright`) - project scope
+- [ ] Brave Search MCP - skipped (no API key)
+- [ ] Storybook MCP - pending Phase 5
+
+### Verification
+- All servers appear in `claude mcp list`
+- GitHub integration tested (connected)
+- Context7 documentation queries work (connected)
+- Playwright connected with headless Chromium
+
+### Notes
+- Playwright runs in headless mode on Linode server
+- Used `@playwright/mcp@latest` (official Microsoft package)
+- Storybook MCP will be added after Phase 5
+- Created `docs/mcp-usage.md` with usage guide
 
 ### Issues/Blockers
 (none yet)
