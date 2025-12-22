@@ -97,10 +97,6 @@ export function isDevelopment(): boolean {
   return getCurrentEnvironment() === 'development';
 }
 
-export function shouldUseMockData(): boolean {
-  return getConfig().api.useMockApi;
-}
-
 export function isSnowflakeEnabled(): boolean {
   return getConfig().snowflake.enabled;
 }

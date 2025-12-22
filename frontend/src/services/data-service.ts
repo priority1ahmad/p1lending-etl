@@ -1,9 +1,9 @@
 /**
- * Data service that switches between mock and Snowflake based on environment.
+ * Data service for fetching data from backend API.
+ * Mock data has been removed - use Storybook for development testing.
  */
 
-import { isSnowflakeEnabled, shouldUseMockData } from '../config/environments';
-import { getSourceData, getEnrichmentResults, mockEnrichmentApi } from './mock-data';
+import { isSnowflakeEnabled } from '../config/environments';
 
 export interface SourceRecord {
   id: number;
@@ -26,39 +26,25 @@ export interface EnrichmentResult {
 }
 
 export async function fetchSourceData(): Promise<SourceRecord[]> {
-  if (shouldUseMockData()) {
-    console.log('[DataService] Using mock source data');
-    return getSourceData();
-  }
-
   if (!isSnowflakeEnabled()) {
     throw new Error('Snowflake is not enabled in this environment');
   }
 
-  // TODO: Implement Snowflake query
+  // TODO: Implement Snowflake query via backend API
   throw new Error('Snowflake integration not yet implemented');
 }
 
 export async function fetchEnrichmentResults(): Promise<EnrichmentResult[]> {
-  if (shouldUseMockData()) {
-    console.log('[DataService] Using mock enrichment data');
-    return getEnrichmentResults();
-  }
-
   if (!isSnowflakeEnabled()) {
     throw new Error('Snowflake is not enabled in this environment');
   }
 
-  // TODO: Implement Snowflake query
+  // TODO: Implement Snowflake query via backend API
   throw new Error('Snowflake integration not yet implemented');
 }
 
 export async function enrichRecords(sourceIds: number[]): Promise<EnrichmentResult[]> {
-  if (shouldUseMockData()) {
-    console.log('[DataService] Using mock enrichment API');
-    return mockEnrichmentApi(sourceIds);
-  }
-
-  // TODO: Call real enrichment API
+  // TODO: Call real enrichment API via backend
+  console.log('enrichRecords called with:', sourceIds);
   throw new Error('Real API integration not yet implemented');
 }
