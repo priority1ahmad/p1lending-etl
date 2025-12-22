@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { MemoryRouter } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import { JobHistoryTable } from './JobHistoryTable';

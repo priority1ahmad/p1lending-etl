@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { JobCreationCard } from './JobCreationCard';
 import { Box, Typography } from '@mui/material';
 

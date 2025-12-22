@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Box, Typography } from '@mui/material';
 import ResultsOverviewCharts from './ResultsOverviewCharts';
 import type { JobStats } from './ResultsOverviewCharts';

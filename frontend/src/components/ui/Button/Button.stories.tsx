@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Button } from './Button';
 import { Box } from '@mui/material';
 import { PlayArrow, Download, Delete, Settings } from '@mui/icons-material';

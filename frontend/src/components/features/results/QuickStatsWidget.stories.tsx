@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { QuickStatsWidget } from './QuickStatsWidget';
 import { Box, Typography } from '@mui/material';
 
@@ -248,11 +248,6 @@ export const ComparisonView: Story = {
 // ============================================
 
 export const MobileView: Story = {
-  parameters: {
-    viewport: {
-      defaultViewport: 'mobile1',
-    },
-  },
   render: () => (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
@@ -270,14 +265,15 @@ export const MobileView: Story = {
       </Box>
     </Box>
   ),
+  globals: {
+    viewport: {
+      value: 'mobile1',
+      isRotated: false
+    }
+  },
 };
 
 export const TabletView: Story = {
-  parameters: {
-    viewport: {
-      defaultViewport: 'tablet',
-    },
-  },
   render: () => (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
@@ -295,6 +291,12 @@ export const TabletView: Story = {
       </Box>
     </Box>
   ),
+  globals: {
+    viewport: {
+      value: 'tablet',
+      isRotated: false
+    }
+  },
 };
 
 // ============================================

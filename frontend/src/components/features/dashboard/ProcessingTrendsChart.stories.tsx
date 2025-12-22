@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ProcessingTrendsChart } from './ProcessingTrendsChart';
 import { Box, Typography } from '@mui/material';
 

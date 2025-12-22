@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ResultsMetricCard } from './ResultsMetricCard';
 import { Box, Typography, GridLegacy as Grid } from '@mui/material';
 import { palette } from '../../../theme';
