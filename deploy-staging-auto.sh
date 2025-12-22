@@ -10,10 +10,10 @@
 # Prerequisites:
 # - Git repository cloned
 # - Docker and Docker Compose installed
-# - Run from ~/etl_app directory
+# - Run from ~/etl-staging directory
 #
 # Usage (on staging server):
-#   cd ~/etl_app
+#   cd ~/etl-staging
 #   ./deploy-staging-auto.sh
 #
 #######################################################
@@ -74,8 +74,8 @@ print_step() {
 # Validate we're in the right directory
 if [ ! -f "docker-compose.prod.yml" ]; then
     print_error "docker-compose.prod.yml not found!"
-    print_info "Please run this script from the ~/etl_app directory:"
-    print_info "  cd ~/etl_app"
+    print_info "Please run this script from the ~/etl-staging directory:"
+    print_info "  cd ~/etl-staging"
     print_info "  ./deploy-staging-auto.sh"
     exit 1
 fi
@@ -195,7 +195,7 @@ fi
 
 # Check frontend
 print_step "Testing frontend..."
-if curl -s -o /dev/null -w '%{http_code}' http://localhost:3000 | grep -q "200"; then
+if curl -s -o /dev/null -w '%{http_code}' http://localhost | grep -q "200"; then
     print_success "Frontend health check passed"
 else
     print_warning "Frontend health check failed (may still be starting)"
