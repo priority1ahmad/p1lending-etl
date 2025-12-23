@@ -7,7 +7,7 @@ import theme from './theme';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
+import { DashboardHomePage } from './pages/DashboardHomePage';
 import { SqlFiles } from './pages/SqlFiles';
 import { SqlEditor } from './pages/SqlEditor';
 import { ETLResults } from './pages/ETLResults';
@@ -45,7 +45,7 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Layout>
-                      <Dashboard />
+                      <DashboardHomePage />
                     </Layout>
                   </ProtectedRoute>
                 }
