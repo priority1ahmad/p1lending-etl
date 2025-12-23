@@ -123,9 +123,9 @@ function toActiveJob(job: ETLJob, scriptName?: string): ActiveJob {
 function toPreviewStats(preview: JobPreview): PreviewStats {
   return {
     scriptName: preview.script_name,
-    totalRows: preview.total_rows || preview.row_count,
-    alreadyProcessed: preview.already_processed || 0,
-    unprocessed: preview.unprocessed || preview.row_count,
+    totalRows: preview.total_rows ?? preview.row_count,
+    alreadyProcessed: preview.already_processed ?? 0,
+    unprocessed: preview.unprocessed ?? preview.row_count,
     sampleRows: preview.rows,
   };
 }
