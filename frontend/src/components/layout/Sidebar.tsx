@@ -305,16 +305,33 @@ export const Sidebar: React.FC = () => {
       <BrandSection>
         <BrandLogo>P1</BrandLogo>
         <Box>
-          <Typography
-            sx={{
-              fontWeight: 600,
-              fontSize: '0.9375rem',
-              lineHeight: 1.2,
-              color: textColors.inverse,
-            }}
-          >
-            P1 Lending
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Typography
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.9375rem',
+                lineHeight: 1.2,
+                color: textColors.inverse,
+              }}
+            >
+              P1 Lending
+            </Typography>
+            <Box
+              sx={{
+                px: '0.375rem',
+                py: '0.125rem',
+                backgroundColor: palette.accent[500],
+                borderRadius: '0.25rem',
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                color: textColors.inverse,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Beta
+            </Box>
+          </Box>
           <Typography
             sx={{
               color: 'rgba(255, 255, 255, 0.5)',
