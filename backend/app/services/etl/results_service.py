@@ -958,18 +958,55 @@ class ETLResultsService:
 
         # Map database columns to Google Sheets format
         column_mapping = {
+            # Lead Information
+            "lead_number": "Lead Number",
+            "campaign_date": "Campaign Date",
+            "lead_campaign": "Lead Campaign",
+            "lead_source": "Lead Source",
+            "ref_id": "Ref ID",
+            # Person Data
             "first_name": "First Name",
             "last_name": "Last Name",
+            "co_borrower_full_name": "Co Borrower Full Name",
             "address": "Address",
             "city": "City",
             "state": "State",
+            "zip": "Zip",
             "zip_code": "Zip",
+            # Property Data
+            "total_units": "Total Units",
+            "owner_occupied": "Owner Occupied",
+            "annual_tax_amount": "Annual Tax Amount",
+            "assessed_value": "Assessed Value",
+            "estimated_value": "Estimated Value",
+            # Loan Data - First Mortgage
+            "ltv": "LTV",
+            "loan_type": "Loan Type",
+            "first_mortgage_type": "First Mortgage Type",
+            "first_mortgage_amount": "First Mortgage Amount",
+            "first_mortgage_balance": "First Mortgage Balance",
+            "term": "Term",
+            "estimated_new_payment": "Estimated New Payment",
+            # Loan Data - Second Mortgage
+            "second_mortgage_type": "Second Mortgage Type",
+            "second_mortgage_term": "Second Mortgage Term",
+            "second_mortgage_balance": "Second Mortgage Amount",
+            "has_second_mortgage": "Has Second Mortgage",
+            # Current Loan Details
+            "current_interest_rate": "Current Interest Rate",
+            "current_lender": "Current Lender",
+            "arm_index_type": "ARM Index Type",
+            "origination_date": "Origination Date",
+            "rate_adjustment_date": "Rate Adjustment Date",
+            # Phone Data
             "phone_1": "Phone 1",
             "phone_2": "Phone 2",
             "phone_3": "Phone 3",
+            # Email Data
             "email_1": "Email 1",
             "email_2": "Email 2",
             "email_3": "Email 3",
+            # Compliance Flags
             "in_litigator_list": "In Litigator List",
             "phone_1_in_dnc": "Phone 1 In DNC List",
             "phone_2_in_dnc": "Phone 2 In DNC List",
