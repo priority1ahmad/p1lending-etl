@@ -55,23 +55,73 @@ export function ResultsPageV3() {
     staleTime: 60000,
   });
 
-  // Transform results for table
+  // Transform results for table - pass all fields from API
   const records: TableRecord[] = (resultsData?.records || []).map((r) => ({
+    // Metadata
     record_id: r.record_id,
+    job_name: r.job_name,
+    table_id: r.table_id,
+    table_title: r.table_title,
+    processed_at: r.processed_at,
+
+    // Lead Information
+    lead_number: r.lead_number,
+    campaign_date: r.campaign_date,
+    lead_campaign: r.lead_campaign,
+    lead_source: r.lead_source,
+    ref_id: r.ref_id,
+
+    // Person Data
     first_name: r.first_name,
     last_name: r.last_name,
+    co_borrower_full_name: r.co_borrower_full_name,
     address: r.address,
     city: r.city,
     state: r.state,
     zip_code: r.zip_code,
+
+    // Property Data
+    total_units: r.total_units,
+    owner_occupied: r.owner_occupied,
+    annual_tax_amount: r.annual_tax_amount,
+    assessed_value: r.assessed_value,
+    estimated_value: r.estimated_value,
+
+    // First Mortgage
+    ltv: r.ltv,
+    loan_type: r.loan_type,
+    first_mortgage_type: r.first_mortgage_type,
+    first_mortgage_amount: r.first_mortgage_amount,
+    first_mortgage_balance: r.first_mortgage_balance,
+    term: r.term,
+    estimated_new_payment: r.estimated_new_payment,
+
+    // Second Mortgage
+    second_mortgage_type: r.second_mortgage_type,
+    second_mortgage_term: r.second_mortgage_term,
+    second_mortgage_balance: r.second_mortgage_balance,
+    has_second_mortgage: r.has_second_mortgage,
+
+    // Current Loan Details
+    current_interest_rate: r.current_interest_rate,
+    current_lender: r.current_lender,
+    arm_index_type: r.arm_index_type,
+    origination_date: r.origination_date,
+    rate_adjustment_date: r.rate_adjustment_date,
+
+    // Contact Info
     phone_1: r.phone_1,
     phone_2: r.phone_2,
     phone_3: r.phone_3,
     email_1: r.email_1,
     email_2: r.email_2,
     email_3: r.email_3,
+
+    // Compliance Flags
     in_litigator_list: r.in_litigator_list,
-    processed_at: r.processed_at,
+    phone_1_in_dnc: r.phone_1_in_dnc,
+    phone_2_in_dnc: r.phone_2_in_dnc,
+    phone_3_in_dnc: r.phone_3_in_dnc,
   }));
 
   // Get litigator count from job data or results

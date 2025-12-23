@@ -259,11 +259,23 @@ async def get_results_stats(current_user: User = Depends(get_current_user)):
         )
         total_jobs = len(jobs)
 
+        # Calculate DNC count (records with any phone in DNC)
+        total_dnc = sum(
+            job.get("DNC_COUNT", job.get("dnc_count", 0)) for job in jobs
+        )
+        # Records that are BOTH litigator AND DNC
+        total_both = sum(
+            job.get("BOTH_COUNT", job.get("both_count", 0)) for job in jobs
+        )
+        # Clean = total - litigators - dnc + both (to avoid double-counting)
+        clean_records = total_records - total_litigators - total_dnc + total_both
+
         return {
             "total_jobs": total_jobs,
             "total_records": total_records,
             "total_litigators": total_litigators,
-            "clean_records": total_records - total_litigators,
+            "total_dnc": total_dnc,
+            "clean_records": clean_records,
             "litigator_percentage": (
                 round((total_litigators / total_records * 100), 2) if total_records > 0 else 0
             ),

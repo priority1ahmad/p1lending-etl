@@ -12,6 +12,7 @@ export interface QuickStatsWidgetProps {
   recordCount: number;
   cleanCount: number;
   litigatorCount: number;
+  dncCount?: number;
 }
 
 interface StatItemProps {
@@ -65,6 +66,7 @@ export function QuickStatsWidget({
   recordCount,
   cleanCount,
   litigatorCount,
+  dncCount = 0,
 }: QuickStatsWidgetProps) {
   const cleanPercentage =
     recordCount > 0 ? ((cleanCount / recordCount) * 100).toFixed(1) : '0.0';
@@ -94,6 +96,11 @@ export function QuickStatsWidget({
           label="Litigators"
           value={litigatorCount}
           color={palette.warning[500]}
+        />
+        <StatItem
+          label="DNC"
+          value={dncCount}
+          color={palette.error[500]}
         />
         <StatItem
           label="Clean %"

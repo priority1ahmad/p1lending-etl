@@ -376,8 +376,9 @@ export function ETLResults() {
             {selectedJob && (
               <QuickStatsWidget
                 recordCount={selectedJob.record_count}
-                cleanCount={selectedJob.record_count - selectedJob.litigator_count}
+                cleanCount={selectedJob.record_count - selectedJob.litigator_count - (selectedJob.dnc_count || 0) + (selectedJob.both_count || 0)}
                 litigatorCount={selectedJob.litigator_count}
+                dncCount={selectedJob.dnc_count || 0}
               />
             )}
 

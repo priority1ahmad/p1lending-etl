@@ -741,6 +741,8 @@ class ETLResultsService:
             "job_name",
             COUNT(*) as record_count,
             SUM(CASE WHEN "in_litigator_list" = 'Yes' THEN 1 ELSE 0 END) as litigator_count,
+            SUM(CASE WHEN "phone_1_in_dnc" = 'Yes' OR "phone_2_in_dnc" = 'Yes' OR "phone_3_in_dnc" = 'Yes' THEN 1 ELSE 0 END) as dnc_count,
+            SUM(CASE WHEN "in_litigator_list" = 'Yes' AND ("phone_1_in_dnc" = 'Yes' OR "phone_2_in_dnc" = 'Yes' OR "phone_3_in_dnc" = 'Yes') THEN 1 ELSE 0 END) as both_count,
             MAX("processed_at") as last_processed
         FROM {self.database}.{self.schema}.{self.table}
         GROUP BY "job_id", "job_name"

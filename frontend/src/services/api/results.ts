@@ -7,27 +7,74 @@
 import apiClient from '../../utils/api';
 
 export interface ETLResultRecord {
+  // Metadata
   record_id: string;
   job_id: string;
   job_name: string;
+  table_id?: string;
+  table_title?: string;
   processed_at: string;
+
+  // Lead Information
+  lead_number?: string;
+  campaign_date?: string;
+  lead_campaign?: string;
+  lead_source?: string;
+  ref_id?: string;
+
+  // Person Data
   first_name?: string;
   last_name?: string;
+  co_borrower_full_name?: string;
   address?: string;
   city?: string;
   state?: string;
   zip_code?: string;
+
+  // Property Data
+  total_units?: string;
+  owner_occupied?: string;
+  annual_tax_amount?: string;
+  assessed_value?: string;
+  estimated_value?: string;
+
+  // First Mortgage
+  ltv?: string;
+  loan_type?: string;
+  first_mortgage_type?: string;
+  first_mortgage_amount?: string;
+  first_mortgage_balance?: string;
+  term?: string;
+  estimated_new_payment?: string;
+
+  // Second Mortgage
+  second_mortgage_type?: string;
+  second_mortgage_term?: string;
+  second_mortgage_balance?: string;
+  has_second_mortgage?: string;
+
+  // Current Loan Details
+  current_interest_rate?: string;
+  current_lender?: string;
+  arm_index_type?: string;
+  origination_date?: string;
+  rate_adjustment_date?: string;
+
+  // Phone Data
   phone_1?: string;
   phone_2?: string;
   phone_3?: string;
+
+  // Email Data
   email_1?: string;
   email_2?: string;
   email_3?: string;
+
+  // Compliance Flags
   in_litigator_list?: string;
   phone_1_in_dnc?: string;
   phone_2_in_dnc?: string;
   phone_3_in_dnc?: string;
-  additional_data?: any;
 }
 
 export interface ETLJob {
@@ -35,6 +82,8 @@ export interface ETLJob {
   job_name: string;
   record_count: number;
   litigator_count: number;
+  dnc_count: number;
+  both_count: number;
   last_processed: string;
   table_id?: string;
   table_title?: string;

@@ -14,7 +14,11 @@ export interface JobItem {
   job_name: string;
   record_count: number;
   litigator_count: number;
+  dnc_count?: number;
+  both_count?: number;
   last_processed: string;
+  table_id?: string;
+  table_title?: string;
 }
 
 export interface JobsListCardProps {
@@ -81,7 +85,7 @@ export function JobsListCard({
                     mb: 0.5,
                   }}
                 >
-                  {job.job_name}
+                  {job.table_title || job.job_name}
                 </Typography>
                 <Typography
                   variant="caption"
