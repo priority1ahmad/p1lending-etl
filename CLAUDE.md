@@ -184,6 +184,57 @@ The ETL engine includes performance optimizations with feature flags:
 
 Key tuning env vars: `CCC_MIN_WORKERS`, `CCC_MAX_WORKERS`, `IDICORE_MIN_WORKERS`, `IDICORE_MAX_WORKERS`
 
+## Snowflake Direct Access
+
+For direct Snowflake queries (schema changes, data migrations, debugging), use RSA key authentication:
+
+**Connection Details:**
+| Setting | Value |
+|---------|-------|
+| Account | `HTWNYRU-CL36377` |
+| User | `SDABABNEH` |
+| Role | `ACCOUNTADMIN` |
+| Warehouse | `COMPUTE_WH` |
+| Database | `PROCESSED_DATA_DB` (for results) |
+| Schema | `PUBLIC` |
+| Private Key | `/home/aallouch/projects/LodasoftETL/new_app/rsa_key.p8` |
+| Key Password | `n9caykPwD97SgAP` |
+
+**Quick Python Connection:**
+```python
+import snowflake.connector
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+
+key_path = '/home/aallouch/projects/LodasoftETL/new_app/rsa_key.p8'
+with open(key_path, 'rb') as f:
+    private_key_obj = serialization.load_pem_private_key(f.read(), password=b'n9caykPwD97SgAP')
+private_key_der = private_key_obj.private_bytes(encoding=Encoding.DER, format=PrivateFormat.PKCS8, encryption_algorithm=NoEncryption())
+
+conn = snowflake.connector.connect(
+    account='HTWNYRU-CL36377',
+    user='SDABABNEH',
+    authenticator='snowflake',
+    private_key=private_key_der,
+    role='ACCOUNTADMIN',
+    warehouse='COMPUTE_WH',
+    database='PROCESSED_DATA_DB',
+    schema='PUBLIC',
+    autocommit=True,
+    insecure_mode=True,
+    ocsp_fail_open=True,
+)
+cursor = conn.cursor()
+# Run queries...
+conn.close()
+```
+
+**Key Tables:**
+- `PROCESSED_DATA_DB.PUBLIC.MASTER_PROCESSED_DB` - ETL results (53 columns)
+- `BULK_PROPERTY_DATA__NATIONAL_PRIVATE_SHARE.PUBLIC.*` - Source property data
+
+**Utility Script:** `backend/scripts/analyze_master_processed_db.py` - Table analysis and JSON migration
+
 ## Claude Code Integration
 
 ### Deployment Workflow
