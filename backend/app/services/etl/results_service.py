@@ -672,6 +672,11 @@ class ETLResultsService:
         records = []
         if result_df is not None and not result_df.empty:
             result_df = self._normalize_columns(result_df)
+
+            # Rename 'zip' to 'zip_code' for frontend compatibility
+            if "zip" in result_df.columns:
+                result_df = result_df.rename(columns={"zip": "zip_code"})
+
             raw_records = result_df.to_dict("records")
 
             # Expand additional_data JSON into separate columns
