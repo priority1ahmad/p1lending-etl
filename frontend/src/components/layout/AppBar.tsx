@@ -52,12 +52,12 @@ export const AppBar: React.FC = () => {
         zIndex: 1000,
       }}
     >
-      <Toolbar sx={{ px: { xs: 2, md: 4 } }}>
-        <Typography 
-          variant="h6" 
-          component="div" 
-          sx={{ 
-            flexGrow: 1, 
+      <Toolbar sx={{ px: { xs: '0.5rem', md: '1rem' } }}>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{
+            flexGrow: 1,
             cursor: 'pointer',
             fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
             fontWeight: 600,
@@ -65,12 +65,12 @@ export const AppBar: React.FC = () => {
             '&:hover': {
               color: '#2D5A8A',
             },
-          }} 
+          }}
           onClick={() => navigate('/')}
         >
           Priority 1 Lending ETL
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
           <Button 
             onClick={() => navigate('/')}
             sx={{
@@ -120,14 +120,14 @@ export const AppBar: React.FC = () => {
             Configuration
           </Button>
           <Box
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1, 
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
               cursor: 'pointer',
-              ml: 2,
-              px: 2,
-              py: 0.5,
+              ml: '1rem',
+              px: '1rem',
+              py: '0.25rem',
               borderRadius: '0.5rem',
               '&:hover': {
                 backgroundColor: '#F7F9FC',
@@ -135,7 +135,7 @@ export const AppBar: React.FC = () => {
             }}
             onClick={handleMenuOpen}
           >
-            <Avatar sx={{ width: 32, height: 32, bgcolor: '#E8632B', color: '#FFFFFF' }}>
+            <Avatar sx={{ width: '2rem', height: '2rem', bgcolor: '#E8632B', color: '#FFFFFF' }}>
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </Avatar>
             <Typography 
@@ -156,8 +156,8 @@ export const AppBar: React.FC = () => {
             PaperProps={{
               sx: {
                 borderRadius: '0.75rem',
-                boxShadow: '0 10px 15px -3px rgba(30, 58, 95, 0.1), 0 4px 6px -2px rgba(30, 58, 95, 0.05)',
-                mt: 1,
+                boxShadow: '0 0.625rem 0.9375rem -0.1875rem rgba(30, 58, 95, 0.1), 0 0.25rem 0.375rem -0.125rem rgba(30, 58, 95, 0.05)',
+                mt: '0.5rem',
               },
             }}
           >

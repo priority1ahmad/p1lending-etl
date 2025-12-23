@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Container,
   Typography,
   Box,
+  Container,
   Card,
   CardContent,
   Button,
@@ -27,17 +27,21 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Pagination,
 } from '@mui/material';
 import { Grid } from '@mui/material';
-import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear } from '@mui/icons-material';
+import { PlayArrow, Stop, Preview, History, Visibility, Download, Search, Clear, ExpandMore, ExpandLess, Assessment } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import { jobsApi } from '../services/api/jobs';
 import type { ETLJob, JobCreate, JobPreview } from '../services/api/jobs';
 import { io, Socket } from 'socket.io-client';
+import type { JobProgressData, BatchProgressData, RowProcessedData, JobLogData, JobCompleteData, JobErrorData } from '../types/socket';
 
 export const Dashboard: React.FC = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedScriptId, setSelectedScriptId] = useState<string>('');
   const [rowLimit, setRowLimit] = useState<string>('');
   const [currentJob, setCurrentJob] = useState<ETLJob | null>(null);
@@ -45,7 +49,31 @@ export const Dashboard: React.FC = () => {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewData, setPreviewData] = useState<Array<JobPreview>>([]);
   const [previewLoadingMessage, setPreviewLoadingMessage] = useState<string>('Initializing preview...');
-  const [processedRows, setProcessedRows] = useState<Array<{ row_number: number; first_name: string; last_name: string; address: string; status: string; batch?: number }>>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const jobsPerPage = 5;
+  interface ProcessedRow {
+    row_number: number;
+    first_name: string;
+    last_name: string;
+    address: string;
+    city?: string;
+    state?: string;
+    zip_code?: string;
+    phone_1?: string;
+    phone_2?: string;
+    phone_3?: string;
+    email_1?: string;
+    email_2?: string;
+    email_3?: string;
+    in_litigator_list?: string;
+    phone_1_in_dnc?: string;
+    phone_2_in_dnc?: string;
+    phone_3_in_dnc?: string;
+    status: string;
+    batch?: number;
+  }
+  const [processedRows, setProcessedRows] = useState<ProcessedRow[]>([]);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
   const rowsEndRef = useRef<HTMLDivElement>(null);
@@ -87,13 +115,25 @@ export const Dashboard: React.FC = () => {
   const jobHistory = jobHistoryResponse?.jobs || [];
   const jobHistoryMessage = jobHistoryResponse?.message;
 
+  // Pagination calculations
+  const totalPages = Math.ceil(jobHistory.length / jobsPerPage);
+  const startIndex = (currentPage - 1) * jobsPerPage;
+  const endIndex = startIndex + jobsPerPage;
+  const paginatedJobs = jobHistory.slice(startIndex, endIndex);
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Use latestJob directly instead of syncing to state
   useEffect(() => {
-    if (latestJob) {
+    if (latestJob && latestJob.id !== currentJob?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Syncing external data to local state is intentional
       setCurrentJob(latestJob);
     }
-  }, [latestJob]);
+  }, [latestJob, currentJob?.id]);
 
-  // Fetch initial logs when job starts
+  // Fetch initial logs when job starts and clear when stopped
   useEffect(() => {
     if (currentJob && currentJob.status === 'running' && currentJob.id) {
       // Fetch initial logs from API
@@ -105,28 +145,50 @@ export const Dashboard: React.FC = () => {
             timestamp: log.created_at || new Date().toISOString(),
           })));
         }
-      }).catch(err => console.error('Failed to fetch initial logs:', err));
+      }).catch(_err => console.error('Failed to fetch initial logs'));
     } else if (!currentJob || currentJob.status !== 'running') {
-      // Clear logs when job stops
-      setLogs([]);
+      // Clear logs when job stops - safe because this is driven by external state change
+      if (logs.length > 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- Clearing logs when job stops is intentional
+        setLogs([]);
+      }
     }
-  }, [currentJob?.id, currentJob?.status]);
+  }, [currentJob?.id, currentJob?.status, currentJob, logs.length]);
 
   // Socket.io connection for real-time updates
   useEffect(() => {
     if (currentJob && currentJob.status === 'running') {
+      // Get auth token from localStorage
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('No auth token available for WebSocket connection');
+        return;
+      }
+
       // In production, use relative URL (empty) so nginx can proxy socket.io
       // In development, use explicit localhost URL
       const socketUrl = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:8000' : undefined);
       const socket = io(socketUrl, {
         path: '/socket.io',
+        auth: {
+          token: token,
+        },
       });
 
       socket.on('connect', () => {
+        console.log('WebSocket connected successfully');
         socket.emit('join_job', { job_id: currentJob.id });
       });
 
-      socket.on('job_progress', (data: any) => {
+      socket.on('connect_error', (error) => {
+        console.error('WebSocket connection error:', error.message);
+      });
+
+      socket.on('disconnect', (reason) => {
+        console.log('WebSocket disconnected:', reason);
+      });
+
+      socket.on('job_progress', (data: JobProgressData) => {
         setCurrentJob((prev) => (prev ? { 
           ...prev, 
           progress: data.progress || prev.progress, 
@@ -139,7 +201,7 @@ export const Dashboard: React.FC = () => {
         } : null));
       });
 
-      socket.on('batch_progress', (data: any) => {
+      socket.on('batch_progress', (data: BatchProgressData) => {
         setCurrentJob((prev) => (prev ? { 
           ...prev, 
           current_batch: data.current_batch,
@@ -148,15 +210,29 @@ export const Dashboard: React.FC = () => {
         } : null));
       });
 
-      socket.on('row_processed', (data: any) => {
+      socket.on('row_processed', (data: RowProcessedData) => {
         if (data.row_data) {
+          const rowData = data.row_data; // Capture for type narrowing
           setProcessedRows((prev) => {
-            const newRows = [...prev, {
-              row_number: data.row_data.row_number || prev.length + 1,
-              first_name: data.row_data.first_name || '',
-              last_name: data.row_data.last_name || '',
-              address: data.row_data.address || '',
-              status: data.row_data.status || 'Processing',
+            const newRows: ProcessedRow[] = [...prev, {
+              row_number: rowData.row_number || prev.length + 1,
+              first_name: rowData.first_name || '',
+              last_name: rowData.last_name || '',
+              address: rowData.address || '',
+              city: rowData.city || '',
+              state: rowData.state || '',
+              zip_code: rowData.zip_code || '',
+              phone_1: rowData.phone_1 || '',
+              phone_2: rowData.phone_2 || '',
+              phone_3: rowData.phone_3 || '',
+              email_1: rowData.email_1 || '',
+              email_2: rowData.email_2 || '',
+              email_3: rowData.email_3 || '',
+              in_litigator_list: rowData.in_litigator_list || 'No',
+              phone_1_in_dnc: rowData.phone_1_in_dnc || 'No',
+              phone_2_in_dnc: rowData.phone_2_in_dnc || 'No',
+              phone_3_in_dnc: rowData.phone_3_in_dnc || 'No',
+              status: rowData.status || 'Processing',
               batch: data.batch
             }];
             // Keep only last 50 rows
@@ -165,7 +241,7 @@ export const Dashboard: React.FC = () => {
         }
       });
 
-      socket.on('job_log', (data: any) => {
+      socket.on('job_log', (data: JobLogData) => {
         setLogs((prev) => [
           ...prev,
           {
@@ -176,13 +252,13 @@ export const Dashboard: React.FC = () => {
         ]);
       });
 
-      socket.on('job_complete', (data: any) => {
-        setCurrentJob((prev) => (prev ? { ...prev, status: 'completed', progress: 100, ...data } : null));
+      socket.on('job_complete', (data: JobCompleteData) => {
+        setCurrentJob((prev) => (prev ? { ...prev, ...data, status: 'completed' as const, progress: 100 } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
 
-      socket.on('job_error', (data: any) => {
-        setCurrentJob((prev) => (prev ? { ...prev, status: 'failed', error_message: data.error } : null));
+      socket.on('job_error', (data: JobErrorData) => {
+        setCurrentJob((prev) => (prev ? { ...prev, status: 'failed' as const, error_message: data.error } : null));
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       });
 
@@ -193,7 +269,7 @@ export const Dashboard: React.FC = () => {
         socket.disconnect();
       };
     }
-  }, [currentJob?.id, currentJob?.status, queryClient]);
+  }, [currentJob?.id, currentJob?.status, currentJob, queryClient]);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -204,6 +280,31 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     rowsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [processedRows]);
+
+  // Helper function to toggle row expansion
+  const toggleRowExpansion = (rowNumber: number) => {
+    setExpandedRows(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(rowNumber)) {
+        newSet.delete(rowNumber);
+      } else {
+        newSet.add(rowNumber);
+      }
+      return newSet;
+    });
+  };
+
+  // Helper function to get compliance status for a row
+  const getComplianceStatus = (row: ProcessedRow) => {
+    const isLitigator = row.in_litigator_list === 'Yes';
+    const inDNC = [row.phone_1_in_dnc, row.phone_2_in_dnc, row.phone_3_in_dnc]
+      .some(status => status === 'Yes');
+
+    if (isLitigator && inDNC) return { label: 'Both Lists', color: 'error' as const };
+    if (isLitigator) return { label: 'Litigator', color: 'warning' as const };
+    if (inDNC) return { label: 'DNC Only', color: 'warning' as const };
+    return { label: 'Clean', color: 'success' as const };
+  };
 
   const createJobMutation = useMutation({
     mutationFn: (data: JobCreate) => jobsApi.create(data),
@@ -306,7 +407,7 @@ export const Dashboard: React.FC = () => {
               setPreviewLoadingMessage(latestPreviewJob.message);
             }
           }
-        } catch (error) {
+        } catch {
           // Silently fail - don't interrupt the preview
         }
       }
@@ -530,24 +631,25 @@ export const Dashboard: React.FC = () => {
                 </Typography>
               </Box>
             ) : (
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Type</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Script</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Status</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Processed</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Litigator</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>DNC</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Both</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Clean</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Started</TableCell>
-                      <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
+              <>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Type</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Script</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Status</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Processed</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Litigator</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>DNC</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Both</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F', textAlign: 'center' }}>Clean</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Started</TableCell>
+                        <TableCell sx={{ fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif', fontWeight: 600, color: '#1E3A5F' }}>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
                   <TableBody>
-                    {jobHistory?.map((job) => {
+                    {paginatedJobs?.map((job) => {
                       const script = scripts?.find(s => s.id === job.script_id);
                       const isPreview = job.job_type === 'preview';
                       const formatDate = (dateString?: string) => {
@@ -559,7 +661,7 @@ export const Dashboard: React.FC = () => {
                           minute: '2-digit',
                         });
                       };
-                      
+
                       return (
                         <TableRow key={job.id} hover>
                           <TableCell>
@@ -592,7 +694,7 @@ export const Dashboard: React.FC = () => {
                             />
                           </TableCell>
                           <TableCell sx={{ fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif', color: '#4A5568' }}>
-                            {job.row_limit 
+                            {job.row_limit
                               ? `${job.total_rows_processed?.toLocaleString() || '0'}/${job.row_limit.toLocaleString()}`
                               : job.total_rows_processed?.toLocaleString() || '0'
                             }
@@ -613,30 +715,15 @@ export const Dashboard: React.FC = () => {
                             {formatDate(job.started_at || job.created_at)}
                           </TableCell>
                           <TableCell>
-                            {isPreview && job.status === 'completed' && (
+                            {!isPreview && job.status === 'completed' && (
                               <Button
                                 size="small"
-                                startIcon={<Visibility />}
+                                startIcon={<Assessment />}
                                 onClick={() => {
-                                  // Fetch preview data for this job
-                                  if (job.script_id) {
-                                    setPreviewDialogOpen(true);
-                                    setPreviewLoadingMessage('Loading preview data...');
-                                    previewMutation.mutate(
-                                      { 
-                                        scriptIds: [job.script_id], 
-                                        rowLimit: job.row_limit 
-                                      },
-                                      {
-                                        onSuccess: () => {
-                                          setPreviewLoadingMessage('');
-                                        }
-                                      }
-                                    );
-                                  }
+                                  navigate(`/results?job_id=${job.id}`);
                                 }}
                                 sx={{
-                                  color: '#4A90D9',
+                                  color: '#1E3A5F',
                                   fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
                                   fontWeight: 500,
                                   textTransform: 'none',
@@ -645,7 +732,7 @@ export const Dashboard: React.FC = () => {
                                   },
                                 }}
                               >
-                                View
+                                View Results
                               </Button>
                             )}
                           </TableCell>
@@ -655,6 +742,36 @@ export const Dashboard: React.FC = () => {
                   </TableBody>
                 </Table>
               </TableContainer>
+                {jobHistory.length > jobsPerPage && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                      count={totalPages}
+                      page={currentPage}
+                      onChange={handlePageChange}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                      sx={{
+                        '& .MuiPaginationItem-root': {
+                          fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
+                          fontWeight: 600,
+                        },
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        ml: 3,
+                        alignSelf: 'center',
+                        color: '#718096',
+                        fontFamily: '"Open Sans", "Segoe UI", system-ui, sans-serif',
+                      }}
+                    >
+                      Page {currentPage} of {totalPages} ({jobHistory.length} total jobs)
+                    </Typography>
+                  </Box>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -704,7 +821,7 @@ export const Dashboard: React.FC = () => {
                       <Grid container spacing={2}>
                         {currentJob.total_rows !== undefined && (
                           <>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Processed
@@ -713,7 +830,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.current_row || 0} / {currentJob.total_rows}
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Rows Remaining
@@ -722,7 +839,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.rows_remaining || 0}
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Percentage
@@ -731,7 +848,7 @@ export const Dashboard: React.FC = () => {
                                 {currentJob.progress}%
                               </Typography>
                             </Grid>
-                            {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                            {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                             <Grid item xs={12} sm={6} md={3}>
                               <Typography variant="body2" color="text.secondary">
                                 Batch
@@ -853,14 +970,14 @@ export const Dashboard: React.FC = () => {
                 </Button>
               </Box>
               <Grid container spacing={2}>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Total Processed
                   </Typography>
                   <Typography variant="h5">{currentJob.total_rows_processed}</Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Litigator Count
@@ -869,7 +986,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.litigator_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     DNC Count
@@ -878,7 +995,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.dnc_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Both Count
@@ -887,7 +1004,7 @@ export const Dashboard: React.FC = () => {
                     {currentJob.both_count}
                   </Typography>
                 </Grid>
-                {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                 <Grid item xs={12} sm={6} md={2.4}>
                   <Typography variant="body2" color="text.secondary">
                     Clean Count
@@ -1023,12 +1140,12 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* Row-by-Row Processing Display */}
-      {currentJob && currentJob.status === 'running' && processedRows.length > 0 && (
+      {currentJob && currentJob.status === 'running' && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
           <Card sx={{ maxWidth: '1200px', width: '100%' }}>
             <CardContent>
-              <Typography 
-                variant="h6" 
+              <Typography
+                variant="h6"
                 gutterBottom
                 sx={{
                   fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
@@ -1038,48 +1155,170 @@ export const Dashboard: React.FC = () => {
               >
                 Processing Status - Last {processedRows.length} Rows
               </Typography>
-              <Paper
-                sx={{
-                  height: '400px',
-                  overflow: 'auto',
-                  backgroundColor: '#f5f5f5',
-                  p: 2,
-                }}
-              >
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Row #</TableCell>
-                        <TableCell>First Name</TableCell>
-                        <TableCell>Last Name</TableCell>
-                        <TableCell>Address</TableCell>
-                        <TableCell>Batch</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {processedRows.map((row, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{row.row_number}</TableCell>
-                          <TableCell>{row.first_name}</TableCell>
-                          <TableCell>{row.last_name}</TableCell>
-                          <TableCell>{row.address}</TableCell>
-                          <TableCell>{row.batch || '-'}</TableCell>
-                          <TableCell>
-                            <Chip 
-                              label={row.status} 
-                              size="small" 
-                              color={row.status === 'Completed' ? 'success' : 'info'} 
-                            />
-                          </TableCell>
+              {processedRows.length === 0 ? (
+                <Box sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  py: 4,
+                  backgroundColor: '#f8f9fa',
+                  borderRadius: 1,
+                }}>
+                  <CircularProgress size={40} />
+                  <Typography variant="body2" sx={{ mt: 2, color: '#666' }}>
+                    Waiting for first processed row...
+                  </Typography>
+                  <Typography variant="caption" sx={{ mt: 1, color: '#999' }}>
+                    Data will appear here as records are enriched
+                  </Typography>
+                </Box>
+              ) : (
+                <Paper
+                  sx={{
+                    height: '400px',
+                    overflow: 'auto',
+                    backgroundColor: '#f5f5f5',
+                    p: 2,
+                  }}
+                >
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Row #</TableCell>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Location</TableCell>
+                          <TableCell>Phones</TableCell>
+                          <TableCell>Compliance</TableCell>
+                          <TableCell>Batch</TableCell>
+                          <TableCell align="center">Details</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <div ref={rowsEndRef} />
-              </Paper>
+                      </TableHead>
+                      <TableBody>
+                        {processedRows.map((row, index) => {
+                          const isExpanded = expandedRows.has(row.row_number);
+                          const complianceStatus = getComplianceStatus(row);
+                          const phoneCount = [row.phone_1, row.phone_2, row.phone_3]
+                            .filter(p => p && p.trim()).length;
+
+                          return (
+                            <React.Fragment key={index}>
+                              {/* Summary Row */}
+                              <TableRow
+                                hover
+                                sx={{
+                                  backgroundColor: index % 2 === 0 ? '#fafafa' : '#ffffff',
+                                  '&:hover': { backgroundColor: '#e3f2fd' }
+                                }}
+                              >
+                                <TableCell>{row.row_number}</TableCell>
+                                <TableCell>{`${row.first_name} ${row.last_name}`}</TableCell>
+                                <TableCell>{`${row.city || ''}, ${row.state || ''}`}</TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={`${phoneCount} phone${phoneCount !== 1 ? 's' : ''}`}
+                                    size="small"
+                                    color={phoneCount > 0 ? 'primary' : 'default'}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={complianceStatus.label}
+                                    size="small"
+                                    color={complianceStatus.color}
+                                  />
+                                </TableCell>
+                                <TableCell>{row.batch || '-'}</TableCell>
+                                <TableCell align="center">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => toggleRowExpansion(row.row_number)}
+                                  >
+                                    {isExpanded ? <ExpandLess /> : <ExpandMore />}
+                                  </IconButton>
+                                </TableCell>
+                              </TableRow>
+
+                              {/* Expanded Row Details */}
+                              {isExpanded && (
+                                <TableRow>
+                                  <TableCell colSpan={7} sx={{ backgroundColor: '#f5f5f5', p: 2 }}>
+                                    <Box>
+                                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                                        Contact Details
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                                        <Box sx={{ flex: 1, minWidth: '200px' }}>
+                                          <Typography variant="body2" sx={{ mb: 1 }}>
+                                            <strong>Phones:</strong>
+                                          </Typography>
+                                          {[
+                                            { num: row.phone_1, dnc: row.phone_1_in_dnc },
+                                            { num: row.phone_2, dnc: row.phone_2_in_dnc },
+                                            { num: row.phone_3, dnc: row.phone_3_in_dnc }
+                                          ].map((phone, i) => phone.num && phone.num.trim() && (
+                                            <Box key={i} sx={{ ml: 2, mb: 0.5 }}>
+                                              {phone.num}
+                                              {phone.dnc === 'Yes' && (
+                                                <Chip
+                                                  label="DNC"
+                                                  size="small"
+                                                  color="warning"
+                                                  sx={{ ml: 1, height: '20px' }}
+                                                />
+                                              )}
+                                            </Box>
+                                          ))}
+                                          {phoneCount === 0 && (
+                                            <Typography variant="body2" sx={{ ml: 2, color: '#757575' }}>
+                                              No phones found
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                        <Box sx={{ flex: 1, minWidth: '200px' }}>
+                                          <Typography variant="body2" sx={{ mb: 1 }}>
+                                            <strong>Emails:</strong>
+                                          </Typography>
+                                          {[row.email_1, row.email_2, row.email_3]
+                                            .filter(e => e && e.trim())
+                                            .map((email, i) => (
+                                              <Box key={i} sx={{ ml: 2, mb: 0.5 }}>
+                                                {email}
+                                              </Box>
+                                            ))
+                                          }
+                                          {[row.email_1, row.email_2, row.email_3].filter(e => e && e.trim()).length === 0 && (
+                                            <Typography variant="body2" sx={{ ml: 2, color: '#757575' }}>
+                                              No emails found
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                      </Box>
+                                      <Typography variant="body2" sx={{ mt: 2 }}>
+                                        <strong>Full Address:</strong> {row.address}, {row.city}, {row.state} {row.zip_code}
+                                      </Typography>
+                                      {row.in_litigator_list === 'Yes' && (
+                                        <Box sx={{ mt: 2 }}>
+                                          <Chip
+                                            label="⚠️ Person is on Litigator List"
+                                            color="warning"
+                                            size="small"
+                                          />
+                                        </Box>
+                                      )}
+                                    </Box>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                  <div ref={rowsEndRef} />
+                </Paper>
+              )}
             </CardContent>
           </Card>
         </Box>
@@ -1228,7 +1467,7 @@ export const Dashboard: React.FC = () => {
                     Processing Status
                   </Typography>
                   <Grid container spacing={2}>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body2" color="text.secondary">
                         Already Processed
@@ -1237,7 +1476,7 @@ export const Dashboard: React.FC = () => {
                         {(item.already_processed ?? 0).toLocaleString()}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6}>
                       <Typography variant="body2" color="text.secondary">
                         New to Process
@@ -1266,14 +1505,14 @@ export const Dashboard: React.FC = () => {
                     Statistics
                   </Typography>
                   <Grid container spacing={2}>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Total Processed
                       </Typography>
                       <Typography variant="h5">{currentJob.total_rows_processed || 0}</Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Litigator Count
@@ -1282,7 +1521,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.litigator_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         DNC Count
@@ -1291,7 +1530,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.dnc_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Both Count
@@ -1300,7 +1539,7 @@ export const Dashboard: React.FC = () => {
                         {currentJob.both_count || 0}
                       </Typography>
                     </Grid>
-                    {/* @ts-ignore - MUI v7 Grid item prop works at runtime but types don't support it */}
+                    {/* @ts-expect-error - MUI v7 Grid item prop works at runtime but types don't support it */}
                     <Grid item xs={12} sm={6} md={2.4}>
                       <Typography variant="body2" color="text.secondary">
                         Clean Count

@@ -1,0 +1,153 @@
+name: Deploy to Production
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to deploy (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  verify:
+    name: Verify Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            VERSION="${{ inputs.tag }}"
+          fi
+          echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+          echo "Deploying version: ${VERSION#v}"
+
+      - name: Verify release exists
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view ${{ inputs.tag }} --repo ${{ github.repository }} || {
+            echo "Error: Release ${{ inputs.tag }} not found"
+            exit 1
+          }
+
+  build:
+    name: Build Production
+    runs-on: ubuntu-latest
+    needs: verify
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: cd frontend && npm ci
+
+      - name: Build frontend
+        run: cd frontend && npm run build
+        env:
+          VITE_API_URL: ${{ vars.PRODUCTION_API_URL }}
+
+      - name: Upload production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: frontend/dist/
+          retention-days: 30
+
+  deploy:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [verify, build]
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || inputs.tag }}
+
+      - name: Download production build
+        uses: actions/download-artifact@v4
+        with:
+          name: production-build
+          path: frontend/dist/
+
+      - name: Production deployment notification
+        run: |
+          echo "=== Production Deployment Ready ==="
+          echo "Version: v${{ needs.verify.outputs.version }}"
+          echo "Triggered by: ${{ github.event_name }}"
+          echo ""
+          echo "Production deployment requires manual approval."
+          echo ""
+          echo "To deploy manually after approval:"
+          echo "  1. SSH to production server"
+          echo "  2. cd /home/ubuntu/etl-prod"
+          echo "  3. git fetch --tags && git checkout v${{ needs.verify.outputs.version }}"
+          echo "  4. docker compose -f docker-compose.prod.yml down"
+          echo "  5. docker compose -f docker-compose.prod.yml up -d --build"
+          echo "  6. docker compose -f docker-compose.prod.yml exec backend alembic upgrade head"
+
+      # Optional: Add automated deployment via SSH
+      # Configure PRODUCTION_HOST, PRODUCTION_USER, PRODUCTION_SSH_KEY secrets
+      # - name: Deploy via SSH
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.PRODUCTION_HOST }}
+      #     username: ${{ secrets.PRODUCTION_USER }}
+      #     key: ${{ secrets.PRODUCTION_SSH_KEY }}
+      #     script: |
+      #       cd /home/ubuntu/etl-prod
+      #       git fetch --tags
+      #       git checkout v${{ needs.verify.outputs.version }}
+      #       docker compose -f docker-compose.prod.yml down
+      #       docker compose -f docker-compose.prod.yml up -d --build
+      #       docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+      #       echo "Production deployment complete: v${{ needs.verify.outputs.version }}"
+
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    needs: [verify, deploy]
+    if: always()
+
+    steps:
+      - name: Deployment status
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo "Production deployment successful: v${{ needs.verify.outputs.version }}"
+          else
+            echo "Production deployment status: ${{ needs.deploy.result }}"
+          fi
+
+      # Optional: Add Slack/Discord/NTFY notification
+      # - name: Notify via NTFY
+      #   if: needs.deploy.result == 'success'
+      #   run: |
+      #     curl -H "Title: Production Deployed" \
+      #          -H "Priority: high" \
+      #          -H "Tags: rocket" \
+      #          -d "P1Lending ETL v${{ needs.verify.outputs.version }} deployed to production" \
+      #          ${{ secrets.NTFY_URL }}

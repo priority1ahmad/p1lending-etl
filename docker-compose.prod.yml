@@ -9,8 +9,7 @@
 #   - 8000: Backend API
 #   - 5433: PostgreSQL (internal, mapped from 5432)
 #   - 6380: Redis (internal, mapped from 6379)
-
-version: '3.8'
+#   - 7777: NTFY push notifications
 
 services:
   # PostgreSQL Database
@@ -20,14 +19,14 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-p1lending}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-p1lending_etl}
     ports:
       - "5433:5432"  # External 5433 to avoid conflict if old app uses 5432
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-p1lending}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-p1lending} -d ${POSTGRES_DB:-p1lending_etl}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +35,7 @@ services:
 
   # Redis for Celery broker and caching
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.11-alpine
     container_name: p1lending-new-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
@@ -62,26 +61,54 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key-here}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - CORS_ORIGINS=${CORS_ORIGINS:-["http://localhost:8080","http://localhost:3000"]}
+      # Snowflake Configuration
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:?SNOWFLAKE_ACCOUNT is required}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:?SNOWFLAKE_USER is required}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-PUBLIC}
+      - SNOWFLAKE_INSECURE_MODE=${SNOWFLAKE_INSECURE_MODE:-false}
+      - SNOWFLAKE_OCSP_FAIL_OPEN=${SNOWFLAKE_OCSP_FAIL_OPEN:-false}
+      # CCC API Configuration
+      - CCC_API_KEY=${CCC_API_KEY:?CCC_API_KEY is required}
+      - CCC_BATCH_SIZE=${CCC_BATCH_SIZE:-50}
+      - CCC_MIN_WORKERS=${CCC_MIN_WORKERS:-2}
+      - CCC_MAX_WORKERS=${CCC_MAX_WORKERS:-16}
+      # idiCORE API Configuration
+      - IDICORE_CLIENT_ID=${IDICORE_CLIENT_ID:?IDICORE_CLIENT_ID is required}
+      - IDICORE_CLIENT_SECRET=${IDICORE_CLIENT_SECRET:?IDICORE_CLIENT_SECRET is required}
+      - IDICORE_MIN_WORKERS=${IDICORE_MIN_WORKERS:-10}
+      - IDICORE_MAX_WORKERS=${IDICORE_MAX_WORKERS:-200}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
+      # NTFY Push Notifications
+      - NTFY_ENABLED=${NTFY_ENABLED:-true}
+      - NTFY_BASE_URL=http://ntfy:80
+      - NTFY_TOPIC_AUTH=${NTFY_TOPIC_AUTH:-p1-auth}
+      - NTFY_TOPIC_JOBS=${NTFY_TOPIC_JOBS:-p1-jobs}
+      - NTFY_TOPIC_ERRORS=${NTFY_TOPIC_ERRORS:-p1-errors}
+      - NTFY_TOPIC_SYSTEM=${NTFY_TOPIC_SYSTEM:-p1-system}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
       - dnc_data:/app/data
-      # Mount DNC database from production location to /app/dnc_database.db
-      # (mounted outside /app/data to avoid volume conflict)
-      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
+      # Mount DNC database - configurable via DNC_DATABASE_PATH env var
+      # Default: ./dnc_database.db (relative to project root)
+      - ${DNC_DATABASE_PATH:-./dnc_database.db}:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ntfy:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -100,27 +127,77 @@ services:
     restart: unless-stopped
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
-      - CELERY_DATABASE_URL=postgresql://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:-changeme_in_production}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
+      - CELERY_DATABASE_URL=postgresql://${POSTGRES_USER:-p1lending}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-p1lending_etl}
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-generate-a-secure-random-key-here}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      # Snowflake Configuration
+      - SNOWFLAKE_ACCOUNT=${SNOWFLAKE_ACCOUNT:?SNOWFLAKE_ACCOUNT is required}
+      - SNOWFLAKE_USER=${SNOWFLAKE_USER:?SNOWFLAKE_USER is required}
       - SNOWFLAKE_PRIVATE_KEY_PATH=/app/secrets/rsa_key.p8
       - SNOWFLAKE_PRIVATE_KEY_PASSWORD=${SNOWFLAKE_PRIVATE_KEY_PASSWORD}
+      - SNOWFLAKE_ROLE=${SNOWFLAKE_ROLE:-ACCOUNTADMIN}
+      - SNOWFLAKE_WAREHOUSE=${SNOWFLAKE_WAREHOUSE:-COMPUTE_WH}
+      - SNOWFLAKE_DATABASE=${SNOWFLAKE_DATABASE}
+      - SNOWFLAKE_SCHEMA=${SNOWFLAKE_SCHEMA:-PUBLIC}
+      - SNOWFLAKE_INSECURE_MODE=${SNOWFLAKE_INSECURE_MODE:-false}
+      - SNOWFLAKE_OCSP_FAIL_OPEN=${SNOWFLAKE_OCSP_FAIL_OPEN:-false}
+      # CCC API Configuration
+      - CCC_API_KEY=${CCC_API_KEY:?CCC_API_KEY is required}
+      - CCC_BATCH_SIZE=${CCC_BATCH_SIZE:-50}
+      - CCC_MIN_WORKERS=${CCC_MIN_WORKERS:-2}
+      - CCC_MAX_WORKERS=${CCC_MAX_WORKERS:-16}
+      # idiCORE API Configuration
+      - IDICORE_CLIENT_ID=${IDICORE_CLIENT_ID:?IDICORE_CLIENT_ID is required}
+      - IDICORE_CLIENT_SECRET=${IDICORE_CLIENT_SECRET:?IDICORE_CLIENT_SECRET is required}
+      - IDICORE_MIN_WORKERS=${IDICORE_MIN_WORKERS:-10}
+      - IDICORE_MAX_WORKERS=${IDICORE_MAX_WORKERS:-200}
       - GOOGLE_CREDENTIALS_FILE=${GOOGLE_CREDENTIALS_FILE:-/app/secrets/google_credentials.json}
       - GOOGLE_CREDENTIALS_JSON=${GOOGLE_CREDENTIALS_JSON:-}
+      # NTFY Push Notifications
+      - NTFY_ENABLED=${NTFY_ENABLED:-true}
+      - NTFY_BASE_URL=http://ntfy:80
+      - NTFY_TOPIC_AUTH=${NTFY_TOPIC_AUTH:-p1-auth}
+      - NTFY_TOPIC_JOBS=${NTFY_TOPIC_JOBS:-p1-jobs}
+      - NTFY_TOPIC_ERRORS=${NTFY_TOPIC_ERRORS:-p1-errors}
+      - NTFY_TOPIC_SYSTEM=${NTFY_TOPIC_SYSTEM:-p1-system}
     volumes:
       - ./backend/sql:/app/sql:ro
       - ./backend/secrets:/app/secrets:ro
       - ./backend/logs:/app/backend/logs
+      - ./backend/backups:/app/backups
       - dnc_data:/app/data
-      # Mount DNC database from production location to /app/dnc_database.db
-      # (mounted outside /app/data to avoid volume conflict)
-      - /home/ubuntu/etl_app/dnc_database.db:/app/dnc_database.db:ro
+      # Mount DNC database - configurable via DNC_DATABASE_PATH env var
+      # Default: ./dnc_database.db (relative to project root)
+      - ${DNC_DATABASE_PATH:-./dnc_database.db}:/app/dnc_database.db:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ntfy:
+        condition: service_healthy
+    networks:
+      - p1lending-network
+
+  # NTFY Push Notification Server (self-hosted)
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    container_name: p1lending-ntfy
+    restart: unless-stopped
+    command: serve
+    ports:
+      - "7777:80"
+    volumes:
+      - ntfy_cache:/var/cache/ntfy
+    environment:
+      - TZ=UTC
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:80/v1/health -O - | grep -Eo '\"healthy\"\\s*:\\s*true' || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - p1lending-network
 
@@ -134,7 +211,7 @@ services:
     container_name: p1lending-new-frontend
     restart: unless-stopped
     ports:
-      - "80:80"  # Access new app at http://your-ec2-ip
+      - "3000:80"  # Nginx proxies from port 80 to this
     depends_on:
       - backend
     networks:
@@ -147,6 +224,8 @@ volumes:
     name: p1lending-new-redis-data
   dnc_data:
     name: p1lending-new-dnc-data
+  ntfy_cache:
+    name: p1lending-ntfy-cache
 
 networks:
   p1lending-network:

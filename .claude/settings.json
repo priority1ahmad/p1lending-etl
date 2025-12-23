@@ -1,0 +1,122 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(npm run:*)",
+      "Bash(npm test:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(pip:*)",
+      "Bash(pip3:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(gh:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker compose:*)",
+      "Bash(alembic:*)",
+      "Bash(tree:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(touch:*)",
+      "Bash(chmod:*)",
+      "Bash(jq:*)",
+      "Bash(curl:*)",
+      "Bash(black:*)",
+      "Bash(ruff:*)",
+      "Bash(prettier:*)",
+      "Bash(snowsql:*)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./backend/.env)",
+      "Read(./backend/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p8)",
+      "Read(**/credentials.json)",
+      "Edit(./.env)",
+      "Edit(./backend/.env)",
+      "Edit(./backend/secrets/**)",
+      "Write(./.env)",
+      "Write(./backend/.env)",
+      "Bash(rm -rf /)",
+      "Bash(snowsql:*--account*prod*)",
+      "Bash(*PROD*)",
+      "Bash(*production*)"
+    ],
+    "ask": [
+      "Bash(git push:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose down:*)",
+      "Bash(rm:*)",
+      "Bash(wget:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/post-edit.sh $FILE"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/check-storybook.sh $FILE"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/protect-secrets.py"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/on-stop.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1",
+    "APP_ENV": "development",
+    "NODE_ENV": "development"
+  }
+}

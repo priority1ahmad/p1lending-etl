@@ -22,7 +22,7 @@ def test_both():
     """Test both litigator and DNC lists"""
     import os
     import sys
-    
+
     print("\n" + "=" * 70)
     print("  COMPREHENSIVE LIST TESTING")
     print("=" * 70)
@@ -37,7 +37,7 @@ def test_both():
     print("  - 313-647-8335")
     print("  - Plus additional format variations")
     print()
-    
+
     # Test Litigator List
     print("\n" + "=" * 70)
     print("  PART 1: LITIGATOR LIST TEST")
@@ -48,10 +48,11 @@ def test_both():
     except Exception as e:
         print(f"❌ Error in litigator list test: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     print("\n\n")
-    
+
     # Test DNC List
     print("=" * 70)
     print("  PART 2: DNC LIST TEST")
@@ -62,8 +63,9 @@ def test_both():
     except Exception as e:
         print(f"❌ Error in DNC list test: {e}")
         import traceback
+
         traceback.print_exc()
-    
+
     print("\n" + "=" * 70)
     print("  ALL TESTS COMPLETE")
     print("=" * 70)
@@ -75,10 +77,11 @@ def test_both():
     print("Note: If DNC database was not found, ensure it's set up:")
     print("  - Run: bash setup-dnc-database.sh")
     print("  - Or place at: /home/ubuntu/etl_app/dnc_database.db")
-    print("  - Then restart: docker compose -f docker-compose.prod.yml restart backend celery-worker")
+    print(
+        "  - Then restart: docker compose -f docker-compose.prod.yml restart backend celery-worker"
+    )
     print()
 
 
 if __name__ == "__main__":
     test_both()
-

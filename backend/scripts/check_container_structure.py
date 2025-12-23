@@ -61,7 +61,7 @@ for script_name in test_scripts:
         test_path = Path(base_path) / script_name
         if test_path.exists():
             found_paths.append(str(test_path))
-    
+
     if found_paths:
         print(f"  ✅ {script_name}")
         for path in found_paths:
@@ -87,4 +87,3 @@ print()
 print("=" * 70)
 print("  DIAGNOSTIC COMPLETE")
 print("=" * 70)
-

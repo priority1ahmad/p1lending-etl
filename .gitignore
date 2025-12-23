@@ -62,6 +62,9 @@ phone_cache.csv
 # OS
 Thumbs.db
 
+# Context/diagnostic files (large logs, PDFs)
+context/
+
 # Frontend
 frontend/dist/
 frontend/.vite/
@@ -70,3 +73,23 @@ frontend/.vite/
 backend/.pytest_cache/
 backend/alembic/versions/*.pyc
 
+
+logs
+yarn-debug.log*
+yarn-error.log*
+dev-debug.log
+# Dependency directories
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/ 

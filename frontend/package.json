@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006 --host 0.0.0.0",
+    "build-storybook": "storybook build",
+    "storybook:test": "test-storybook"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -16,15 +19,23 @@
     "@mui/icons-material": "^7.3.5",
     "@mui/material": "^7.3.5",
     "@tanstack/react-query": "^5.90.10",
+    "@tanstack/react-virtual": "^3.13.13",
     "axios": "^1.13.2",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
+    "notistack": "^3.0.2",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "react-router-dom": "^7.9.6",
+    "recharts": "^3.6.0",
     "socket.io-client": "^4.8.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@storybook/addon-docs": "^10.1.10",
+    "@storybook/addon-links": "^10.1.10",
+    "@storybook/addon-mcp": "^0.1.6",
+    "@storybook/react": "^10.1.10",
+    "@storybook/react-vite": "^10.1.10",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -32,9 +43,11 @@
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
+    "eslint-plugin-storybook": "10.1.10",
     "globals": "^16.5.0",
+    "storybook": "^10.1.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^6.4.1"
   }
 }

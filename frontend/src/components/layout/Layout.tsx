@@ -1,0 +1,44 @@
+/**
+ * Layout Component
+ * Main app shell with sidebar and content area
+ * Modern SaaS-style with fixed sidebar
+ */
+
+import type { ReactNode } from 'react';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { Sidebar } from './Sidebar';
+import { backgrounds } from '../../theme';
+
+interface LayoutProps {
+  children: ReactNode;
+}
+
+const MainContent = styled(Box)({
+  flexGrow: 1,
+  backgroundColor: backgrounds.secondary,
+  minHeight: '100vh',
+  display: 'flex',
+  flexDirection: 'column',
+  minWidth: 0,
+  overflow: 'hidden',
+});
+
+const ContentWrapper = styled(Box)({
+  flex: 1,
+  padding: '1.5rem',
+  width: '100%',
+  minWidth: 0,
+  overflow: 'hidden',
+});
+
+export const Layout = ({ children }: LayoutProps) => {
+  return (
+    <Box sx={{ display: 'flex', minHeight: '100vh', overflow: 'hidden' }}>
+      <Sidebar />
+      <MainContent>
+        <ContentWrapper>{children}</ContentWrapper>
+      </MainContent>
+    </Box>
+  );
+};

@@ -10,18 +10,30 @@ celery_app = Celery(
     "p1lending_etl",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.workers.etl_tasks"]
+    include=["app.workers.etl_tasks"],
 )
 
 # Windows compatibility: force solo pool
-if sys.platform == 'win32':
-    worker_pool = 'solo'
+if sys.platform == "win32":
+    worker_pool = "solo"
 else:
-    worker_pool = 'prefork'
+    worker_pool = "prefork"
 
 celery_app.conf.update(
+    # ============================================================
+    # SECURITY CRITICAL: JSON-ONLY SERIALIZATION
+    # ============================================================
+    # DO NOT change these serializers to 'pickle' or any binary format!
+    # Binary serialization allows Remote Code Execution (RCE) attacks.
+    #
+    # Reference vulnerabilities:
+    # - CVE-2025-61765: python-socketio deserialization RCE
+    # - Celery pickle deserialization attacks
+    #
+    # JSON is inherently safe as it only supports primitive types.
+    # ============================================================
     task_serializer="json",
-    accept_content=["json"],
+    accept_content=["json"],  # NEVER add "pickle" to this list!
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
@@ -31,6 +43,8 @@ celery_app.conf.update(
     # Note: worker_pool should be specified at worker startup, not in config
     # Disable prefork on Windows
     worker_disable_rate_limits=True,
+    # Celery 6.0 compatibility: explicit startup retry behavior
+    broker_connection_retry_on_startup=True,
 )
 
 
@@ -42,13 +56,13 @@ def validate_redis_connection():
     try:
         import redis
         from app.core.logger import etl_logger
-        
+
         r = redis.from_url(settings.redis_url)
         r.ping()
         etl_logger.info("Redis connection validated successfully")
         return True
     except Exception as e:
         from app.core.logger import etl_logger
+
         etl_logger.error(f"Failed to connect to Redis: {e}")
         raise ConnectionError(f"Cannot connect to Redis at {settings.redis_url}: {e}")
-

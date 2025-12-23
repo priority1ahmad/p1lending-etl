@@ -11,7 +11,7 @@ from datetime import datetime
 from uuid import UUID
 from app.core.config import settings
 from app.core.logger import etl_logger
-from app.db.models.job import ETLJob, JobStatus
+from app.db.models.job import ETLJob, JobLog, JobStatus
 
 # Global engine and session factory
 _engine = None
@@ -23,7 +23,7 @@ def get_sync_engine():
     global _engine
     if _engine is None:
         # Convert asyncpg URL to psycopg2 URL for synchronous operations
-        sync_url = settings.database_url.replace('+asyncpg', '')
+        sync_url = settings.database_url.replace("+asyncpg", "")
         _engine = create_engine(
             sync_url,
             echo=False,
@@ -57,11 +57,11 @@ def update_job_status(
     litigator_count: int = None,
     dnc_count: int = None,
     both_count: int = None,
-    clean_count: int = None
+    clean_count: int = None,
 ):
     """
     Update job status in database (synchronous, for use in Celery tasks)
-    
+
     Args:
         job_id: Job UUID as string
         status: JobStatus enum value
@@ -73,7 +73,7 @@ def update_job_status(
         dnc_count: Optional count of DNC records
         both_count: Optional count of records in both lists
         clean_count: Optional count of clean records
-    
+
     Returns:
         bool: True if update succeeded, False otherwise
     """
@@ -83,32 +83,30 @@ def update_job_status(
             try:
                 # Convert string UUID to UUID object
                 job_uuid = UUID(job_id)
-                
+
                 # Query the job
-                result = session.execute(
-                    select(ETLJob).where(ETLJob.id == job_uuid)
-                )
+                result = session.execute(select(ETLJob).where(ETLJob.id == job_uuid))
                 job = result.scalar_one_or_none()
-                
+
                 if not job:
                     etl_logger.warning(f"Job {job_id} not found in database")
                     return False
-                
+
                 # Update job status
                 job.status = status
-                
+
                 # Update progress if provided
                 if progress is not None:
                     job.progress = progress
-                
+
                 # Update error message if provided
                 if error_message:
                     job.error_message = error_message
-                
+
                 # Update message if provided
                 if message:
                     job.message = message
-                
+
                 # Update counts if provided
                 if total_rows_processed is not None:
                     job.total_rows_processed = total_rows_processed
@@ -120,27 +118,104 @@ def update_job_status(
                     job.both_count = both_count
                 if clean_count is not None:
                     job.clean_count = clean_count
-                
+
                 # Set completed_at for terminal states
                 if status in [JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED]:
                     if job.completed_at is None:
                         job.completed_at = datetime.utcnow()
-                
+
                 # Set started_at if transitioning to RUNNING
                 if status == JobStatus.RUNNING and job.started_at is None:
                     job.started_at = datetime.utcnow()
-                
+
                 # Commit changes
                 session.commit()
                 etl_logger.info(f"Updated job {job_id} status to {status.value}")
                 return True
-                
+
             except Exception as e:
                 session.rollback()
                 etl_logger.error(f"Failed to update job {job_id} status: {e}")
                 return False
-                
+
     except Exception as e:
         etl_logger.error(f"Database error updating job {job_id} status: {e}")
         return False
 
+
+def update_job_table_id(job_id: str, table_id: str, table_title: str = None) -> bool:
+    """
+    Update job with table_id and optional table_title (synchronous, for use in Celery tasks)
+
+    Args:
+        job_id: Job UUID as string
+        table_id: Generated table ID (format: ScriptName_RowCount_DDMMYYYY)
+        table_title: Optional custom title for the results
+
+    Returns:
+        bool: True if update succeeded, False otherwise
+    """
+    try:
+        SessionLocal = get_sync_session()
+        with SessionLocal() as session:
+            try:
+                job_uuid = UUID(job_id)
+
+                result = session.execute(select(ETLJob).where(ETLJob.id == job_uuid))
+                job = result.scalar_one_or_none()
+
+                if not job:
+                    etl_logger.warning(f"Job {job_id} not found for table_id update")
+                    return False
+
+                job.table_id = table_id
+                if table_title:
+                    job.table_title = table_title
+
+                session.commit()
+                etl_logger.info(f"Updated job {job_id} with table_id: {table_id}")
+                return True
+
+            except Exception as e:
+                session.rollback()
+                etl_logger.error(f"Failed to update job {job_id} with table_id: {e}")
+                return False
+
+    except Exception as e:
+        etl_logger.error(f"Database error updating job {job_id} table_id: {e}")
+        return False
+
+
+def add_job_log(job_id: str, level: str, message: str) -> bool:
+    """
+    Add a log entry to the database for a job (synchronous, for use in Celery tasks)
+
+    Args:
+        job_id: Job UUID as string
+        level: Log level (INFO, WARNING, ERROR)
+        message: Log message
+
+    Returns:
+        bool: True if insert succeeded, False otherwise
+    """
+    try:
+        SessionLocal = get_sync_session()
+        with SessionLocal() as session:
+            try:
+                # Convert string UUID to UUID object
+                job_uuid = UUID(job_id)
+
+                # Create log entry
+                log_entry = JobLog(job_id=job_uuid, level=level.upper(), message=message)
+
+                session.add(log_entry)
+                session.commit()
+                return True
+
+            except Exception:
+                session.rollback()
+                # Don't log every failure to avoid log spam
+                return False
+
+    except Exception:
+        return False

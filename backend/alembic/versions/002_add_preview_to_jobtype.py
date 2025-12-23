@@ -5,13 +5,13 @@ Revises: 001_initial
 Create Date: 2024-11-25 18:50:00.000000
 
 """
+
 from typing import Sequence, Union
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision: str = '002_add_preview'
-down_revision: Union[str, None] = '001_initial'
+revision: str = "002_add_preview"
+down_revision: Union[str, None] = "001_initial"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -19,18 +19,20 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # Add 'preview' value to the jobtype enum
     # Check if the value already exists to make the migration idempotent
-    op.execute("""
-        DO $$ 
+    op.execute(
+        """
+        DO $$
         BEGIN
             IF NOT EXISTS (
-                SELECT 1 FROM pg_enum 
-                WHERE enumlabel = 'preview' 
+                SELECT 1 FROM pg_enum
+                WHERE enumlabel = 'preview'
                 AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'jobtype')
             ) THEN
                 ALTER TYPE jobtype ADD VALUE 'preview';
             END IF;
         END $$;
-    """)
+    """
+    )
 
 
 def downgrade() -> None:
@@ -42,4 +44,3 @@ def downgrade() -> None:
     # This is a complex operation and is not implemented here.
     # If you need to downgrade, you'll need to manually handle this.
     pass
-

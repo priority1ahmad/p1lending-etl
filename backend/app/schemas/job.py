@@ -11,18 +11,24 @@ from app.db.models.job import JobStatus, JobType
 
 class JobCreate(BaseModel):
     """Job creation schema"""
+
     script_id: Optional[UUID] = None
     script_content: Optional[str] = None
     script_name: Optional[str] = None
+    file_source_id: Optional[UUID] = None
+    file_upload_id: Optional[UUID] = None
     job_type: JobType
     row_limit: Optional[int] = None
 
 
 class JobResponse(BaseModel):
     """Job response schema"""
+
     id: UUID
     job_type: JobType
     script_id: Optional[UUID] = None
+    file_source_id: Optional[UUID] = None
+    file_upload_id: Optional[UUID] = None
     status: JobStatus
     progress: int
     message: Optional[str] = None
@@ -51,6 +57,7 @@ class JobResponse(BaseModel):
 
 class JobLogResponse(BaseModel):
     """Job log response schema"""
+
     id: UUID
     job_id: UUID
     level: str
@@ -63,10 +70,10 @@ class JobLogResponse(BaseModel):
 
 class JobPreviewResponse(BaseModel):
     """Job preview response schema"""
+
     script_name: str
     row_count: int  # Total rows from query (for backward compatibility)
     total_rows: Optional[int] = None  # Total rows from query
     already_processed: Optional[int] = None  # Rows already in PERSON_CACHE
     unprocessed: Optional[int] = None  # New rows that will be processed
     rows: Optional[List[Dict[str, Any]]] = None
-

@@ -1,20 +1,23 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * SQL Editor Page
+ * Monaco-based SQL editor with modern SaaS styling
+ */
+
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import {
-  Container,
-  Typography,
-  Box,
-  TextField,
-  Button,
-  Paper,
-  Alert,
-} from '@mui/material';
+import { Box, TextField, Alert, CircularProgress } from '@mui/material';
 import { Save, Delete, Cancel } from '@mui/icons-material';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { scriptsApi } from '../services/api/scripts';
 import Editor from '@monaco-editor/react';
 
-export const SqlEditor: React.FC = () => {
+// Components
+import { PageHeader } from '../components/layout/PageHeader';
+import { Card } from '../components/ui/Card/Card';
+import { Button } from '../components/ui/Button/Button';
+import { borderColors } from '../theme';
+
+export function SqlEditor() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const scriptId = searchParams.get('id');
@@ -33,6 +36,7 @@ export const SqlEditor: React.FC = () => {
 
   useEffect(() => {
     if (script) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing form state from fetched data is intentional
       setName(script.name);
       setDescription(script.description || '');
       setContent(script.content);
@@ -79,57 +83,60 @@ export const SqlEditor: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-        <Typography>Loading...</Typography>
-      </Container>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          gutterBottom
-          sx={{
-            fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-            fontWeight: 700,
-            color: '#1E3A5F',
-          }}
-        >
-          {scriptId ? 'Edit SQL Script' : 'New SQL Script'}
-        </Typography>
-      </Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <PageHeader
+        title={scriptId ? 'Edit SQL Script' : 'New SQL Script'}
+        subtitle={scriptId ? `Editing: ${name || 'Untitled'}` : 'Create a new SQL query'}
+        breadcrumbs={[
+          { label: 'SQL Scripts', href: '/sql-files' },
+          { label: scriptId ? 'Edit Script' : 'New Script' },
+        ]}
+      />
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+        <Alert severity="error" onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <TextField
-          fullWidth
-          label="Script Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          margin="normal"
-          required
-        />
-        <TextField
-          fullWidth
-          label="Description (Optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          margin="normal"
-          multiline
-          rows={2}
-        />
-      </Paper>
+      <Card variant="default" padding="lg">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            fullWidth
+            label="Script Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            placeholder="Enter a name for your script"
+          />
+          <TextField
+            fullWidth
+            label="Description (Optional)"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            multiline
+            rows={2}
+            placeholder="Describe what this script does"
+          />
+        </Box>
+      </Card>
 
-      <Paper sx={{ mb: 3 }}>
-        <Box sx={{ height: '600px', border: '1px solid #e0e0e0' }}>
+      <Card variant="default" padding="none">
+        <Box
+          sx={{
+            height: 500,
+            border: `1px solid ${borderColors.default}`,
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}
+        >
           <Editor
             height="100%"
             defaultLanguage="sql"
@@ -141,86 +148,43 @@ export const SqlEditor: React.FC = () => {
               fontSize: 14,
               wordWrap: 'on',
               automaticLayout: true,
+              padding: { top: 16 },
             }}
           />
         </Box>
-      </Paper>
+      </Card>
 
       <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
         <Button
-          variant="outlined"
+          variant="outline"
           startIcon={<Cancel />}
           onClick={() => navigate('/sql-files')}
-          sx={{
-            borderColor: '#1E3A5F',
-            color: '#1E3A5F',
-            borderWidth: '2px',
-            fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-            '&:hover': {
-              borderWidth: '2px',
-              backgroundColor: '#1E3A5F',
-              color: '#FFFFFF',
-            },
-          }}
         >
           Cancel
         </Button>
         {scriptId && (
           <Button
-            variant="outlined"
-            color="error"
+            variant="outline"
+            colorScheme="error"
             startIcon={<Delete />}
             onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            sx={{
-              borderColor: '#E53E3E',
-              color: '#E53E3E',
-              borderWidth: '2px',
-              fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.025em',
-              '&:hover': {
-                borderWidth: '2px',
-                backgroundColor: '#E53E3E',
-                color: '#FFFFFF',
-              },
-            }}
+            loading={deleteMutation.isPending}
+            loadingText="Deleting..."
           >
             Delete
           </Button>
         )}
         <Button
-          variant="contained"
+          variant="solid"
+          colorScheme="accent"
           startIcon={<Save />}
           onClick={handleSave}
-          disabled={saveMutation.isPending}
-          sx={{
-            background: 'linear-gradient(135deg, #E8632B 0%, #F07D4A 100%)',
-            color: '#FFFFFF',
-            fontFamily: '"Montserrat", "Segoe UI", system-ui, sans-serif',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-            boxShadow: '0 4px 14px 0 rgba(232, 99, 43, 0.35)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #E8632B 0%, #F07D4A 100%)',
-              boxShadow: '0 6px 20px 0 rgba(232, 99, 43, 0.45)',
-              transform: 'translateY(-2px)',
-            },
-            '&:disabled': {
-              background: '#CBD5E0',
-              color: '#718096',
-            },
-          }}
+          loading={saveMutation.isPending}
+          loadingText="Saving..."
         >
-          {saveMutation.isPending ? 'Saving...' : 'Save'}
+          Save
         </Button>
       </Box>
-    </Container>
+    </Box>
   );
-};
-
+}
