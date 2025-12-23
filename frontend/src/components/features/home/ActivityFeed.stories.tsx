@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, useEffect } from 'react';
 import { Box, Button } from '@mui/material';
 import { ActivityFeed, type ActivityItem, type ActivityType } from './ActivityFeed';

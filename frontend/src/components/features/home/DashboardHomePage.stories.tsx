@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Box, ThemeProvider, CssBaseline } from '@mui/material';
 import { useState, useEffect, useRef } from 'react';
 import { DashboardHome, type DashboardStats, type ActiveJob } from './DashboardHome';

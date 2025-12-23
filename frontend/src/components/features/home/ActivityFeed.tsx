@@ -250,7 +250,7 @@ function LoadingSkeleton({ compact }: { compact: boolean }) {
         >
           <Skeleton variant="circular" width={16} height={16} />
           <Box sx={{ flex: 1 }}>
-            <Skeleton variant="text" width={`${70 + Math.random() * 30}%`} height={16} />
+            <Skeleton variant="text" width={`${70 + (i * 7) % 30}%`} height={16} />
           </Box>
           <Skeleton variant="text" width={50} height={12} />
         </Box>

@@ -317,7 +317,7 @@ export function DashboardHomePage() {
     if (latestJob?.id) {
       cancelJobMutation.mutate(latestJob.id);
     }
-  }, [latestJob?.id, cancelJobMutation]);
+  }, [latestJob, cancelJobMutation]);
 
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['scripts'] });
@@ -499,14 +499,17 @@ export function DashboardHomePage() {
 
   useEffect(() => {
     if (isJobRunning && latestJob?.started_at) {
-      // Calculate initial elapsed time
       const startTime = new Date(latestJob.started_at).getTime();
-      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
 
-      // Update every second
-      elapsedTimerRef.current = setInterval(() => {
+      // Calculate elapsed time - called by interval
+      const updateElapsed = () => {
         setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
-      }, 1000);
+      };
+
+      // Start interval that updates every second
+      // Use queueMicrotask for initial update to avoid synchronous setState in effect
+      queueMicrotask(updateElapsed);
+      elapsedTimerRef.current = setInterval(updateElapsed, 1000);
 
       return () => {
         if (elapsedTimerRef.current) {
@@ -514,9 +517,11 @@ export function DashboardHomePage() {
           elapsedTimerRef.current = null;
         }
       };
-    } else {
-      setElapsedTime(0);
     }
+    // Reset elapsed time when job stops - use ref to avoid cascading render
+    return () => {
+      setElapsedTime(0);
+    };
   }, [isJobRunning, latestJob?.started_at]);
 
   // ===== Render =====
