@@ -105,29 +105,66 @@ def verify_database_exists():
                 print(f"{row['COLUMN_NAME']:<25} {row['DATA_TYPE']:<20} {row['IS_NULLABLE']:<10}")
             print()
 
-            # Verify expected columns
+            # Verify expected columns (all 42+ columns from MASTER_PROCESSED_DB)
             expected_columns = [
+                # Metadata
                 "record_id",
                 "job_id",
                 "job_name",
+                "table_id",
+                "table_title",
                 "processed_at",
+                # Lead Information
+                "lead_number",
+                "campaign_date",
+                "lead_campaign",
+                "lead_source",
+                "ref_id",
+                # Person Data
                 "first_name",
                 "last_name",
+                "co_borrower_full_name",
                 "address",
                 "city",
                 "state",
-                "zip_code",
+                "zip",
+                # Property Data
+                "total_units",
+                "owner_occupied",
+                "annual_tax_amount",
+                "assessed_value",
+                "estimated_value",
+                # Loan Data - First Mortgage
+                "ltv",
+                "loan_type",
+                "first_mortgage_type",
+                "first_mortgage_amount",
+                "first_mortgage_balance",
+                "term",
+                "estimated_new_payment",
+                # Loan Data - Second Mortgage
+                "second_mortgage_type",
+                "second_mortgage_term",
+                "second_mortgage_balance",
+                "has_second_mortgage",
+                # Current Loan Details
+                "current_interest_rate",
+                "current_lender",
+                "arm_index_type",
+                "origination_date",
+                "rate_adjustment_date",
+                # Contact Data
                 "phone_1",
                 "phone_2",
                 "phone_3",
                 "email_1",
                 "email_2",
                 "email_3",
+                # Compliance Flags
                 "in_litigator_list",
                 "phone_1_in_dnc",
                 "phone_2_in_dnc",
                 "phone_3_in_dnc",
-                "additional_data",
             ]
 
             actual_columns = [col.lower() for col in result["COLUMN_NAME"].tolist()]

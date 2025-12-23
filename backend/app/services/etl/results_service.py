@@ -133,7 +133,9 @@ class ETLResultsService:
             self.snowflake_conn.execute_query(create_sql)
             # Add table_id column if it doesn't exist (for existing tables)
             self._add_table_id_column_if_missing()
-            self.logger.info(f"Ensured table {self.table} exists")
+            # Ensure all columns exist (handles old table schemas)
+            self._ensure_all_columns_exist()
+            self.logger.info(f"Ensured table {self.table} exists with all columns")
         except Exception as e:
             self.logger.error(f"Error creating table: {e}")
 
@@ -153,6 +155,82 @@ class ETLResultsService:
             self.snowflake_conn.execute_query(alter_sql2)
         except Exception as e:
             self.logger.debug(f"table_id columns may already exist: {e}")
+
+    def _ensure_all_columns_exist(self):
+        """
+        Ensure all expected columns exist in the Snowflake table.
+
+        This handles tables created with older schemas that may be missing
+        columns like lead_number, campaign_date, ltv, etc.
+        """
+        # All columns that should exist (excluding record_id, job_id, job_name, processed_at which are always present)
+        columns_to_add = [
+            ("table_id", "VARCHAR"),
+            ("table_title", "VARCHAR"),
+            # Lead Information
+            ("lead_number", "VARCHAR"),
+            ("campaign_date", "VARCHAR"),
+            ("lead_campaign", "VARCHAR"),
+            ("lead_source", "VARCHAR"),
+            ("ref_id", "VARCHAR"),
+            # Person Data
+            ("first_name", "VARCHAR"),
+            ("last_name", "VARCHAR"),
+            ("co_borrower_full_name", "VARCHAR"),
+            ("address", "VARCHAR"),
+            ("city", "VARCHAR"),
+            ("state", "VARCHAR"),
+            ("zip", "VARCHAR"),
+            # Property Data
+            ("total_units", "VARCHAR"),
+            ("owner_occupied", "VARCHAR"),
+            ("annual_tax_amount", "VARCHAR"),
+            ("assessed_value", "VARCHAR"),
+            ("estimated_value", "VARCHAR"),
+            # Loan Data - First Mortgage
+            ("ltv", "VARCHAR"),
+            ("loan_type", "VARCHAR"),
+            ("first_mortgage_type", "VARCHAR"),
+            ("first_mortgage_amount", "VARCHAR"),
+            ("first_mortgage_balance", "VARCHAR"),
+            ("term", "VARCHAR"),
+            ("estimated_new_payment", "VARCHAR"),
+            # Loan Data - Second Mortgage
+            ("second_mortgage_type", "VARCHAR"),
+            ("second_mortgage_term", "VARCHAR"),
+            ("second_mortgage_balance", "VARCHAR"),
+            ("has_second_mortgage", "VARCHAR"),
+            # Current Loan Details
+            ("current_interest_rate", "VARCHAR"),
+            ("current_lender", "VARCHAR"),
+            ("arm_index_type", "VARCHAR"),
+            ("origination_date", "VARCHAR"),
+            ("rate_adjustment_date", "VARCHAR"),
+            # Phone Data
+            ("phone_1", "VARCHAR"),
+            ("phone_2", "VARCHAR"),
+            ("phone_3", "VARCHAR"),
+            # Email Data
+            ("email_1", "VARCHAR"),
+            ("email_2", "VARCHAR"),
+            ("email_3", "VARCHAR"),
+            # Compliance Flags
+            ("in_litigator_list", "VARCHAR"),
+            ("phone_1_in_dnc", "VARCHAR"),
+            ("phone_2_in_dnc", "VARCHAR"),
+            ("phone_3_in_dnc", "VARCHAR"),
+        ]
+
+        for col_name, col_type in columns_to_add:
+            try:
+                alter_sql = f"""
+                ALTER TABLE {self.database}.{self.schema}.{self.table}
+                ADD COLUMN IF NOT EXISTS "{col_name}" {col_type}
+                """
+                self.snowflake_conn.execute_query(alter_sql)
+            except Exception as e:
+                # Column likely already exists, ignore
+                self.logger.debug(f"Column {col_name} may already exist: {e}")
 
     def _escape_string(self, value: Any) -> str:
         """Escape string value for SQL insertion"""
