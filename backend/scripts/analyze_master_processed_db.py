@@ -9,18 +9,20 @@ This script:
 4. Extracts unique keys from the JSON and creates new columns if needed
 """
 
-import os
 import sys
 import json
-from typing import Any
 
 # Add old_app to path for credentials
 old_app_path = "/home/aallouch/projects/LodasoftETL/old_app"
 sys.path.insert(0, old_app_path)
 
-import snowflake.connector
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
+import snowflake.connector  # noqa: E402
+from cryptography.hazmat.primitives import serialization  # noqa: E402
+from cryptography.hazmat.primitives.serialization import (  # noqa: E402
+    Encoding,
+    PrivateFormat,
+    NoEncryption,
+)
 
 
 # Snowflake connection settings from old_app
@@ -69,8 +71,7 @@ def connect_snowflake():
     print(f"  Database: {SNOWFLAKE_CONFIG['database']}")
 
     private_key_der = load_private_key(
-        SNOWFLAKE_CONFIG["private_key_path"],
-        SNOWFLAKE_CONFIG["private_key_password"]
+        SNOWFLAKE_CONFIG["private_key_path"], SNOWFLAKE_CONFIG["private_key_password"]
     )
 
     conn = snowflake.connector.connect(
@@ -102,31 +103,37 @@ def get_table_columns(conn) -> list[dict]:
         cursor.execute("DESCRIBE TABLE MASTER_PROCESSED_DB")
         columns = []
         for row in cursor.fetchall():
-            columns.append({
-                "name": row[0],
-                "type": row[1],
-                "nullable": row[3],
-            })
+            columns.append(
+                {
+                    "name": row[0],
+                    "type": row[1],
+                    "nullable": row[3],
+                }
+            )
         return columns
     except Exception as e:
         print(f"DESCRIBE failed: {e}")
 
     # Fallback to INFORMATION_SCHEMA
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = 'PUBLIC'
         AND TABLE_NAME = 'MASTER_PROCESSED_DB'
         ORDER BY ORDINAL_POSITION
-    """)
+    """
+    )
 
     columns = []
     for row in cursor.fetchall():
-        columns.append({
-            "name": row[0],
-            "type": row[1],
-            "nullable": row[2],
-        })
+        columns.append(
+            {
+                "name": row[0],
+                "type": row[1],
+                "nullable": row[2],
+            }
+        )
 
     return columns
 
@@ -141,13 +148,15 @@ def check_additional_data_column(conn) -> tuple[bool, list[str]]:
     cursor = conn.cursor()
 
     # Check if column exists
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT COUNT(*)
         FROM INFORMATION_SCHEMA.COLUMNS
         WHERE TABLE_SCHEMA = 'PUBLIC'
         AND TABLE_NAME = 'MASTER_PROCESSED_DB'
         AND COLUMN_NAME = 'additional_data'
-    """)
+    """
+    )
 
     result = cursor.fetchone()
     if result[0] == 0:
@@ -156,14 +165,16 @@ def check_additional_data_column(conn) -> tuple[bool, list[str]]:
     print("\n🔍 Found 'additional_data' column, extracting JSON keys...")
 
     # Sample some rows to get unique keys
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT "additional_data"
         FROM MASTER_PROCESSED_DB
         WHERE "additional_data" IS NOT NULL
         AND "additional_data" != ''
         AND "additional_data" != 'null'
         LIMIT 1000
-    """)
+    """
+    )
 
     all_keys = set()
     for row in cursor.fetchall():
@@ -183,23 +194,22 @@ def get_sample_additional_data(conn, limit: int = 10) -> list[dict]:
     """Get sample additional_data values."""
     cursor = conn.cursor()
 
-    cursor.execute(f"""
+    cursor.execute(
+        f"""
         SELECT "record_id", "additional_data"
         FROM MASTER_PROCESSED_DB
         WHERE "additional_data" IS NOT NULL
         AND "additional_data" != ''
         AND "additional_data" != 'null'
         LIMIT {limit}
-    """)
+    """
+    )
 
     samples = []
     for row in cursor.fetchall():
         try:
             data = json.loads(row[1]) if row[1] else {}
-            samples.append({
-                "record_id": row[0],
-                "additional_data": data
-            })
+            samples.append({"record_id": row[0], "additional_data": data})
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -224,10 +234,10 @@ def split_json_to_columns(conn, keys: list[str], dry_run: bool = True):
         # Convert key to safe column name (lowercase, underscores)
         col_name = key.lower().replace(" ", "_").replace("-", "_")
 
-        add_col_sql = f'''
+        add_col_sql = f"""
             ALTER TABLE MASTER_PROCESSED_DB
             ADD COLUMN IF NOT EXISTS "{col_name}" VARCHAR
-        '''
+        """
 
         if dry_run:
             print(f"  Would add column: {col_name}")
@@ -245,7 +255,7 @@ def split_json_to_columns(conn, keys: list[str], dry_run: bool = True):
         col_name = key.lower().replace(" ", "_").replace("-", "_")
 
         # Use Snowflake's JSON parsing
-        update_sql = f'''
+        update_sql = f"""
             UPDATE MASTER_PROCESSED_DB
             SET "{col_name}" = COALESCE(
                 TRY_PARSE_JSON("additional_data"):"{key}"::VARCHAR,
@@ -254,7 +264,7 @@ def split_json_to_columns(conn, keys: list[str], dry_run: bool = True):
             WHERE "additional_data" IS NOT NULL
             AND "additional_data" != ''
             AND TRY_PARSE_JSON("additional_data"):"{key}" IS NOT NULL
-        '''
+        """
 
         if dry_run:
             print(f"  Would update column: {col_name} from JSON key: {key}")
@@ -298,7 +308,7 @@ def main():
         has_json, json_keys = check_additional_data_column(conn)
 
         if has_json:
-            print(f"\n🗃️  additional_data column found!")
+            print("\n🗃️  additional_data column found!")
 
             if json_keys:
                 print(f"\n📝 Unique JSON keys found ({len(json_keys)} keys):")
