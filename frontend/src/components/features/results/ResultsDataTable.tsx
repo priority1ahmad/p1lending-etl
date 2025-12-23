@@ -10,7 +10,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   Box,
   Typography,
-  Chip,
   FormControlLabel,
   Switch,
   Select,
@@ -150,26 +149,6 @@ export const ResultsDataTable = memo(function ResultsDataTable({
 
       {/* Results info */}
       <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
-        <Chip
-          label={`Total: ${total.toLocaleString()} records`}
-          size="small"
-          sx={{
-            backgroundColor: palette.accent[100],
-            color: palette.accent[700],
-            fontWeight: 500,
-          }}
-        />
-        {litigatorCount !== undefined && (
-          <Chip
-            label={`Litigators: ${litigatorCount.toLocaleString()}`}
-            size="small"
-            sx={{
-              backgroundColor: palette.warning[100],
-              color: palette.warning[700],
-              fontWeight: 500,
-            }}
-          />
-        )}
         <FormControl size="small" sx={{ minWidth: 120 }}>
           <InputLabel>Per Page</InputLabel>
           <Select
