@@ -711,8 +711,17 @@ class ETLEngine:
                 query_time = time.time() - start_time
 
                 if df is None or df.empty:
-                    result["error_message"] = "No unprocessed records (all already in PERSON_CACHE)"
-                    self.logger.log_step("Data Filtering", "All records already processed")
+                    # All records already processed - this is SUCCESS, not failure
+                    result["success"] = True
+                    result["rows_processed"] = 0
+                    result["litigator_count"] = 0
+                    result["dnc_count"] = 0
+                    result["both_count"] = 0
+                    result["clean_count"] = 0
+                    result["completed_at"] = datetime.now()
+                    self.logger.log_step(
+                        "Data Filtering", "All records already processed (0 new records)"
+                    )
                     return result
 
                 # Log results

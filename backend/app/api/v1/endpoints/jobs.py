@@ -431,10 +431,24 @@ async def preview_jobs(
                                 address_column = col
                                 break
 
+                        # Find name columns (flexible matching, same as ETL engine)
+                        first_name_column = None
+                        last_name_column = None
+                        for col in full_df.columns:
+                            col_lower = col.lower().replace("_", " ").replace("-", " ")
+                            if "first" in col_lower and "name" in col_lower:
+                                first_name_column = col
+                            elif "last" in col_lower and "name" in col_lower:
+                                last_name_column = col
+
                         if address_column:
                             etl_logger.info(
                                 f"Using address column: '{address_column}' for preview filtering"
                             )
+                            if first_name_column and last_name_column:
+                                etl_logger.info(
+                                    f"Using name columns: first='{first_name_column}', last='{last_name_column}'"
+                                )
 
                             # First, check if PERSON_CACHE has any data at all
                             count_query = """
@@ -500,7 +514,9 @@ async def preview_jobs(
                                 )
 
                             # Count processed records (exact count, not estimation)
+                            # Also count records without valid names (same filtering as ETL engine)
                             processed_count = 0
+                            skipped_no_name_count = 0
                             sample_addresses_checked = []
                             sample_matches = []
 
@@ -511,6 +527,22 @@ async def preview_jobs(
                                     else ""
                                 )
 
+                                # Check for valid first/last names (match ETL engine filtering)
+                                first_name = ""
+                                last_name = ""
+                                if first_name_column:
+                                    first_name = (
+                                        str(row[first_name_column]).strip()
+                                        if pd.notna(row[first_name_column])
+                                        else ""
+                                    )
+                                if last_name_column:
+                                    last_name = (
+                                        str(row[last_name_column]).strip()
+                                        if pd.notna(row[last_name_column])
+                                        else ""
+                                    )
+
                                 # Collect sample addresses for logging
                                 if idx < 5 and address:
                                     sample_addresses_checked.append(address)
@@ -519,12 +551,20 @@ async def preview_jobs(
                                     processed_count += 1
                                     if len(sample_matches) < 3:
                                         sample_matches.append(address)
+                                elif not first_name or not last_name:
+                                    # Skip records without valid names - they can't be processed
+                                    # (same as ETL engine name validation filter)
+                                    skipped_no_name_count += 1
 
                             already_processed = processed_count
-                            unprocessed = len(full_df) - already_processed
+                            # Records are truly "new" only if not cached AND have valid names
+                            unprocessed = len(full_df) - already_processed - skipped_no_name_count
+                            if unprocessed < 0:
+                                unprocessed = 0  # Safety check
 
                             etl_logger.info(
-                                f"Preview check: {len(full_df):,} total, {already_processed:,} already processed, {unprocessed:,} new"
+                                f"Preview check: {len(full_df):,} total, {already_processed:,} already processed, "
+                                f"{skipped_no_name_count:,} skipped (no name), {unprocessed:,} new"
                             )
                             if sample_addresses_checked:
                                 etl_logger.info(
@@ -533,6 +573,10 @@ async def preview_jobs(
                             if sample_matches:
                                 etl_logger.info(
                                     f"Sample matched addresses: {', '.join(sample_matches[:3])}"
+                                )
+                            if skipped_no_name_count > 0:
+                                etl_logger.info(
+                                    f"Note: {skipped_no_name_count:,} records skipped due to missing first/last name (not processable)"
                                 )
                         else:
                             etl_logger.warning(

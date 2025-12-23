@@ -43,6 +43,8 @@ celery_app.conf.update(
     # Note: worker_pool should be specified at worker startup, not in config
     # Disable prefork on Windows
     worker_disable_rate_limits=True,
+    # Celery 6.0 compatibility: explicit startup retry behavior
+    broker_connection_retry_on_startup=True,
 )
 
 
