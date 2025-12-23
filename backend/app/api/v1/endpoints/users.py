@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.db.models.user import User
 from app.api.v1.deps import require_superuser
 from app.services.user_service import UserService
+from app.core.security import get_client_ip
 from app.schemas.users import (
     UserListResponse,
     UserCreateRequest,
@@ -57,7 +58,7 @@ async def create_user(
     Returns:
         User object and temporary password
     """
-    ip_address = request.client.host if request.client else None
+    ip_address = get_client_ip(request)
 
     try:
         user, temp_password = await UserService.create_user(
@@ -95,7 +96,7 @@ async def delete_user(
     Returns:
         Success message
     """
-    ip_address = request.client.host if request.client else None
+    ip_address = get_client_ip(request)
 
     try:
         await UserService.delete_user(
@@ -127,7 +128,7 @@ async def reset_password(
     Returns:
         Success message
     """
-    ip_address = request.client.host if request.client else None
+    ip_address = get_client_ip(request)
 
     try:
         await UserService.reset_password(

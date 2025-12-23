@@ -182,7 +182,7 @@ function ActivityItemRow({
             }}
           >
             {item.message}
-            {item.count !== undefined && (
+            {item.count != null && (
               <Box
                 component="span"
                 sx={{

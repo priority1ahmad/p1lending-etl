@@ -241,7 +241,7 @@ export function ActiveJobCard({
         }}
       >
         {/* Rows */}
-        {currentRow !== undefined && totalRows !== undefined && (
+        {currentRow != null && totalRows != null && (
           <Box>
             <Typography
               variant="caption"
@@ -267,7 +267,7 @@ export function ActiveJobCard({
         )}
 
         {/* Batch */}
-        {currentBatch !== undefined && totalBatches !== undefined && (
+        {currentBatch != null && totalBatches != null && (
           <Box>
             <Typography
               variant="caption"

@@ -336,6 +336,13 @@ export function DashboardHomePage() {
     navigate('/results');
   }, [navigate]);
 
+  const handleViewPreview = useCallback(
+    (jobId: string) => {
+      navigate(`/results?job_id=${jobId}`);
+    },
+    [navigate]
+  );
+
   // ===== WebSocket Connection =====
 
   useEffect(() => {
@@ -547,6 +554,7 @@ export function DashboardHomePage() {
         onStopJob={handleStopJob}
         onRefresh={handleRefresh}
         onViewResults={handleViewResults}
+        onViewPreview={handleViewPreview}
         onViewAllHistory={handleViewAllHistory}
       />
 

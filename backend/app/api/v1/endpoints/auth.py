@@ -24,6 +24,7 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     get_password_hash,
+    get_client_ip,
 )
 from app.api.v1.deps import get_current_user
 from app.core.logger import etl_logger
@@ -70,8 +71,8 @@ async def login(credentials: LoginRequest, request: Request, db: AsyncSession = 
     """
     # Rate limiting is handled by slowapi middleware in main.py
 
-    # Extract client info for audit logging
-    ip_address = request.client.host if request.client else "unknown"
+    # Extract client info for audit logging (handles proxy headers)
+    ip_address = get_client_ip(request)
     user_agent = request.headers.get("user-agent")
 
     # Check if account is locked BEFORE checking credentials

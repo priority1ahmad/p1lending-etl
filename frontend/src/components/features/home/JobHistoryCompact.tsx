@@ -302,7 +302,7 @@ export function JobHistoryCompact({
                     >
                       {formatTimeAgo(job.started_at)}
                     </Typography>
-                    {job.total_rows_processed !== undefined && (
+                    {job.total_rows_processed != null && (
                       <Typography
                         variant="caption"
                         sx={{ color: textColors.secondary, fontSize: '0.6875rem' }}

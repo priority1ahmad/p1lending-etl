@@ -102,7 +102,7 @@ function StatCard({
           mt: 0.5,
         }}
       >
-        {value.toLocaleString()}
+        {(value ?? 0).toLocaleString()}
       </Typography>
     </Box>
   );
@@ -190,8 +190,8 @@ function ExecutionWarning({ rowCount }: { rowCount: number }) {
             sx={{ color: textColors.secondary, fontSize: '0.8125rem' }}
           >
             {isLarge
-              ? `Processing ${rowCount.toLocaleString()} records may take 5-10 minutes.`
-              : `${rowCount.toLocaleString()} records will be enriched and validated.`}
+              ? `Processing ${(rowCount ?? 0).toLocaleString()} records may take 5-10 minutes.`
+              : `${(rowCount ?? 0).toLocaleString()} records will be enriched and validated.`}
           </Typography>
           {isLarge && (
             <Box
@@ -415,8 +415,8 @@ export function PreviewDialogCompact({
                   variant="body2"
                   sx={{ color: palette.accent[800] }}
                 >
-                  Limited to <strong>{rowLimit.toLocaleString()}</strong> rows
-                  (of {data.unprocessed.toLocaleString()} available)
+                  Limited to <strong>{(rowLimit ?? 0).toLocaleString()}</strong> rows
+                  (of {(data.unprocessed ?? 0).toLocaleString()} available)
                 </Typography>
               </Box>
             )}
@@ -486,7 +486,7 @@ export function PreviewDialogCompact({
             >
               {isLoading
                 ? 'Loading...'
-                : `Run ETL (${rowsToProcess.toLocaleString()} rows)`}
+                : `Run ETL (${(rowsToProcess ?? 0).toLocaleString()} rows)`}
             </Button>
           </>
         ) : (

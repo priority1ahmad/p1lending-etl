@@ -177,7 +177,7 @@ export function QuickStatsRow({
               >
                 {typeof stat.value === 'number'
                   ? stat.value.toLocaleString()
-                  : stat.value}
+                  : (stat.value ?? 0)}
               </Typography>
 
               {/* Trend indicator */}

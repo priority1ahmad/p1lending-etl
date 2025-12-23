@@ -7,6 +7,7 @@ from typing import Optional
 import uuid
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from fastapi import Request
 from app.core.config import settings
 from app.core.logger import etl_logger
 
@@ -75,3 +76,38 @@ def decode_token(token: str) -> Optional[dict]:
     except Exception as e:
         etl_logger.warning(f"Unexpected error during token decode: {type(e).__name__}: {str(e)}")
         return None
+
+
+def get_client_ip(request: Request) -> str:
+    """
+    Extract real client IP address from request, handling proxy headers.
+
+    Checks headers in order of trust:
+    1. X-Forwarded-For (standard proxy header, takes first IP)
+    2. X-Real-IP (nginx proxy header)
+    3. Falls back to request.client.host (direct connection)
+
+    Args:
+        request: FastAPI Request object
+
+    Returns:
+        Client IP address string, or "unknown" if unavailable
+    """
+    # Check X-Forwarded-For header (may contain comma-separated list)
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        # X-Forwarded-For can be "client, proxy1, proxy2" - get first (real client)
+        client_ip = forwarded_for.split(",")[0].strip()
+        if client_ip:
+            return client_ip
+
+    # Check X-Real-IP header (nginx)
+    real_ip = request.headers.get("x-real-ip")
+    if real_ip:
+        return real_ip.strip()
+
+    # Fall back to direct connection
+    if request.client:
+        return request.client.host
+
+    return "unknown"
