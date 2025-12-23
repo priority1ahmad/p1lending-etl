@@ -30,7 +30,7 @@ import { Card } from '../../ui/Card/Card';
 import { Button } from '../../ui/Button/Button';
 import { EmptyState } from '../../ui/Feedback/EmptyState';
 import { StatusBadge } from '../../ui/Badge/StatusBadge';
-import { textColors, palette } from '../../../theme';
+import { textColors } from '../../../theme';
 
 export interface ResultRecord {
   record_id: string;
@@ -79,7 +79,6 @@ export const ResultsDataTable = memo(function ResultsDataTable({
   jobName,
   records,
   total,
-  litigatorCount,
   excludeLitigators,
   currentPage,
   recordsPerPage,
