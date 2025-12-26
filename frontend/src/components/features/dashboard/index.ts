@@ -20,3 +20,9 @@ export type {
   ComplianceDonutChartProps,
   ComplianceData,
 } from './ComplianceDonutChart';
+
+export { DashboardSection } from './DashboardSection';
+export type { DashboardSectionProps } from './DashboardSection';
+
+export { DateRangeSelector } from './DateRangeSelector';
+export type { DateRangeSelectorProps, DateRange } from './DateRangeSelector';
