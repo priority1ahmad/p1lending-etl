@@ -25,9 +25,9 @@ import {
   Pagination,
   CircularProgress,
 } from '@mui/material';
-import { Download, TableChart } from '@mui/icons-material';
+import { TableChart } from '@mui/icons-material';
 import { Card } from '../../ui/Card/Card';
-import { Button } from '../../ui/Button/Button';
+import { ImportButton } from '../import';
 import { EmptyState } from '../../ui/Feedback/EmptyState';
 import { StatusBadge } from '../../ui/Badge/StatusBadge';
 import { textColors } from '../../../theme';
@@ -56,6 +56,8 @@ export interface ResultsDataTableProps {
   recordsPerPage: number;
   isLoading: boolean;
   isExporting: boolean;
+  isImporting?: boolean;
+  onImport: () => void;
   onToggleExclude: (exclude: boolean) => void;
   onPageChange: (page: number) => void;
   onRecordsPerPageChange: (perPage: number) => void;
@@ -88,6 +90,8 @@ export const ResultsDataTable = memo(function ResultsDataTable({
   onPageChange,
   onRecordsPerPageChange,
   onExport,
+  onImport,
+  isImporting = false,
 }: ResultsDataTableProps) {
   const totalPages = Math.ceil(total / recordsPerPage);
   const parentRef = useRef<HTMLDivElement>(null);
@@ -133,16 +137,12 @@ export const ResultsDataTable = memo(function ResultsDataTable({
               </Typography>
             }
           />
-          <Button
-            variant="solid"
-            colorScheme="accent"
-            startIcon={<Download />}
-            onClick={onExport}
-            loading={isExporting}
-            loadingText="Exporting..."
-          >
-            Export CSV
-          </Button>
+          <ImportButton
+            onImport={onImport}
+            onExport={onExport}
+            isImporting={isImporting}
+            isExporting={isExporting}
+          />
         </Box>
       </Box>
 

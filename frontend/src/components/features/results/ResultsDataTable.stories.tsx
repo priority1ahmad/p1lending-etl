@@ -163,6 +163,7 @@ export const Default: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => console.log('Import clicked'),
     onToggleExclude: (exclude) => {
       console.log('Toggle exclude litigators:', exclude);
     },
@@ -193,6 +194,7 @@ export const Empty: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: () => {},
     onPageChange: () => {},
     onRecordsPerPageChange: () => {},
@@ -213,6 +215,7 @@ export const Loading: Story = {
     recordsPerPage: 50,
     isLoading: true,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: () => {},
     onPageChange: () => {},
     onRecordsPerPageChange: () => {},
@@ -235,6 +238,7 @@ export const WithPagination: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: (exclude) => {
       console.log('Toggle exclude litigators:', exclude);
     },
@@ -265,6 +269,7 @@ export const AllLitigators: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: (exclude) => {
       console.log('Toggle exclude litigators:', exclude);
       alert(exclude ? 'Excluding all litigators - table will be empty!' : 'Showing all records');
@@ -291,6 +296,7 @@ export const IncompleteData: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: () => {},
     onPageChange: () => {},
     onRecordsPerPageChange: () => {},
@@ -335,6 +341,7 @@ export const ExcludingLitigators: Story = {
     recordsPerPage: 50,
     isLoading: false,
     isExporting: false,
+    onImport: () => {},
     onToggleExclude: (exclude) => {
       console.log('Toggle exclude litigators:', exclude);
       alert(exclude ? 'Excluding litigators' : 'Showing all records');
@@ -372,6 +379,7 @@ export const InResultsPageContext: Story = {
         recordsPerPage={50}
         isLoading={false}
         isExporting={false}
+        onImport={() => {}}
         onToggleExclude={(exclude) => {
           console.log('Toggle exclude litigators:', exclude);
         }}

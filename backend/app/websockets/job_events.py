@@ -410,3 +410,91 @@ async def _trigger_ntfy_error(job_id: str, data: Dict[str, Any]) -> None:
         )
     except Exception as e:
         etl_logger.warning(f"Failed to send NTFY error notification: {e}")
+
+
+
+@sio.event
+async def join_import(sid, data: Dict[str, Any]):
+    """Join an import room to receive updates."""
+    import_id = data.get("import_id")
+    if import_id:
+        room = f"import_{import_id}"
+        await sio.enter_room(sid, room)
+        etl_logger.info(f"Client {sid} joined import room: {room}")
+        await sio.emit("joined_import", {"import_id": import_id}, room=sid)
+
+
+
+@sio.event
+async def leave_import(sid, data: Dict[str, Any]):
+    """Leave an import room."""
+    import_id = data.get("import_id")
+    if import_id:
+        room = f"import_{import_id}"
+        await sio.leave_room(sid, room)
+        etl_logger.info(f"Client {sid} left import room: {room}")
+        await sio.emit("left_import", {"import_id": import_id}, room=sid)
+
+
+def emit_crm_import_progress(import_id: str, progress_data: Dict[str, Any]):
+    """Emit CRM import progress to connected clients (sync version for background tasks)."""
+    import redis
+    import json
+    
+    try:
+        r = redis.from_url(settings.redis_url, decode_responses=True)
+        r.publish(
+            f"import_{import_id}",
+            json.dumps({
+                "event_type": "import_progress",
+                "data": progress_data,
+            })
+        )
+    except Exception as e:
+        etl_logger.error(f"Failed to emit import progress: {e}")
+
+
+
+
+async def emit_import_progress(import_id: str, progress_data: Dict[str, Any]):
+    """Emit import progress update."""
+    await sio.emit(
+        "import_progress",
+        {"import_id": import_id, **progress_data},
+        room=f"import_{import_id}",
+    )
+
+
+
+async def emit_import_log(import_id: str, level: str, message: str):
+    """Emit import log entry."""
+    await sio.emit(
+        "import_log",
+        {
+            "import_id": import_id,
+            "level": level,
+            "message": message,
+            "timestamp": None,
+        },
+        room=f"import_{import_id}",
+    )
+
+
+
+async def emit_import_complete(import_id: str, data: Dict[str, Any]):
+    """Emit import completion event."""
+    await sio.emit(
+        "import_complete",
+        {"import_id": import_id, **data},
+        room=f"import_{import_id}",
+    )
+
+
+
+async def emit_import_error(import_id: str, error: str):
+    """Emit import error event."""
+    await sio.emit(
+        "import_error",
+        {"import_id": import_id, "error": error},
+        room=f"import_{import_id}",
+    )

@@ -3,26 +3,26 @@
  * Modern dashboard-style results viewer with metrics, charts, and enhanced filtering
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Box, Grid, IconButton, Tooltip, Collapse } from '@mui/material';
-import { Refresh, ChevronLeft, ChevronRight } from '@mui/icons-material';
+import { Refresh, ChevronLeft, ChevronRight, TableChart } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { resultsApi } from '../services/api/results';
+import { lodasoftImportApi } from '../services/api/lodasoftImport';
+import type { ImportLogEntry } from '../services/api/lodasoftImport';
 import type { ETLJob } from '../services/api/results';
 import { palette } from '../theme';
 
 // Layout components
 import { PageHeader } from '../components/layout/PageHeader';
 
-// New feature components
+// Results components
 import { ResultsMetricCard } from '../components/features/results/ResultsMetricCard';
 import { JobsFilterPanel } from '../components/features/results/JobsFilterPanel';
 import type { JobFilters } from '../components/features/results/JobsFilterPanel';
 import { QuickStatsWidget } from '../components/features/results/QuickStatsWidget';
-
-// Existing feature components
 import {
   JobsListCard,
   ResultsDataTable,
@@ -30,9 +30,12 @@ import {
   type ResultRecord,
 } from '../components/features/results';
 
+// Import components
+import { ImportDialog, ImportHistoryPanel } from '../components/features/import';
+import type { ImportDialogStatus } from '../components/features/import';
+
 // UI components
 import { EmptyState } from '../components/ui/Feedback/EmptyState';
-import { TableChart } from '@mui/icons-material';
 
 export function ETLResults() {
   const [searchParams] = useSearchParams();
@@ -48,6 +51,17 @@ export function ETLResults() {
     sortBy: 'newest_first',
   });
   const hasLoadedFromUrl = useRef(false);
+
+  // Import state
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importStatus, setImportStatus] = useState<ImportDialogStatus>('idle');
+  const [importProgress, setImportProgress] = useState(0);
+  const [recordsImported, setRecordsImported] = useState(0);
+  const [recordsFailed, setRecordsFailed] = useState(0);
+  const [importError, setImportError] = useState<string | undefined>();
+  const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
+  const [_currentImportId, setCurrentImportId] = useState<string | null>(null);
+  const importPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch jobs list
   const {
@@ -86,13 +100,17 @@ export function ETLResults() {
       ),
     enabled: !!selectedJobId,
     staleTime: 30000,
-    refetchInterval: () => {
-      if (!selectedJobId) return false;
-      const selectedJob = jobsData?.jobs?.find((job: ETLJob) => job.job_id === selectedJobId);
-      const isJobRunning = selectedJob?.job_name?.toLowerCase().includes('running') ||
-                          selectedJob?.job_name?.toLowerCase().includes('processing');
-      return isJobRunning ? 5000 : false;
-    },
+  });
+
+  // Fetch import history
+  const {
+    data: importHistoryData,
+    isLoading: isLoadingImportHistory,
+    refetch: refetchImportHistory,
+  } = useQuery({
+    queryKey: ['import-history'],
+    queryFn: () => lodasoftImportApi.getImportHistory(1, 20),
+    staleTime: 30000,
   });
 
   // Export mutation
@@ -101,12 +119,76 @@ export function ETLResults() {
       resultsApi.exportJobResults(jobId, exclude),
   });
 
+  // Import mutation
+  const importMutation = useMutation({
+    mutationFn: ({ jobId, jobName }: { jobId: string; jobName?: string }) =>
+      lodasoftImportApi.startImport(jobId, jobName),
+    onSuccess: (data) => {
+      setCurrentImportId(data.import_id);
+      setImportStatus('in_progress');
+      startPollingImportStatus(data.import_id);
+    },
+    onError: (error: Error) => {
+      setImportStatus('failed');
+      setImportError(error.message);
+    },
+  });
+
+  const startPollingImportStatus = useCallback((importId: string) => {
+    if (importPollRef.current) clearInterval(importPollRef.current);
+    
+    const pollStatus = async () => {
+      try {
+        const status = await lodasoftImportApi.getImportStatus(importId);
+        setImportProgress(status.progress_percent);
+        setRecordsImported(status.successful_records);
+        setRecordsFailed(status.failed_records);
+        
+        // Convert logs
+        if (status.logs) {
+          const logs: ImportLogEntry[] = status.logs.map((log) => ({
+            timestamp: new Date().toISOString(),
+            level: 'INFO' as const,
+            message: log,
+          }));
+          setImportLogs(logs);
+        }
+
+        if (status.status === 'completed') {
+          setImportStatus('completed');
+          if (importPollRef.current) {
+            clearInterval(importPollRef.current);
+            importPollRef.current = null;
+          }
+          refetchImportHistory();
+        } else if (status.status === 'failed') {
+          setImportStatus('failed');
+          setImportError(status.error_message);
+          if (importPollRef.current) {
+            clearInterval(importPollRef.current);
+            importPollRef.current = null;
+          }
+          refetchImportHistory();
+        }
+      } catch (e) {
+        console.error('[ETLResults] Error polling import status:', e);
+      }
+    };
+    
+    pollStatus();
+    importPollRef.current = setInterval(pollStatus, 2000);
+  }, [refetchImportHistory]);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (importPollRef.current) clearInterval(importPollRef.current);
+    };
+  }, []);
+
   // Auto-select job from URL query parameter
   useEffect(() => {
-    // Only run once on mount and when jobs data changes
-    if (hasLoadedFromUrl.current || !jobsData?.jobs) {
-      return;
-    }
+    if (hasLoadedFromUrl.current || !jobsData?.jobs) return;
 
     const jobIdFromUrl = searchParams.get('job_id');
     if (!jobIdFromUrl) {
@@ -114,19 +196,14 @@ export function ETLResults() {
       return;
     }
 
-    // Find matching job in the jobs list
     const matchingJob = jobsData.jobs.find(
       (job: ETLJob) => job.job_id === jobIdFromUrl
     );
 
     if (matchingJob) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- Initializing state from URL query parameter is intentional
       setSelectedJobId(jobIdFromUrl);
       setSelectedJobName(matchingJob.job_name || 'ETL Job');
       setCurrentPage(1);
-      console.log('[ETLResults] Auto-selected job from URL:', jobIdFromUrl);
-    } else {
-      console.warn('[ETLResults] Job ID from URL not found in jobs list:', jobIdFromUrl);
     }
 
     hasLoadedFromUrl.current = true;
@@ -140,9 +217,7 @@ export function ETLResults() {
     if (!token) return;
 
     const socket: Socket = io(socketUrl, {
-      auth: {
-        token,
-      },
+      auth: { token },
       transports: ['websocket', 'polling'],
     });
 
@@ -151,19 +226,10 @@ export function ETLResults() {
     });
 
     socket.on('job_complete', (data) => {
-      console.log('[ETLResults] Job completed:', data);
       refetchJobs();
       if (selectedJobId === data.job_id) {
         refetchResults();
       }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('[ETLResults] WebSocket disconnected');
-    });
-
-    socket.on('error', (error) => {
-      console.error('[ETLResults] WebSocket error:', error);
     });
 
     return () => {
@@ -175,7 +241,6 @@ export function ETLResults() {
     setSelectedJobId(job.job_id);
     setSelectedJobName(job.job_name);
     setCurrentPage(1);
-    // Auto-collapse jobs list on mobile when job selected
     if (window.innerWidth < 900) {
       setJobsListExpanded(false);
     }
@@ -184,6 +249,32 @@ export function ETLResults() {
   const handleExport = () => {
     if (selectedJobId) {
       exportMutation.mutate({ jobId: selectedJobId, exclude: excludeLitigators });
+    }
+  };
+
+  const handleOpenImportDialog = () => {
+    setImportStatus('idle');
+    setImportProgress(0);
+    setRecordsImported(0);
+    setRecordsFailed(0);
+    setImportError(undefined);
+    setImportLogs([]);
+    setCurrentImportId(null);
+    setImportDialogOpen(true);
+  };
+
+  const handleCloseImportDialog = () => {
+    if (importPollRef.current) {
+      clearInterval(importPollRef.current);
+      importPollRef.current = null;
+    }
+    setImportDialogOpen(false);
+  };
+
+  const handleStartImport = () => {
+    if (selectedJobId) {
+      setImportStatus('loading');
+      importMutation.mutate({ jobId: selectedJobId, jobName: selectedJobName });
     }
   };
 
@@ -209,14 +300,12 @@ export function ETLResults() {
 
     let filtered = allJobs;
 
-    // Apply search filter
     if (jobFilters.search) {
       filtered = filtered.filter((job) =>
         job.job_name.toLowerCase().includes(jobFilters.search.toLowerCase())
       );
     }
 
-    // Apply sort
     filtered = filtered.sort((a, b) => {
       switch (jobFilters.sortBy) {
         case 'newest_first':
@@ -250,8 +339,9 @@ export function ETLResults() {
     processed_at: record.processed_at,
   }));
 
-  // Get selected job for QuickStatsWidget
   const selectedJob = jobs.find((job) => job.job_id === selectedJobId);
+  const importHistory = importHistoryData?.imports || [];
+  const isImporting = importMutation.isPending || importStatus === 'in_progress';
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -267,7 +357,7 @@ export function ETLResults() {
         }
       />
 
-      {/* Metrics Grid - Compact */}
+      {/* Metrics Grid */}
       {stats && (
         <Grid container spacing={1.5}>
           {/* @ts-expect-error - MUI v7 Grid item prop works at runtime */}
@@ -306,9 +396,9 @@ export function ETLResults() {
         </Grid>
       )}
 
-      {/* Two-Column Layout: Jobs List (25%) | Table (75%) */}
+      {/* Two-Column Layout */}
       <Grid container spacing={2}>
-        {/* Left Column: Jobs List - Collapsible */}
+        {/* Left Column: Jobs List */}
         {!jobsListCollapsed && (
           /* @ts-expect-error - MUI v7 Grid item prop works at runtime */
           <Grid item xs={12} md={3}>
@@ -346,7 +436,7 @@ export function ETLResults() {
           <Box
             sx={{
               position: 'fixed',
-              left: 260, // Sidebar width
+              left: 260,
               top: '50%',
               transform: 'translateY(-50%)',
               zIndex: 1000,
@@ -401,15 +491,41 @@ export function ETLResults() {
                 recordsPerPage={recordsPerPage}
                 isLoading={isLoadingResults}
                 isExporting={exportMutation.isPending}
+                isImporting={isImporting}
                 onToggleExclude={handleToggleExclude}
                 onPageChange={setCurrentPage}
                 onRecordsPerPageChange={handleRecordsPerPageChange}
                 onExport={handleExport}
+                onImport={handleOpenImportDialog}
+              />
+            )}
+
+            {/* Import History */}
+            {selectedJobId && (
+              <ImportHistoryPanel
+                imports={importHistory}
+                isLoading={isLoadingImportHistory}
+                onRefresh={() => refetchImportHistory()}
               />
             )}
           </Box>
         </Grid>
       </Grid>
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={importDialogOpen}
+        jobName={selectedJobName}
+        recordCount={resultsData?.total || 0}
+        status={importStatus}
+        progress={importProgress}
+        recordsImported={recordsImported}
+        recordsFailed={recordsFailed}
+        errorMessage={importError}
+        logs={importLogs}
+        onClose={handleCloseImportDialog}
+        onStartImport={handleStartImport}
+      />
     </Box>
   );
 }
