@@ -1,15 +1,15 @@
 """Add CRM import history table
 
-Revision ID: 009
-Revises: 008
+Revision ID: 009_crm_import_history
+Revises: 008_file_source_to_jobs
 Create Date: 2026-01-05
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "009"
-down_revision = "008"
+revision = "009_crm_import_history"
+down_revision = "008_file_source_to_jobs"
 branch_labels = None
 depends_on = None
 
