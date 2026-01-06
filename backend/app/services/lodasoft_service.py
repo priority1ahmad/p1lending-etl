@@ -66,6 +66,50 @@ class LodasoftCRMService:
     """Lodasoft CRM service for importing enriched ETL records."""
 
     INVALID_COLUMNS = {"Lead Campaign", "Mortgage Type"}
+    ALLOWED_COLUMNS = {
+        "Campaign Date",
+        "Lead Source",
+        "Lead Number",
+        "Ref ID",
+        "First Name",
+        "Last Name",
+        "Co Borrower Full Name",
+        "Address",
+        "City",
+        "State",
+        "Zip",
+        "Total Units",
+        "Owner Occupied",
+        "Annual Tax Amount",
+        "LTV",
+        "Loan Type",
+        "Assessed Value",
+        "Estimated Value",
+        "First Mortgage Amount",
+        "First Mortgage Balance",
+        "Term",
+        "Second Mortgage Amount",
+        "Has Second Mortgage",
+        "Estimated New Payment",
+        "Second Mortgage Type",
+        "Second Mortgage Term",
+        "Current Interest Rate",
+        "Current Lender",
+        "ARM Index Type",
+        "Origination Date",
+        "First Mortgage Type",
+        "Rate Adjustment Date",
+        "Phone 1",
+        "Phone 2",
+        "Phone 3",
+        "Email 1",
+        "Email 2",
+        "Email 3",
+        "Phone 1 In DNC List",
+        "Phone 2 In DNC List",
+        "Phone 3 In DNC List",
+        "In Litigator List",
+    }
     PROPER_CASE_FIELDS = {
         "First Name",
         "Last Name",
@@ -175,6 +219,8 @@ class LodasoftCRMService:
             mapped_key = column_mapping.get(key, key)
 
             if mapped_key in self.INVALID_COLUMNS:
+                continue
+            if mapped_key not in self.ALLOWED_COLUMNS:
                 continue
             if mapped_key in self.PROPER_CASE_FIELDS:
                 value = self._proper_case(value)
