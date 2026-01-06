@@ -440,7 +440,7 @@ def emit_crm_import_progress(import_id: str, progress_data: Dict[str, Any]):
     """Emit CRM import progress to connected clients (sync version for background tasks)."""
     import redis
     import json
-    
+
     try:
         r = redis.from_url(settings.redis_url, decode_responses=True)
         r.publish(

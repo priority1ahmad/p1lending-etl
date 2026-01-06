@@ -18,19 +18,19 @@ class CRMImportHistory(Base):
     job_name = Column(String(255), nullable=True)
     table_id = Column(String(100), nullable=True)  # Lodasoft contact list ID
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    
+
     status = Column(String(50), default="pending")  # pending, in_progress, completed, failed
     total_records = Column(Integer, default=0)
     successful_records = Column(Integer, default=0)
     failed_records = Column(Integer, default=0)
     merged_records = Column(Integer, default=0)
     duplicate_records = Column(Integer, default=0)
-    
+
     error_message = Column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     def to_dict(self):
         return {
             "id": str(self.id),
