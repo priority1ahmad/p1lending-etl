@@ -14,7 +14,7 @@ class CRMImportHistory(Base):
     __tablename__ = "crm_import_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    job_id = Column(UUID(as_uuid=True), ForeignKey("jobs.id"), nullable=True)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("etl_jobs.id"), nullable=True)
     job_name = Column(String(255), nullable=True)
     table_id = Column(String(100), nullable=True)  # Lodasoft contact list ID
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
