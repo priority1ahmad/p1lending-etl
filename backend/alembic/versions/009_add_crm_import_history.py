@@ -19,7 +19,9 @@ def upgrade() -> None:
     op.create_table(
         "crm_import_history",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
-        sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("etl_jobs.id"), nullable=True),
+        sa.Column(
+            "job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("etl_jobs.id"), nullable=True
+        ),
         sa.Column("job_name", sa.String(255), nullable=True),
         sa.Column("table_id", sa.String(100), nullable=True),
         sa.Column(
