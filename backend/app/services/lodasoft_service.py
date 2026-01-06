@@ -120,8 +120,7 @@ class LodasoftCRMService:
             "address": "Address",
             "city": "City",
             "state": "State",
-            "zip_code": "Zip Code",
-            "zip": "Zip",
+            "zip_code": "Zip",
             "phone_1": "Phone 1",
             "phone_2": "Phone 2",
             "phone_3": "Phone 3",
@@ -132,7 +131,7 @@ class LodasoftCRMService:
             "campaign_date": "Campaign Date",
             "lead_campaign": "Lead Campaign",
             "lead_source": "Lead Source",
-            "ref_id": "Ref Id",
+            "ref_id": "Ref ID",
             "co_borrower_full_name": "Co Borrower Full Name",
             "total_units": "Total Units",
             "owner_occupied": "Owner Occupied",
@@ -159,9 +158,9 @@ class LodasoftCRMService:
             "mortgage_type": "Mortgage Type",
             "second_mortgage_amount": "Second Mortgage Amount",
             "in_litigator_list": "In Litigator List",
-            "phone_1_in_dnc": "Phone 1 In DNC",
-            "phone_2_in_dnc": "Phone 2 In DNC",
-            "phone_3_in_dnc": "Phone 3 In DNC",
+            "phone_1_in_dnc": "Phone 1 In DNC List",
+            "phone_2_in_dnc": "Phone 2 In DNC List",
+            "phone_3_in_dnc": "Phone 3 In DNC List",
             "table_id": "Table Id",
             "table_title": "Table Title",
             "job_id": "Job Id",
@@ -185,8 +184,7 @@ class LodasoftCRMService:
                 except (ValueError, TypeError):
                     self.logger.warning(f"Could not convert Lead Number: {value}")
                     value = 0
-            if value is None:
-                value = ""
+            # Keep None as None for proper JSON null serialization
             # Convert Timestamp/datetime objects to ISO string for JSON serialization
             if hasattr(value, 'isoformat'):
                 value = value.isoformat()
