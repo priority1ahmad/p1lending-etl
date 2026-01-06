@@ -17,6 +17,7 @@ import pandas as pd
 from app.core.config import settings
 from app.core.logger import etl_logger
 from app.services.etl.snowflake_service import SnowflakeConnection
+from app.services.etl.column_utils import handle_zip_columns
 
 
 class ETLResultsService:
@@ -751,9 +752,8 @@ class ETLResultsService:
         if result_df is not None and not result_df.empty:
             result_df = self._normalize_columns(result_df)
 
-            # Rename 'zip' to 'zip_code' for frontend compatibility
-            if "zip" in result_df.columns:
-                result_df = result_df.rename(columns={"zip": "zip_code"})
+            # Handle zip/zip_code column conflict (uses tested utility)
+            result_df = handle_zip_columns(result_df)
 
             raw_records = result_df.to_dict("records")
 
