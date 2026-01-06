@@ -3,7 +3,7 @@
  * Dropdown button for importing to Lodasoft CRM or exporting CSV
  */
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import {
   Box,
   ButtonGroup,
@@ -38,14 +38,14 @@ export function ImportButton({
   disabled = false,
 }: ImportButtonProps) {
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
 
   const handleToggle = () => {
     setOpen((prev) => !prev);
   };
 
   const handleClose = (event: Event) => {
-    if (anchorRef.current?.contains(event.target as HTMLElement)) {
+    if (anchorEl?.contains(event.target as HTMLElement)) {
       return;
     }
     setOpen(false);
@@ -66,7 +66,7 @@ export function ImportButton({
 
   return (
     <Box sx={{ display: 'inline-flex' }}>
-      <ButtonGroup ref={anchorRef}>
+      <ButtonGroup ref={setAnchorEl}>
         <Button
           variant="solid"
           colorScheme="accent"
@@ -91,7 +91,7 @@ export function ImportButton({
       </ButtonGroup>
       <Popper
         open={open}
-        anchorEl={anchorRef.current}
+        anchorEl={anchorEl}
         transition
         disablePortal
         placement="bottom-end"

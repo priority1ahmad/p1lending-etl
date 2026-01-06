@@ -4,16 +4,19 @@
  * Route: /results-v3
  */
 
-import { useState, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback, useRef } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Box, Typography } from '@mui/material';
 import { TableChart } from '@mui/icons-material';
 import { JobSidebar, type SidebarJob } from '../components/features/results/JobSidebar';
 import { ResultsHeader } from '../components/features/results/ResultsHeader';
 import { AirtableTable, type TableRecord } from '../components/features/results/AirtableTable';
 import { TableFooter } from '../components/features/results/TableFooter';
+import { ImportDialog } from '../components/features/import';
+import type { ImportDialogStatus } from '../components/features/import';
 import { EmptyState } from '../components/ui/Feedback/EmptyState';
 import { resultsApi } from '../services/api/results';
+import { lodasoftImportApi, type ImportLogEntry } from '../services/api/lodasoftImport';
 import { textColors } from '../theme';
 
 const RECORDS_PER_PAGE = 100;
@@ -25,6 +28,16 @@ export function ResultsPageV3() {
   const [excludeLitigators, setExcludeLitigators] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // Import state
+  const [importStatus, setImportStatus] = useState<ImportDialogStatus>('idle');
+  const [importProgress, setImportProgress] = useState(0);
+  const [recordsImported, setRecordsImported] = useState(0);
+  const [recordsFailed, setRecordsFailed] = useState(0);
+  const [importError, setImportError] = useState<string | undefined>();
+  const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
+  const importPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch jobs list
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -129,6 +142,64 @@ export function ResultsPageV3() {
     (jobsData?.jobs?.find((j) => j.job_id === selectedJob?.job_id) as { litigator_count?: number } | undefined)
       ?.litigator_count || resultsData?.litigator_count || 0;
 
+  // Start polling for import status
+  const startPollingImportStatus = useCallback((importId: string) => {
+    if (importPollRef.current) clearInterval(importPollRef.current);
+    
+    const pollStatus = async () => {
+      try {
+        const status = await lodasoftImportApi.getImportStatus(importId);
+        setImportProgress(status.progress_percent);
+        setRecordsImported(status.successful_records);
+        setRecordsFailed(status.failed_records);
+        
+        // Convert logs
+        if (status.logs) {
+          const logs: ImportLogEntry[] = status.logs.map((log) => ({
+            timestamp: new Date().toISOString(),
+            level: 'INFO' as const,
+            message: log,
+          }));
+          setImportLogs(logs);
+        }
+
+        if (status.status === 'completed') {
+          setImportStatus('completed');
+          if (importPollRef.current) {
+            clearInterval(importPollRef.current);
+            importPollRef.current = null;
+          }
+        } else if (status.status === 'failed') {
+          setImportStatus('failed');
+          setImportError(status.error_message);
+          if (importPollRef.current) {
+            clearInterval(importPollRef.current);
+            importPollRef.current = null;
+          }
+        }
+      } catch (e) {
+        console.error('[ResultsPageV3] Error polling import status:', e);
+      }
+    };
+    
+    pollStatus();
+    importPollRef.current = setInterval(pollStatus, 2000);
+  }, []);
+
+  // Import mutation
+  const importMutation = useMutation({
+    mutationFn: ({ jobId, jobName }: { jobId: string; jobName?: string }) =>
+      lodasoftImportApi.startImport(jobId, jobName),
+    onSuccess: (data) => {
+      setImportStatus('in_progress');
+      startPollingImportStatus(data.import_id);
+    },
+    onError: (error: Error) => {
+      setImportStatus('failed');
+      setImportError(error.message);
+    },
+  });
+
   // Handlers
   const handleSelectJob = useCallback((job: SidebarJob) => {
     setSelectedJob(job);
@@ -159,6 +230,34 @@ export function ResultsPageV3() {
       setIsExporting(false);
     }
   }, [selectedJob, excludeLitigators]);
+
+  const handleImport = useCallback(() => {
+    setIsImportDialogOpen(true);
+  }, []);
+
+  const handleCloseImportDialog = useCallback(() => {
+    // Only reset state if import is not in progress
+    if (importStatus !== 'in_progress' && importStatus !== 'loading') {
+      setImportStatus('idle');
+      setImportProgress(0);
+      setRecordsImported(0);
+      setRecordsFailed(0);
+      setImportError(undefined);
+      setImportLogs([]);
+    }
+    setIsImportDialogOpen(false);
+  }, [importStatus]);
+
+  const handleStartImport = useCallback(() => {
+    if (!selectedJob) return;
+    setImportStatus('loading');
+    importMutation.mutate({
+      jobId: selectedJob.job_id,
+      jobName: selectedJob.job_name,
+    });
+  }, [selectedJob, importMutation]);
+
+  const isImporting = importMutation.isPending || importStatus === 'in_progress';
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
@@ -206,7 +305,9 @@ export function ResultsPageV3() {
                 litigatorCount={litigatorCount}
                 processedDate={selectedJob.last_processed}
                 isExporting={isExporting}
+                isImporting={isImporting}
                 onExport={handleExport}
+                onImport={handleImport}
               />
 
               {/* Table */}
@@ -244,6 +345,21 @@ export function ResultsPageV3() {
           )}
         </Box>
       </Box>
+
+      {/* Import Dialog */}
+      <ImportDialog
+        open={isImportDialogOpen}
+        jobName={selectedJob?.job_name || ''}
+        recordCount={resultsData?.total || 0}
+        status={importStatus}
+        progress={importProgress}
+        recordsImported={recordsImported}
+        recordsFailed={recordsFailed}
+        errorMessage={importError}
+        logs={importLogs}
+        onClose={handleCloseImportDialog}
+        onStartImport={handleStartImport}
+      />
     </Box>
   );
 }

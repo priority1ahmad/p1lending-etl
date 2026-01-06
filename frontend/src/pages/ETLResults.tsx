@@ -60,7 +60,7 @@ export function ETLResults() {
   const [recordsFailed, setRecordsFailed] = useState(0);
   const [importError, setImportError] = useState<string | undefined>();
   const [importLogs, setImportLogs] = useState<ImportLogEntry[]>([]);
-  const [_currentImportId, setCurrentImportId] = useState<string | null>(null);
+  const [, setCurrentImportId] = useState<string | null>(null);
   const importPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch jobs list
@@ -201,6 +201,7 @@ export function ETLResults() {
     );
 
     if (matchingJob) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedJobId(jobIdFromUrl);
       setSelectedJobName(matchingJob.job_name || 'ETL Job');
       setCurrentPage(1);

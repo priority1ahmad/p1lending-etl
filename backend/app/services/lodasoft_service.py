@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable
 from datetime import datetime
 
+from app.core.config import settings
 from app.core.logger import etl_logger
 from app.core.retry import CircuitBreaker, CircuitBreakerOpen
 
@@ -63,8 +64,6 @@ class ImportProgress:
 class LodasoftCRMService:
     """Lodasoft CRM service for importing enriched ETL records."""
 
-    AUTH_URL = "https://prodapi.lodasoft.com/api/auth/connect/token"
-    UPLOAD_URL = "https://prodapi.lodasoft.com/api/contact-list/964/upload/data"
     INVALID_COLUMNS = {"Lead Campaign", "Mortgage Type"}
     PROPER_CASE_FIELDS = {
         "First Name", "Last Name", "Co Borrower Full Name",
@@ -75,14 +74,17 @@ class LodasoftCRMService:
         self,
         client_id: Optional[str] = None,
         client_secret: Optional[str] = None,
-        batch_size: int = 150,
+        batch_size: Optional[int] = None,
     ):
-        self.client_id = client_id or "dd510362-be6e-405b-9036-02bbe2a672af"
-        self.client_secret = (
-            client_secret
-            or "9J4NNL3zt6N0YwV9ctLd07U4VlIee88U9mfF3JFWy1Cqd5QenvuIMZwiFVudtHTe"
-        )
-        self.batch_size = min(batch_size, 200)
+        # Use config values, with optional overrides
+        lodasoft_config = settings.lodasoft
+        self.client_id = client_id or lodasoft_config.client_id
+        self.client_secret = client_secret or lodasoft_config.client_secret
+        self.auth_url = lodasoft_config.auth_url
+        self.upload_url = lodasoft_config.upload_url
+        self.batch_size = min(batch_size or lodasoft_config.batch_size, 200)
+        self.timeout = lodasoft_config.timeout
+
         self.logger = etl_logger.logger.getChild("Lodasoft")
         self.session = requests.Session()
         self._access_token: Optional[str] = None
@@ -138,7 +140,7 @@ class LodasoftCRMService:
                 }
                 headers = {"Content-Type": "application/x-www-form-urlencoded"}
                 response = self.session.post(
-                    self.AUTH_URL, data=payload, headers=headers, timeout=30
+                    self.auth_url, data=payload, headers=headers, timeout=30
                 )
                 if response.status_code != 200:
                     self.logger.error(f"OAuth2 failed: {response.status_code}")
@@ -171,8 +173,8 @@ class LodasoftCRMService:
                 "Content-Type": "application/json",
             }
             response = self.circuit_breaker.call(
-                self.session.post, self.UPLOAD_URL,
-                json=formatted_records, headers=headers, timeout=120,
+                self.session.post, self.upload_url,
+                json=formatted_records, headers=headers, timeout=self.timeout,
             )
             if response.status_code == 401:
                 self._invalidate_token()
