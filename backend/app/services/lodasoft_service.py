@@ -187,6 +187,11 @@ class LodasoftCRMService:
                     value = 0
             if value is None:
                 value = ""
+            # Convert Timestamp/datetime objects to ISO string for JSON serialization
+            if hasattr(value, 'isoformat'):
+                value = value.isoformat()
+            elif hasattr(value, 'strftime'):
+                value = value.strftime('%Y-%m-%d %H:%M:%S')
             formatted[mapped_key] = value
         return formatted
 
