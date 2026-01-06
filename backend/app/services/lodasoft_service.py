@@ -56,7 +56,8 @@ class ImportProgress:
             "error_message": self.error_message,
             "progress_percent": (
                 round((self.processed_records / self.total_records) * 100, 1)
-                if self.total_records > 0 else 0
+                if self.total_records > 0
+                else 0
             ),
         }
 
@@ -66,8 +67,12 @@ class LodasoftCRMService:
 
     INVALID_COLUMNS = {"Lead Campaign", "Mortgage Type"}
     PROPER_CASE_FIELDS = {
-        "First Name", "Last Name", "Co Borrower Full Name",
-        "Address", "City", "Current Lender",
+        "First Name",
+        "Last Name",
+        "Co Borrower Full Name",
+        "Address",
+        "City",
+        "Current Lender",
     }
 
     def __init__(
@@ -91,8 +96,10 @@ class LodasoftCRMService:
         self._token_expiry: Optional[float] = None
         self._token_lock = threading.RLock()
         self.circuit_breaker = CircuitBreaker(
-            failure_threshold=5, recovery_timeout=60.0,
-            success_threshold=2, logger=self.logger,
+            failure_threshold=5,
+            recovery_timeout=60.0,
+            success_threshold=2,
+            logger=self.logger,
         )
 
     def _proper_case(self, value: Any) -> str:
@@ -165,16 +172,17 @@ class LodasoftCRMService:
             token = self._get_access_token()
             if not token:
                 raise Exception("Failed to obtain OAuth2 access token")
-            formatted_records = [
-                self._format_record_for_lodasoft(r) for r in records
-            ]
+            formatted_records = [self._format_record_for_lodasoft(r) for r in records]
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
             }
             response = self.circuit_breaker.call(
-                self.session.post, self.upload_url,
-                json=formatted_records, headers=headers, timeout=self.timeout,
+                self.session.post,
+                self.upload_url,
+                json=formatted_records,
+                headers=headers,
+                timeout=self.timeout,
             )
             if response.status_code == 401:
                 self._invalidate_token()
@@ -189,11 +197,23 @@ class LodasoftCRMService:
                 "duplicates": result.get("duplicateRows", 0),
             }
         except CircuitBreakerOpen as e:
-            return {"success": False, "records_submitted": len(records),
-                    "new_rows": 0, "merged": 0, "duplicates": 0, "error": str(e)}
+            return {
+                "success": False,
+                "records_submitted": len(records),
+                "new_rows": 0,
+                "merged": 0,
+                "duplicates": 0,
+                "error": str(e),
+            }
         except Exception as e:
-            return {"success": False, "records_submitted": len(records),
-                    "new_rows": 0, "merged": 0, "duplicates": 0, "error": str(e)}
+            return {
+                "success": False,
+                "records_submitted": len(records),
+                "new_rows": 0,
+                "merged": 0,
+                "duplicates": 0,
+                "error": str(e),
+            }
 
     def test_connection(self) -> Dict[str, Any]:
         try:
@@ -214,7 +234,8 @@ class LodasoftCRMService:
         progress = ImportProgress(
             total_records=len(records),
             total_batches=(len(records) + self.batch_size - 1) // self.batch_size,
-            status="in_progress", started_at=datetime.now(),
+            status="in_progress",
+            started_at=datetime.now(),
         )
         progress.add_log(f"Starting import of {len(records)} records")
         if not records:
@@ -225,14 +246,11 @@ class LodasoftCRMService:
             progress_callback(progress)
         try:
             batches = [
-                records[i : i + self.batch_size]
-                for i in range(0, len(records), self.batch_size)
+                records[i : i + self.batch_size] for i in range(0, len(records), self.batch_size)
             ]
             for batch_idx, batch in enumerate(batches):
                 progress.current_batch = batch_idx + 1
-                progress.add_log(
-                    f"Batch {progress.current_batch}/{progress.total_batches}"
-                )
+                progress.add_log(f"Batch {progress.current_batch}/{progress.total_batches}")
                 result = self._upload_batch(batch)
                 progress.processed_records += len(batch)
                 progress.successful_records += result.get("new_rows", 0)

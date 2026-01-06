@@ -4,6 +4,7 @@ Revision ID: 009_crm_import_history
 Revises: 008_file_source_to_jobs
 Create Date: 2026-01-05
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -21,7 +22,9 @@ def upgrade() -> None:
         sa.Column("job_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("jobs.id"), nullable=True),
         sa.Column("job_name", sa.String(255), nullable=True),
         sa.Column("table_id", sa.String(100), nullable=True),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column(
+            "user_id", postgresql.UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False
+        ),
         sa.Column("status", sa.String(50), default="pending"),
         sa.Column("total_records", sa.Integer, default=0),
         sa.Column("successful_records", sa.Integer, default=0),

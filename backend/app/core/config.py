@@ -227,22 +227,20 @@ class LodasoftConfig(BaseSettings):
 
     # OAuth2 credentials (with fallback defaults for development)
     client_id: str = Field(
-        default="dd510362-be6e-405b-9036-02bbe2a672af",
-        alias="LODASOFT_CLIENT_ID"
+        default="dd510362-be6e-405b-9036-02bbe2a672af", alias="LODASOFT_CLIENT_ID"
     )
     client_secret: str = Field(
         default="9J4NNL3zt6N0YwV9ctLd07U4VlIee88U9mfF3JFWy1Cqd5QenvuIMZwiFVudtHTe",
-        alias="LODASOFT_CLIENT_SECRET"
+        alias="LODASOFT_CLIENT_SECRET",
     )
 
     # API endpoints
     auth_url: str = Field(
-        default="https://prodapi.lodasoft.com/api/auth/connect/token",
-        alias="LODASOFT_AUTH_URL"
+        default="https://prodapi.lodasoft.com/api/auth/connect/token", alias="LODASOFT_AUTH_URL"
     )
     upload_url: str = Field(
         default="https://prodapi.lodasoft.com/api/contact-list/964/upload/data",
-        alias="LODASOFT_UPLOAD_URL"
+        alias="LODASOFT_UPLOAD_URL",
     )
 
     # Import settings

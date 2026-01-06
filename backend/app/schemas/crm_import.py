@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 class CRMImportRequest(BaseModel):
     """Request to start a CRM import."""
+
     job_id: Optional[UUID] = None
     job_name: Optional[str] = None
     record_ids: Optional[List[str]] = None  # Specific records to import
@@ -15,6 +16,7 @@ class CRMImportRequest(BaseModel):
 
 class CRMImportStartResponse(BaseModel):
     """Response when starting a CRM import."""
+
     import_id: UUID
     status: str
     message: str
@@ -23,6 +25,7 @@ class CRMImportStartResponse(BaseModel):
 
 class CRMImportProgress(BaseModel):
     """Real-time import progress update."""
+
     import_id: UUID
     status: str
     total_records: int
@@ -40,6 +43,7 @@ class CRMImportProgress(BaseModel):
 
 class CRMImportHistoryItem(BaseModel):
     """A single import history record."""
+
     id: UUID
     job_id: Optional[UUID]
     job_name: Optional[str]
@@ -60,6 +64,7 @@ class CRMImportHistoryItem(BaseModel):
 
 class CRMImportHistoryResponse(BaseModel):
     """Paginated list of import history."""
+
     items: List[CRMImportHistoryItem]
     total: int
     page: int
@@ -68,6 +73,7 @@ class CRMImportHistoryResponse(BaseModel):
 
 class CRMConnectionStatus(BaseModel):
     """Lodasoft API connection status."""
+
     success: bool
     message: str
     auth_url: Optional[str] = None

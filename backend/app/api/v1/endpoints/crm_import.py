@@ -92,6 +92,7 @@ async def start_import(
 
     # Start background import task
     from app.db.session import async_session_factory
+
     background_tasks.add_task(
         run_import_task,
         str(import_record.id),
@@ -135,10 +136,16 @@ async def get_import_status(
         duplicate_records=import_record.duplicate_records,
         current_batch=0,
         total_batches=0,
-        progress_percent=round(
-            (import_record.successful_records + import_record.failed_records)
-            / import_record.total_records * 100, 1
-        ) if import_record.total_records > 0 else 0,
+        progress_percent=(
+            round(
+                (import_record.successful_records + import_record.failed_records)
+                / import_record.total_records
+                * 100,
+                1,
+            )
+            if import_record.total_records > 0
+            else 0
+        ),
         logs=[],
         error_message=import_record.error_message,
     )
@@ -155,9 +162,7 @@ async def get_import_history(
     offset = (page - 1) * page_size
 
     # Get total count
-    count_stmt = select(CRMImportHistory).where(
-        CRMImportHistory.user_id == current_user.id
-    )
+    count_stmt = select(CRMImportHistory).where(CRMImportHistory.user_id == current_user.id)
     count_result = await db.execute(count_stmt)
     total = len(count_result.scalars().all())
 
