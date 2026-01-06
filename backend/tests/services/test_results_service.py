@@ -2,7 +2,6 @@
 Tests for ETLResultsService - specifically for column handling
 """
 import pandas as pd
-import pytest
 
 from app.services.etl.column_utils import handle_zip_columns
 
