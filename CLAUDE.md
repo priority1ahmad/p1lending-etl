@@ -198,17 +198,18 @@ For direct Snowflake queries (schema changes, data migrations, debugging), use R
 | Database | `PROCESSED_DATA_DB` (for results) |
 | Schema | `PUBLIC` |
 | Private Key | `/home/aallouch/projects/LodasoftETL/new_app/rsa_key.p8` |
-| Key Password | `n9caykPwD97SgAP` |
+| Key Password | `$SNOWFLAKE_PRIVATE_KEY_PASSWORD` (from .env) |
 
 **Quick Python Connection:**
 ```python
+import os
 import snowflake.connector
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import Encoding, PrivateFormat, NoEncryption
 
 key_path = '/home/aallouch/projects/LodasoftETL/new_app/rsa_key.p8'
 with open(key_path, 'rb') as f:
-    private_key_obj = serialization.load_pem_private_key(f.read(), password=b'n9caykPwD97SgAP')
+    private_key_obj = serialization.load_pem_private_key(f.read(), password=os.environ['SNOWFLAKE_PRIVATE_KEY_PASSWORD'].encode())
 private_key_der = private_key_obj.private_bytes(encoding=Encoding.DER, format=PrivateFormat.PKCS8, encryption_algorithm=NoEncryption())
 
 conn = snowflake.connector.connect(

@@ -60,10 +60,7 @@
       "Edit(./backend/secrets/**)",
       "Write(./.env)",
       "Write(./backend/.env)",
-      "Bash(rm -rf /)",
-      "Bash(snowsql:*--account*prod*)",
-      "Bash(*PROD*)",
-      "Bash(*production*)"
+      "Bash(rm -rf /)"
     ],
     "ask": [
       "Bash(git push:*)",
@@ -82,11 +79,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/post-edit.sh $FILE"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/post-edit.sh $FILE"
           },
           {
             "type": "command",
             "command": ".claude/hooks/check-storybook.sh $FILE"
+          },
+          {
+            "type": "command",
+            "command": "node $CLAUDE_PROJECT_DIR/.claude/hooks/typescript-quality/quality-check.js"
           }
         ]
       }
@@ -97,7 +98,41 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/protect-secrets.py"
+            "command": "python3 /home/aallouch/projects/LodasoftETL/new_app/.claude/hooks/protect-secrets.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tdd-guard"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tdd-guard"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tdd-guard"
+          },
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-resources.sh"
           }
         ]
       }
@@ -107,7 +142,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/on-stop.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/on-stop.sh"
           }
         ]
       }
