@@ -113,13 +113,73 @@ class LodasoftCRMService:
         return " ".join(word.capitalize() for word in value.split())
 
     def _format_record_for_lodasoft(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        # Mapping from Snowflake snake_case to LodaSoft Title Case
+        column_mapping = {
+            "first_name": "First Name",
+            "last_name": "Last Name",
+            "address": "Address",
+            "city": "City",
+            "state": "State",
+            "zip_code": "Zip Code",
+            "zip": "Zip",
+            "phone_1": "Phone 1",
+            "phone_2": "Phone 2",
+            "phone_3": "Phone 3",
+            "email_1": "Email 1",
+            "email_2": "Email 2",
+            "email_3": "Email 3",
+            "lead_number": "Lead Number",
+            "campaign_date": "Campaign Date",
+            "lead_campaign": "Lead Campaign",
+            "lead_source": "Lead Source",
+            "ref_id": "Ref Id",
+            "co_borrower_full_name": "Co Borrower Full Name",
+            "total_units": "Total Units",
+            "owner_occupied": "Owner Occupied",
+            "annual_tax_amount": "Annual Tax Amount",
+            "assessed_value": "Assessed Value",
+            "estimated_value": "Estimated Value",
+            "ltv": "LTV",
+            "loan_type": "Loan Type",
+            "first_mortgage_type": "First Mortgage Type",
+            "first_mortgage_amount": "First Mortgage Amount",
+            "first_mortgage_balance": "First Mortgage Balance",
+            "term": "Term",
+            "estimated_new_payment": "Estimated New Payment",
+            "second_mortgage_type": "Second Mortgage Type",
+            "second_mortgage_term": "Second Mortgage Term",
+            "second_mortgage_balance": "Second Mortgage Balance",
+            "has_second_mortgage": "Has Second Mortgage",
+            "current_interest_rate": "Current Interest Rate",
+            "current_lender": "Current Lender",
+            "arm_index_type": "ARM Index Type",
+            "origination_date": "Origination Date",
+            "rate_adjustment_date": "Rate Adjustment Date",
+            "leadcampaignid": "LeadCampaignId",
+            "mortgage_type": "Mortgage Type",
+            "second_mortgage_amount": "Second Mortgage Amount",
+            "in_litigator_list": "In Litigator List",
+            "phone_1_in_dnc": "Phone 1 In DNC",
+            "phone_2_in_dnc": "Phone 2 In DNC",
+            "phone_3_in_dnc": "Phone 3 In DNC",
+            "table_id": "Table Id",
+            "table_title": "Table Title",
+            "job_id": "Job Id",
+            "job_name": "Job Name",
+            "processed_at": "Processed At",
+            "record_id": "Record Id",
+        }
+
         formatted = {}
         for key, value in record.items():
-            if key in self.INVALID_COLUMNS:
+            # Convert snake_case to Title Case if mapped
+            mapped_key = column_mapping.get(key, key)
+
+            if mapped_key in self.INVALID_COLUMNS:
                 continue
-            if key in self.PROPER_CASE_FIELDS:
+            if mapped_key in self.PROPER_CASE_FIELDS:
                 value = self._proper_case(value)
-            if key == "Lead Number" and value is not None:
+            if mapped_key == "Lead Number" and value is not None:
                 try:
                     value = int(float(str(value).replace(",", "")))
                 except (ValueError, TypeError):
@@ -127,7 +187,7 @@ class LodasoftCRMService:
                     value = 0
             if value is None:
                 value = ""
-            formatted[key] = value
+            formatted[mapped_key] = value
         return formatted
 
     def _get_access_token(self) -> Optional[str]:
