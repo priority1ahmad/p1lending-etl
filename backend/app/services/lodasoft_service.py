@@ -233,6 +233,7 @@ class LodasoftCRMService:
             if not token:
                 raise Exception("Failed to obtain OAuth2 access token")
             formatted_records = [self._format_record_for_lodasoft(r) for r in records]
+            self.logger.info(f"Uploading batch of {len(formatted_records)} records to {self.upload_url}")
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
@@ -244,11 +245,13 @@ class LodasoftCRMService:
                 headers=headers,
                 timeout=self.timeout,
             )
+            self.logger.info(f"Response status: {response.status_code}")
             if response.status_code == 401:
                 self._invalidate_token()
                 raise requests.exceptions.HTTPError("Auth failed (401)")
             response.raise_for_status()
             result = response.json()
+            self.logger.info(f"Upload result: {result}")
             return {
                 "success": True,
                 "records_submitted": len(records),
@@ -257,6 +260,7 @@ class LodasoftCRMService:
                 "duplicates": result.get("duplicateRows", 0),
             }
         except CircuitBreakerOpen as e:
+            self.logger.error(f"Circuit breaker open: {e}")
             return {
                 "success": False,
                 "records_submitted": len(records),
@@ -266,6 +270,7 @@ class LodasoftCRMService:
                 "error": str(e),
             }
         except Exception as e:
+            self.logger.error(f"Upload batch failed: {e}")
             return {
                 "success": False,
                 "records_submitted": len(records),
