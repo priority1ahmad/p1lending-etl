@@ -232,10 +232,10 @@ class LodasoftCRMService:
                     value = 0
             # Keep None as None for proper JSON null serialization
             # Convert Timestamp/datetime objects to ISO string for JSON serialization
-            if hasattr(value, 'isoformat'):
+            if hasattr(value, "isoformat"):
                 value = value.isoformat()
-            elif hasattr(value, 'strftime'):
-                value = value.strftime('%Y-%m-%d %H:%M:%S')
+            elif hasattr(value, "strftime"):
+                value = value.strftime("%Y-%m-%d %H:%M:%S")
             formatted[mapped_key] = value
         return formatted
 
@@ -282,7 +282,9 @@ class LodasoftCRMService:
             if not token:
                 raise Exception("Failed to obtain OAuth2 access token")
             formatted_records = [self._format_record_for_lodasoft(r) for r in records]
-            self.logger.info(f"Uploading batch of {len(formatted_records)} records to {self.upload_url}")
+            self.logger.info(
+                f"Uploading batch of {len(formatted_records)} records to {self.upload_url}"
+            )
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
