@@ -91,13 +91,13 @@ async def start_import(
     await db.refresh(import_record)
 
     # Start background import task
-    from app.db.session import async_session_factory
+    from app.db.session import AsyncSessionLocal
 
     background_tasks.add_task(
         run_import_task,
         str(import_record.id),
         records,
-        async_session_factory,
+        AsyncSessionLocal,
     )
 
     return CRMImportStartResponse(
