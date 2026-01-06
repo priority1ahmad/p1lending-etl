@@ -251,6 +251,8 @@ class LodasoftCRMService:
                 timeout=self.timeout,
             )
             self.logger.info(f"Response status: {response.status_code}")
+            if response.status_code != 200:
+                self.logger.error(f"Response body: {response.text[:1000]}")
             if response.status_code == 401:
                 self._invalidate_token()
                 raise requests.exceptions.HTTPError("Auth failed (401)")
