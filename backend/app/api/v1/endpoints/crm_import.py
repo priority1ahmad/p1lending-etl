@@ -68,9 +68,9 @@ async def start_import(
     results_service = ETLResultsService()
 
     if request.job_id:
-        records = await results_service.get_results_for_job(str(request.job_id))
+        records = results_service.get_job_results(job_id=str(request.job_id), limit=10000)
     else:
-        records = await results_service.get_all_results(limit=10000)
+        records = results_service.get_job_results(limit=10000)
 
     if not records:
         raise HTTPException(status_code=400, detail="No records found to import")
