@@ -1,7 +1,6 @@
 """Tests for Lodasoft CRM Integration Service"""
 
 import os
-import pytest
 
 # Set required env vars before any imports that trigger config loading
 os.environ.setdefault("SNOWFLAKE_ACCOUNT", "test")
