@@ -11,6 +11,7 @@ from app.db.models.phone_blacklist import PhoneBlacklist
 from app.db.models.results_cache import ResultsCache, ResultsCacheMetadata
 from app.db.models.file_source import FileSource, FileSourceStatus
 from app.db.models.file_upload import FileUpload
+from app.db.models.crm_import import CRMImportHistory
 
 __all__ = [
     "User",
@@ -25,4 +26,5 @@ __all__ = [
     "FileSource",
     "FileSourceStatus",
     "FileUpload",
+    "CRMImportHistory",
 ]

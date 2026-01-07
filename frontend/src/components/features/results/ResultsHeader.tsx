@@ -1,11 +1,11 @@
 /**
  * ResultsHeader Component
- * Header bar showing job name, stats, and export button
+ * Header bar showing job name, stats, and import/export buttons
  */
 
 import { Box, Typography, Chip } from '@mui/material';
-import { Download, FiberManualRecord } from '@mui/icons-material';
-import { Button } from '../../ui/Button/Button';
+import { FiberManualRecord } from '@mui/icons-material';
+import { ImportButton } from '../import';
 import { textColors, palette } from '../../../theme';
 
 export interface ResultsHeaderProps {
@@ -14,7 +14,9 @@ export interface ResultsHeaderProps {
   litigatorCount: number;
   processedDate: string;
   isExporting: boolean;
+  isImporting?: boolean;
   onExport: () => void;
+  onImport: () => void;
 }
 
 // Format date nicely
@@ -32,7 +34,9 @@ export function ResultsHeader({
   recordCount,
   processedDate,
   isExporting,
+  isImporting = false,
   onExport,
+  onImport,
 }: ResultsHeaderProps) {
 
   return (
@@ -90,18 +94,13 @@ export function ResultsHeader({
         </Box>
       </Box>
 
-      {/* Right: Export Button */}
-      <Button
-        variant="solid"
-        colorScheme="accent"
-        startIcon={<Download />}
-        onClick={onExport}
-        loading={isExporting}
-        loadingText="Exporting..."
-        size="medium"
-      >
-        Export CSV
-      </Button>
+      {/* Right: Import/Export Button */}
+      <ImportButton
+        onImport={onImport}
+        onExport={onExport}
+        isImporting={isImporting}
+        isExporting={isExporting}
+      />
     </Box>
   );
 }

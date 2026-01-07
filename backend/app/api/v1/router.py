@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     # file_sources,
     # file_uploads,
     dev,
+    crm_import,
 )
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 # api_router.include_router(file_sources.router, tags=["file-sources"])
 # api_router.include_router(file_uploads.router, tags=["file-uploads"])
 api_router.include_router(dev.router, tags=["dev"])
+api_router.include_router(crm_import.router, tags=["crm"])

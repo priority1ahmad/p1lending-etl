@@ -149,6 +149,7 @@ export function ResultsV2() {
               recordsPerPage={recordsPerPage}
               isLoading={resultsLoading}
               isExporting={isExporting}
+              onImport={() => {}}
               onToggleExclude={handleToggleExclude}
               onPageChange={handlePageChange}
               onRecordsPerPageChange={handleRecordsPerPageChange}

@@ -219,6 +219,37 @@ class NTFYConfig(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="NTFY_", case_sensitive=False, extra="ignore")
 
 
+class LodasoftConfig(BaseSettings):
+    """Lodasoft CRM API configuration
+
+    SECURITY: Client credentials should be set via environment variables.
+    """
+
+    # OAuth2 credentials (with fallback defaults for development)
+    client_id: str = Field(
+        default="dd510362-be6e-405b-9036-02bbe2a672af", alias="LODASOFT_CLIENT_ID"
+    )
+    client_secret: str = Field(
+        default="9J4NNL3zt6N0YwV9ctLd07U4VlIee88U9mfF3JFWy1Cqd5QenvuIMZwiFVudtHTe",
+        alias="LODASOFT_CLIENT_SECRET",
+    )
+
+    # API endpoints
+    auth_url: str = Field(
+        default="https://prodapi.lodasoft.com/api/auth/connect/token", alias="LODASOFT_AUTH_URL"
+    )
+    upload_url: str = Field(
+        default="https://prodapi.lodasoft.com/api/contact-list/964/upload/data",
+        alias="LODASOFT_UPLOAD_URL",
+    )
+
+    # Import settings
+    batch_size: int = Field(default=150, alias="LODASOFT_BATCH_SIZE")
+    timeout: int = Field(default=120, alias="LODASOFT_TIMEOUT")
+
+    model_config = SettingsConfigDict(env_prefix="LODASOFT_", case_sensitive=False, extra="ignore")
+
+
 class Settings(BaseSettings):
     """Main settings class that combines all configurations
 
@@ -255,6 +286,7 @@ class Settings(BaseSettings):
     idicore: IdiCOREConfig = Field(default_factory=IdiCOREConfig)
     etl: ETLConfig = Field(default_factory=ETLConfig)
     ntfy: NTFYConfig = Field(default_factory=NTFYConfig)
+    lodasoft: LodasoftConfig = Field(default_factory=LodasoftConfig)
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False, extra="ignore"
