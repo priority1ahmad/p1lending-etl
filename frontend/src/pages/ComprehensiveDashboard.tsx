@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { Box, Grid, Skeleton, Alert, AlertTitle } from '@mui/material';
+import { Box, Grid, Skeleton, Alert, AlertTitle, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 
@@ -31,14 +31,13 @@ import {
 import { textColors, backgrounds, borderColors, palette } from '../theme';
 
 import { jobsApi, type ETLJob } from '../services/api/jobs';
-import { scriptsApi } from '../services/api/scripts';
 import {
   TrendingUp,
   FileDownload,
   Settings,
-  Database,
-  BarChart3,
-  Clock,
+  Storage,
+  BarChart,
+  AccessTime,
 } from '@mui/icons-material';
 
 interface DashboardStats {
@@ -64,12 +63,6 @@ export function ComprehensiveDashboard() {
       return response.jobs;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
-  });
-
-  // Fetch scripts data
-  const { data: scripts } = useQuery({
-    queryKey: ['scripts'],
-    queryFn: () => scriptsApi.list(),
   });
 
   // Calculate dashboard statistics
@@ -225,11 +218,11 @@ export function ComprehensiveDashboard() {
         subtitle="Detailed job and processing metrics"
       >
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <DashboardMetricCard
               title="Jobs Today"
               value={stats.completedToday}
-              icon={<Clock sx={{ fontSize: 24 }} />}
+              icon={<AccessTime sx={{ fontSize: 24 }} />}
               color={palette.accent[500]}
               trend={{
                 value: Math.round(((stats.completedToday || 0) / Math.max(stats.totalJobs, 1)) * 100),
@@ -237,7 +230,7 @@ export function ComprehensiveDashboard() {
               }}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <DashboardMetricCard
               title="Success Rate"
               value={stats.totalJobs > 0 ? ((stats.completedToday / stats.totalJobs) * 100).toFixed(1) : '0'}
@@ -250,20 +243,20 @@ export function ComprehensiveDashboard() {
               }}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <DashboardMetricCard
               title="Total Processed"
               value={stats.totalRecordsProcessed}
-              icon={<Database sx={{ fontSize: 24 }} />}
+              icon={<Storage sx={{ fontSize: 24 }} />}
               color={palette.primary[600]}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <DashboardMetricCard
               title="Avg. Processing Time"
               value={Math.round(stats.avgProcessingTime / 60) || 0}
               suffix="min"
-              icon={<Clock sx={{ fontSize: 24 }} />}
+              icon={<AccessTime sx={{ fontSize: 24 }} />}
               color={palette.accent[500]}
             />
           </Grid>
@@ -276,7 +269,7 @@ export function ComprehensiveDashboard() {
         subtitle="Processing volume and compliance breakdown"
       >
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <ProcessingTrendsChart
               title="7-Day Processing Trend"
               subtitle="Records processed per day"
@@ -286,7 +279,7 @@ export function ComprehensiveDashboard() {
               height={320}
             />
           </Grid>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <ComplianceDonutChart
               title="Compliance Overview"
               subtitle="Record distribution by compliance status"
@@ -304,7 +297,7 @@ export function ComprehensiveDashboard() {
         subtitle="Common tasks and shortcuts"
       >
         <Grid container spacing={3}>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <QuickActionCard
               title="Start New Job"
               description="Run a new ETL job for a selected script"
@@ -313,25 +306,25 @@ export function ComprehensiveDashboard() {
               onClick={() => navigate('/')}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <QuickActionCard
               title="View Results"
               description="Browse and filter completed job results"
-              icon={<BarChart3 sx={{ fontSize: 28 }} />}
+              icon={<BarChart sx={{ fontSize: 28 }} />}
               color={palette.success[500]}
               onClick={() => navigate('/results')}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <QuickActionCard
               title="Manage Scripts"
               description="View and edit SQL scripts"
-              icon={<Database sx={{ fontSize: 28 }} />}
+              icon={<Storage sx={{ fontSize: 28 }} />}
               color={palette.primary[600]}
               onClick={() => navigate('/sql-files')}
             />
           </Grid>
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <QuickActionCard
               title="Export Data"
               description="Download results as CSV or PDF"
@@ -360,10 +353,11 @@ export function ComprehensiveDashboard() {
           <EmptyState
             title="No Jobs Yet"
             description="Start by running your first ETL job"
-            action={{
-              label: 'Create Job',
-              onClick: () => navigate('/'),
-            }}
+            action={
+              <Button variant="solid" onClick={() => navigate('/')}>
+                Create Job
+              </Button>
+            }
           />
         ) : (
           <Card>
