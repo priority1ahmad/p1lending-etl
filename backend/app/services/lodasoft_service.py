@@ -117,6 +117,13 @@ class LodasoftCRMService:
         "Address",
         "City",
         "Current Lender",
+        "Lead Source",
+        "Loan Type",
+        "First Mortgage Type",
+        "Second Mortgage Type",
+        "ARM Index Type",
+        "Owner Occupied",
+        "Has Second Mortgage",
     }
 
     def __init__(
@@ -165,6 +172,7 @@ class LodasoftCRMService:
             "city": "City",
             "state": "State",
             "zip_code": "Zip",
+            "zip": "Zip",  # Fallback: use zip if zip_code is null
             "phone_1": "Phone 1",
             "phone_2": "Phone 2",
             "phone_3": "Phone 3",
@@ -224,12 +232,34 @@ class LodasoftCRMService:
                 continue
             if mapped_key in self.PROPER_CASE_FIELDS:
                 value = self._proper_case(value)
-            if mapped_key == "Lead Number" and value is not None:
+            if (
+                mapped_key
+                in (
+                    "Lead Number",
+                    "Total Units",
+                    "Annual Tax Amount",
+                    "Assessed Value",
+                    "First Mortgage Balance",
+                    "Term",
+                    "First Mortgage Amount",
+                    "Second Mortgage Amount",
+                    "Second Mortgage Balance",
+                    "Second Mortgage Term",
+                    "Estimated New Payment",
+                    "LTV",
+                )
+                and value is not None
+            ):
                 try:
                     value = int(float(str(value).replace(",", "")))
                 except (ValueError, TypeError):
-                    self.logger.warning(f"Could not convert Lead Number: {value}")
+                    self.logger.warning(f"Could not convert {mapped_key}: {value}")
                     value = 0
+            # Clean phone/zip - strip .0 suffix from float strings
+            if mapped_key in ("Phone 1", "Phone 2", "Phone 3", "Zip") and value is not None:
+                str_val = str(value).strip()
+                if str_val.endswith(".0"):
+                    value = str_val[:-2]
             # Keep None as None for proper JSON null serialization
             # Convert Timestamp/datetime objects to ISO string for JSON serialization
             if hasattr(value, "isoformat"):
