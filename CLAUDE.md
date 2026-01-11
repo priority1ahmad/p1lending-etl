@@ -238,10 +238,26 @@ conn.close()
 
 ## Claude Code Integration
 
+### Git Workflow
+
+**CRITICAL: NEVER push directly to `main` branch.**
+
+1. Create a feature branch for changes (e.g., `fix/auth-token-refresh`)
+2. Commit changes to the feature branch
+3. Push the feature branch to origin
+4. Create a Pull Request using `gh pr create`
+5. **STOP** - User will review and merge the PR themselves
+
+**Branch Naming:**
+- `fix/` - Bug fixes
+- `feat/` - New features
+- `refactor/` - Code refactoring
+- `docs/` - Documentation updates
+
 ### Deployment Workflow
-1. Make code changes
-2. Commit and push to GitHub
-3. **DO NOT deploy** - User handles deployment manually
+1. Make code changes on a feature branch
+2. Create PR for user review
+3. **DO NOT merge or deploy** - User handles merging and deployment manually
 
 ### Slash Commands
 | Command | Purpose |
